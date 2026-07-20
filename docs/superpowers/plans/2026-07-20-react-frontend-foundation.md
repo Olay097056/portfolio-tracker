@@ -195,7 +195,7 @@ git commit -m "feat: allow CORS from the Vite dev server origin"
     "jsdom": "^25.0.1",
     "typescript": "^5.7.2",
     "vite": "^6.0.5",
-    "vitest": "^2.1.8"
+    "vitest": "^3.0.5"
   }
 }
 ```
@@ -246,6 +246,8 @@ Expected: installs with no errors (creates `node_modules/` and `package-lock.jso
   "include": ["vite.config.ts"]
 }
 ```
+
+(Note: `"noEmit": true` cannot be added here — TypeScript's `TS6310` rule forbids a `composite` project referenced via another tsconfig's `"references"` from disabling emit. The resulting `vite.config.js`/`vite.config.d.ts`/`*.tsbuildinfo` build byproducts are handled instead by gitignoring them — see Task 2 Step 15's `.gitignore` additions.)
 
 - [ ] **Step 5: Write `vite.config.ts`**
 
@@ -406,7 +408,7 @@ git add frontend/package.json frontend/tsconfig.json frontend/tsconfig.node.json
 git commit -m "chore: scaffold Vite + React + TypeScript frontend with Vitest"
 ```
 
-Note: do NOT commit `frontend/node_modules/` or `frontend/dist/` — add a `frontend/.gitignore` if one doesn't already cover them (check the repo-root `.gitignore` first; if it doesn't have a `node_modules` entry, add `frontend/node_modules/` and `frontend/dist/` to it in this same commit).
+Note: do NOT commit `frontend/node_modules/` or `frontend/dist/` — add a `frontend/.gitignore` if one doesn't already cover them (check the repo-root `.gitignore` first; if it doesn't have a `node_modules` entry, add `frontend/node_modules/` and `frontend/dist/` to it in this same commit). Also add `*.tsbuildinfo`, `frontend/vite.config.js`, and `frontend/vite.config.d.ts` to the same `.gitignore` — `tsc -b`'s composite build for `vite.config.ts` regenerates these on every build (see the `noEmit` note under Task 2 Step 4 above for why they can't simply be suppressed at the source).
 
 ---
 

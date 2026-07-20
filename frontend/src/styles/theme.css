@@ -1,0 +1,39 @@
+/* frontend/src/styles/theme.css */
+:root {
+  --bg: #0a0d12;
+  --panel: #131822;
+  --panel2: #1a212c;
+  --panel3: #20293a;
+  --border: #232b38;
+  --gold: #f0b90b;
+  --gold-dim: #8a6c17;
+  --green: #2ecc71;
+  --red: #ef4444;
+  --yellow: #f1c40f;
+  --text: #e6e9ef;
+  --muted: #8892a0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+input {
+  background: var(--panel3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 6px 8px;
+}

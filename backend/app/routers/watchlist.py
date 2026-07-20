@@ -1,10 +1,11 @@
 # backend/app/routers/watchlist.py
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import WatchlistItem
+from app.routers._deps import get_or_404
 from app.schemas import WatchlistItemCreate, WatchlistItemOut
 
 router = APIRouter(prefix="/watchlist", tags=["watchlist"])
@@ -26,8 +27,6 @@ def list_watchlist_items(db: Session = Depends(get_db)):
 
 @router.delete("/{item_id}", status_code=204)
 def delete_watchlist_item(item_id: int, db: Session = Depends(get_db)):
-    item = db.get(WatchlistItem, item_id)
-    if item is None:
-        raise HTTPException(status_code=404, detail="Watchlist item not found")
+    item = get_or_404(db, WatchlistItem, item_id, "Watchlist item not found")
     db.delete(item)
     db.commit()

@@ -4,16 +4,14 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Holding, Portfolio
+from app.routers._deps import get_or_404
 from app.schemas import HoldingCreate, HoldingOut, HoldingUpdate
 
 router = APIRouter(prefix="/portfolios/{portfolio_id}/holdings", tags=["holdings"])
 
 
 def _get_portfolio_or_404(db: Session, portfolio_id: int) -> Portfolio:
-    portfolio = db.get(Portfolio, portfolio_id)
-    if portfolio is None:
-        raise HTTPException(status_code=404, detail="Portfolio not found")
-    return portfolio
+    return get_or_404(db, Portfolio, portfolio_id, "Portfolio not found")
 
 
 def _validate_holding_target_allocation(
@@ -53,8 +51,8 @@ def list_holdings(portfolio_id: int, db: Session = Depends(get_db)):
 @router.patch("/{holding_id}", response_model=HoldingOut)
 def update_holding(portfolio_id: int, holding_id: int, payload: HoldingUpdate, db: Session = Depends(get_db)):
     _get_portfolio_or_404(db, portfolio_id)
-    holding = db.get(Holding, holding_id)
-    if holding is None or holding.portfolio_id != portfolio_id:
+    holding = get_or_404(db, Holding, holding_id, "Holding not found")
+    if holding.portfolio_id != portfolio_id:
         raise HTTPException(status_code=404, detail="Holding not found")
     updates = payload.model_dump(exclude_unset=True)
     if "target_allocation_pct" in updates:
@@ -71,8 +69,8 @@ def update_holding(portfolio_id: int, holding_id: int, payload: HoldingUpdate, d
 @router.delete("/{holding_id}", status_code=204)
 def delete_holding(portfolio_id: int, holding_id: int, db: Session = Depends(get_db)):
     _get_portfolio_or_404(db, portfolio_id)
-    holding = db.get(Holding, holding_id)
-    if holding is None or holding.portfolio_id != portfolio_id:
+    holding = get_or_404(db, Holding, holding_id, "Holding not found")
+    if holding.portfolio_id != portfolio_id:
         raise HTTPException(status_code=404, detail="Holding not found")
     db.delete(holding)
     db.commit()

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.calculations import portfolio_stats
 from app.database import get_db
 from app.models import Portfolio
+from app.routers._deps import get_or_404
 from app.schemas import PortfolioCreate, PortfolioOut, PortfolioUpdate, PriceMap
 
 router = APIRouter(prefix="/portfolios", tags=["portfolios"])
@@ -42,17 +43,12 @@ def list_portfolios(db: Session = Depends(get_db)):
 
 @router.get("/{portfolio_id}", response_model=PortfolioOut)
 def get_portfolio(portfolio_id: int, db: Session = Depends(get_db)):
-    portfolio = db.get(Portfolio, portfolio_id)
-    if portfolio is None:
-        raise HTTPException(status_code=404, detail="Portfolio not found")
-    return portfolio
+    return get_or_404(db, Portfolio, portfolio_id, "Portfolio not found")
 
 
 @router.patch("/{portfolio_id}", response_model=PortfolioOut)
 def update_portfolio(portfolio_id: int, payload: PortfolioUpdate, db: Session = Depends(get_db)):
-    portfolio = db.get(Portfolio, portfolio_id)
-    if portfolio is None:
-        raise HTTPException(status_code=404, detail="Portfolio not found")
+    portfolio = get_or_404(db, Portfolio, portfolio_id, "Portfolio not found")
     updates = payload.model_dump(exclude_unset=True)
     if "target_allocation_pct" in updates:
         _validate_total_target_allocation(db, updates["target_allocation_pct"], exclude_id=portfolio_id)
@@ -65,16 +61,12 @@ def update_portfolio(portfolio_id: int, payload: PortfolioUpdate, db: Session = 
 
 @router.delete("/{portfolio_id}", status_code=204)
 def delete_portfolio(portfolio_id: int, db: Session = Depends(get_db)):
-    portfolio = db.get(Portfolio, portfolio_id)
-    if portfolio is None:
-        raise HTTPException(status_code=404, detail="Portfolio not found")
+    portfolio = get_or_404(db, Portfolio, portfolio_id, "Portfolio not found")
     db.delete(portfolio)
     db.commit()
 
 
 @router.post("/{portfolio_id}/summary")
 def portfolio_summary(portfolio_id: int, payload: PriceMap, db: Session = Depends(get_db)):
-    portfolio = db.get(Portfolio, portfolio_id)
-    if portfolio is None:
-        raise HTTPException(status_code=404, detail="Portfolio not found")
+    portfolio = get_or_404(db, Portfolio, portfolio_id, "Portfolio not found")
     return portfolio_stats(portfolio, payload.prices)

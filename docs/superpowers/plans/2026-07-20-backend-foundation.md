@@ -299,7 +299,7 @@ git commit -m "feat: add Portfolio, Holding, WatchlistItem SQLAlchemy models"
 
 **Interfaces:**
 - Consumes: `Holding`, `Portfolio` from `app.models` (Task 2) — reads their attributes, does not query the DB itself (pure functions, take ORM objects + a `prices: dict[str, float]` map as input).
-- Produces: `holding_stats(holding, current_price, portfolio_holdings_value)`, `severity_for_deviation(deviation_pp)`, `portfolio_stats(portfolio, prices)`, `allocation_severity_summary(portfolios, prices)` — the API routers in Tasks 4–6 call these by exact name.
+- Produces: `holding_stats(holding, current_price, portfolio_holdings_value)`, `severity_for_deviation(deviation_pp)`, `portfolio_stats(portfolio, prices)` — the API routers in Tasks 4–6 call these by exact name. (An earlier draft of this line also listed `allocation_severity_summary(portfolios, prices)`; it's removed here — no task ever defines or calls it, and the per-holding severity already returned inside `portfolio_stats` covers every consumer this plan has.)
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -534,12 +534,16 @@ from fastapi import FastAPI
 
 from app.database import Base, engine
 
-app = FastAPI(title="Portfolio Tracker API")
+from contextlib import asynccontextmanager
 
 
-@app.on_event("startup")
-def on_startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    yield
+
+
+app = FastAPI(title="Portfolio Tracker API", lifespan=lifespan)
 
 
 @app.get("/health")
@@ -745,18 +749,22 @@ def delete_portfolio(portfolio_id: int, db: Session = Depends(get_db)):
 
 ```python
 # backend/app/main.py (replace the full file)
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
 from app.database import Base, engine
 from app.routers import portfolios
 
-app = FastAPI(title="Portfolio Tracker API")
-app.include_router(portfolios.router)
 
-
-@app.on_event("startup")
-def on_startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    yield
+
+
+app = FastAPI(title="Portfolio Tracker API", lifespan=lifespan)
+app.include_router(portfolios.router)
 
 
 @app.get("/health")
@@ -966,19 +974,23 @@ def delete_holding(portfolio_id: int, holding_id: int, db: Session = Depends(get
 
 ```python
 # backend/app/main.py (replace the full file)
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
 from app.database import Base, engine
 from app.routers import holdings, portfolios
 
-app = FastAPI(title="Portfolio Tracker API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    yield
+
+
+app = FastAPI(title="Portfolio Tracker API", lifespan=lifespan)
 app.include_router(portfolios.router)
 app.include_router(holdings.router)
-
-
-@app.on_event("startup")
-def on_startup():
-    Base.metadata.create_all(bind=engine)
 
 
 @app.get("/health")
@@ -1148,20 +1160,24 @@ def portfolio_summary(portfolio_id: int, payload: PriceMap, db: Session = Depend
 
 ```python
 # backend/app/main.py (replace the full file)
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
 from app.database import Base, engine
 from app.routers import holdings, portfolios, watchlist
 
-app = FastAPI(title="Portfolio Tracker API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    yield
+
+
+app = FastAPI(title="Portfolio Tracker API", lifespan=lifespan)
 app.include_router(portfolios.router)
 app.include_router(holdings.router)
 app.include_router(watchlist.router)
-
-
-@app.on_event("startup")
-def on_startup():
-    Base.metadata.create_all(bind=engine)
 
 
 @app.get("/health")

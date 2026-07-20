@@ -2,6 +2,7 @@ import pytest
 from sqlalchemy import create_engine, StaticPool
 from sqlalchemy.orm import sessionmaker
 
+import app.models  # noqa: F401  (registers ORM classes with Base.metadata)
 from app.database import Base
 
 

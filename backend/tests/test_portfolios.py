@@ -95,3 +95,39 @@ def test_portfolio_summary_uses_supplied_prices(client):
 def test_portfolio_summary_404_for_missing_portfolio(client):
     response = client.post("/portfolios/999/summary", json={"prices": {}})
     assert response.status_code == 404
+
+
+def test_portfolio_summaries_are_isolated_across_portfolios(client):
+    """Two portfolios, each with their own holding, must not leak values into each other's summary."""
+    portfolio_a = client.post("/portfolios", json={"name": "DIME", "cash_usd": 100}).json()
+    portfolio_b = client.post("/portfolios", json={"name": "Speculative", "cash_usd": 50}).json()
+
+    client.post(
+        f"/portfolios/{portfolio_a['id']}/holdings",
+        json={"ticker": "AAPL", "shares": 10, "avg_cost_usd": 100},
+    )
+    client.post(
+        f"/portfolios/{portfolio_b['id']}/holdings",
+        json={"ticker": "SMH", "shares": 5, "avg_cost_usd": 200},
+    )
+
+    response_a = client.post(
+        f"/portfolios/{portfolio_a['id']}/summary", json={"prices": {"AAPL": 150, "SMH": 300}}
+    )
+    response_b = client.post(
+        f"/portfolios/{portfolio_b['id']}/summary", json={"prices": {"AAPL": 150, "SMH": 300}}
+    )
+    assert response_a.status_code == 200
+    assert response_b.status_code == 200
+    body_a = response_a.json()
+    body_b = response_b.json()
+
+    # Portfolio A only reflects its own AAPL holding.
+    assert round(body_a["holdings_value"], 2) == round(10 * 150, 2)
+    assert round(body_a["total_value"], 2) == round(10 * 150 + 100, 2)
+    assert [h["ticker"] for h in body_a["holdings"]] == ["AAPL"]
+
+    # Portfolio B only reflects its own SMH holding, unaffected by A's holding/prices.
+    assert round(body_b["holdings_value"], 2) == round(5 * 300, 2)
+    assert round(body_b["total_value"], 2) == round(5 * 300 + 50, 2)
+    assert [h["ticker"] for h in body_b["holdings"]] == ["SMH"]

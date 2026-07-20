@@ -99,3 +99,26 @@ def test_delete_holding(client):
 
     response = client.get(f"/portfolios/{portfolio['id']}/holdings")
     assert response.json() == []
+
+
+def test_holding_not_accessible_through_a_different_portfolios_url(client):
+    """A holding belonging to portfolio A must not be patchable/deletable via portfolio B's URL."""
+    portfolio_a = _make_portfolio(client, name="DIME")
+    portfolio_b = _make_portfolio(client, name="Speculative")
+    holding = client.post(
+        f"/portfolios/{portfolio_a['id']}/holdings",
+        json={"ticker": "AAPL", "shares": 12, "avg_cost_usd": 187.40},
+    ).json()
+
+    patch_response = client.patch(
+        f"/portfolios/{portfolio_b['id']}/holdings/{holding['id']}", json={"shares": 5}
+    )
+    assert patch_response.status_code == 404
+
+    delete_response = client.delete(f"/portfolios/{portfolio_b['id']}/holdings/{holding['id']}")
+    assert delete_response.status_code == 404
+
+    # The holding is untouched and still reachable through its actual portfolio.
+    still_there = client.get(f"/portfolios/{portfolio_a['id']}/holdings").json()
+    assert len(still_there) == 1
+    assert still_there[0]["shares"] == 12

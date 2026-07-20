@@ -1,0 +1,586 @@
+<!-- PROTOTYPE — throwaway. Answers ticket 06: "what should the main dashboard look like?"
+     Three structurally different layouts, switch with ?variant=A|B|C or the bottom bar / arrow keys.
+     Variant A (the chosen one) now also includes a Portfolios page (multi-portfolio list, cash,
+     realized P&L, portfolio-level target allocation) per PRD.md sections 2/4/10.
+     No build step: just open this file in a browser. No persistence, no real API calls — all data is mocked in-memory. -->
+<title>portfolio-tracker — dashboard prototype</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#0a0d12; --panel:#131822; --panel2:#1a212c; --panel3:#20293a;
+    --border:#232b38; --gold:#f0b90b; --gold-dim:#8a6c17;
+    --green:#2ecc71; --red:#ef4444; --yellow:#f1c40f;
+    --text:#e6e9ef; --muted:#8892a0; --muted2:#5c6675;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 -apple-system,Segoe UI,Roboto,sans-serif;}
+  h1,h2,h3{margin:0 0 8px}
+  .muted{color:var(--muted)}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
+  .pill.green{background:rgba(46,204,113,.15);color:var(--green)}
+  .pill.yellow{background:rgba(241,196,15,.15);color:var(--yellow)}
+  .pill.red{background:rgba(239,68,68,.15);color:var(--red)}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px}
+  button{font:inherit;cursor:pointer}
+  .btn{background:var(--panel3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 10px}
+  .btn.active{background:var(--gold);color:#1a1400;border-color:var(--gold)}
+  .btn.gold{background:var(--gold);color:#1a1400;border:none;font-weight:700}
+  .btn.ghost{background:transparent}
+  table{width:100%;border-collapse:collapse}
+  td,th{padding:6px 4px;text-align:left;border-bottom:1px solid var(--border);font-size:13px}
+  th{color:var(--muted);font-weight:500;font-size:11px;text-transform:uppercase}
+  .bar-track{height:6px;background:var(--panel3);border-radius:99px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:99px}
+  .row{display:flex;align-items:center;gap:8px}
+  .between{justify-content:space-between}
+  input,select{background:var(--panel3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 8px;width:100%}
+  select.btn{width:auto}
+
+  /* ---------- switcher bar ---------- */
+  #switcher{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+    background:#000;border:1px solid var(--gold-dim);border-radius:999px;
+    padding:6px 6px 6px 14px;display:flex;align-items:center;gap:10px;z-index:999;
+    box-shadow:0 8px 24px rgba(0,0,0,.5);font-size:13px}
+  #switcher .lbl{min-width:190px;text-align:center;color:var(--gold)}
+  #switcher button{background:var(--panel3);border:1px solid var(--border);color:var(--text);
+    width:28px;height:28px;border-radius:50%}
+  #switcher button:hover{background:var(--gold);color:#000}
+
+  /* ---------- Variant A: fixed three-column trading terminal ---------- */
+  .vA-shell{display:flex;flex-direction:column;height:100vh}
+  .vA-nav{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;
+    background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0}
+  .vA-nav .tabs{display:flex;gap:4px;border-bottom:none;margin:0}
+  .vA-nav .tab{padding:6px 12px;border-radius:6px}
+  .vA-nav .tab.active{background:var(--panel3);color:var(--gold)}
+  .vA{display:grid;grid-template-columns:260px 1fr 300px;height:100%;overflow:hidden}
+  .vA .colL,.vA .colR{background:var(--panel);border-right:1px solid var(--border);overflow-y:auto;padding:12px}
+  .vA .colR{border-right:none;border-left:1px solid var(--border)}
+  .vA .colC{overflow-y:auto;padding:16px}
+  .vA .holding-row{display:flex;justify-content:space-between;align-items:center;padding:8px 6px;border-radius:6px;cursor:pointer}
+  .vA .holding-row:hover{background:var(--panel2)}
+  .vA .holding-row.sel{background:var(--panel3);border:1px solid var(--gold-dim)}
+  .vA .ticker{font-weight:700}
+  .vA .chart-toolbar{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+
+  /* ---------- Variant A: Portfolios page ---------- */
+  .vA-portfolios{flex:1;overflow-y:auto;padding:20px}
+  .vA-portfolios .wrap{max-width:920px;margin:0 auto}
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+  .stat-grid .big{font-size:20px;font-weight:700}
+  .donut{width:64px;height:64px;border-radius:50%;flex-shrink:0}
+  .portfolio-card{margin-bottom:14px}
+  .portfolio-card .head{display:flex;justify-content:space-between;align-items:flex-start}
+  .portfolio-card .holding-mini{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px}
+  .portfolio-card .holding-mini:last-child{border-bottom:none}
+  .edit-panel{background:var(--panel3);border:1px solid var(--gold-dim);border-radius:8px;padding:12px;margin-top:10px}
+  .edit-panel label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
+  .edit-panel .field{margin-bottom:10px}
+
+  /* ---------- Variant B: top-strip + tabs, single column ---------- */
+  .vB{max-width:1100px;margin:0 auto;padding:16px}
+  .vB .topstrip{display:flex;justify-content:space-between;align-items:center;
+    background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--border);
+    border-radius:12px;padding:16px 20px;margin-bottom:14px}
+  .vB .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:16px}
+  .vB .tab{padding:10px 16px;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer}
+  .vB .tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+  .vB .cards-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+  .vB .cards-grid .card .big{font-size:22px;font-weight:700}
+
+  /* ---------- Variant C: modular card-grid, Mint/YNAB-style ---------- */
+  .vC{max-width:1200px;margin:0 auto;padding:16px;display:grid;
+    grid-template-columns:1fr 1fr 1fr;gap:14px}
+  .vC .span2{grid-column:span 2}
+  .vC .span3{grid-column:span 3}
+  .vC .value-card .big{font-size:32px;font-weight:800;color:var(--gold)}
+  .vC .alert-item{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
+  .vC .alert-item:last-child{border-bottom:none}
+  .vC .watch-chip{display:inline-flex;align-items:center;gap:6px;background:var(--panel2);
+    border:1px solid var(--border);border-radius:8px;padding:6px 10px;margin:4px 4px 0 0}
+  @media (max-width:900px){.vC{grid-template-columns:1fr}.vC .span2,.vC .span3{grid-column:span 1}
+    .vB .cards-grid{grid-template-columns:repeat(2,1fr)} .stat-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+<body>
+<div id="root"></div>
+<div id="switcher">
+  <button id="prev">&#8592;</button>
+  <span class="lbl" id="lbl"></span>
+  <button id="next">&#8594;</button>
+</div>
+
+<script>
+/* ---------------- mock data (reflects PRD.md section 4 data model) ---------------- */
+const FX = { usdToThb: 33.611 };
+let displayCurrency = "USD";
+const DONUT_COLORS = ['#f0b90b','#2ecc71','#3b82f6','#ef4444','#a855f7','#f1c40f'];
+
+const PORTFOLIOS = [
+  {
+    id: 'dime', name: 'DIME', cashUsd: 250, targetPct: 70,
+    holdings: [
+      { ticker:"AAPL", shares:12,   avgCost:187.40, price:333.74, targetPct:20, srMode:"auto",   realizedPnl:0   },
+      { ticker:"SMH",  shares:3.18, avgCost:297.77, price:556.53, targetPct:25, srMode:"manual", realizedPnl:120 },
+      { ticker:"JEPQ", shares:20,   avgCost:55.10,  price:58.51,  targetPct:15, srMode:"auto",   realizedPnl:0   },
+      { ticker:"NVDA", shares:5,    avgCost:120.00, price:180.20, targetPct:20, srMode:"auto",   realizedPnl:0   },
+      { ticker:"PLTR", shares:15,   avgCost:90.00,  price:125.80, targetPct:20, srMode:"manual", realizedPnl:340 },
+    ],
+    watchlist: [
+      { ticker:"JNJ",  category:"Value"  },
+      { ticker:"IOVA", category:"Growth" },
+      { ticker:"RAL",  category:"Growth" },
+      { ticker:"ASTS", category:"Growth" },
+    ],
+  },
+  {
+    id: 'spec', name: 'Speculative', cashUsd: 80, targetPct: 30,
+    holdings: [
+      { ticker:"IONQ", shares:40,  avgCost:35.0, price:42.5, targetPct:60, srMode:"auto", realizedPnl:0 },
+      { ticker:"RGTI", shares:100, avgCost:9.2,  price:11.8, targetPct:40, srMode:"auto", realizedPnl:0 },
+    ],
+    watchlist: [],
+  },
+];
+
+let selectedPortfolioId = PORTFOLIOS[0].id;
+let selectedTicker = PORTFOLIOS[0].holdings[0].ticker;
+let pageA = "dashboard";        // 'dashboard' | 'portfolios'  (Variant A only)
+let editingPortfolioId = null;  // Portfolios page: which card has its edit panel open
+
+function currentPortfolio(){ return PORTFOLIOS.find(p=>p.id===selectedPortfolioId) || PORTFOLIOS[0]; }
+
+function fmtMoney(usd, opts={}) {
+  const v = displayCurrency === "THB" ? usd * FX.usdToThb : usd;
+  const sym = displayCurrency === "THB" ? "฿" : "$";
+  return sym + v.toLocaleString(undefined, {maximumFractionDigits: opts.decimals ?? 2});
+}
+
+function computeStats(portfolioObj) {
+  const totalValue = portfolioObj.holdings.reduce((s,h) => s + h.shares*h.price, 0);
+  return portfolioObj.holdings.map(h => {
+    const value = h.shares * h.price;
+    const currentPct = totalValue ? (value/totalValue*100) : 0;
+    const deviation = currentPct - h.targetPct;
+    const absDev = Math.abs(deviation);
+    let severity = "green";
+    if (absDev > 10) severity = "red"; else if (absDev > 5) severity = "yellow";
+    const pnl = (h.price - h.avgCost) * h.shares;
+    const pnlPct = (h.price/h.avgCost - 1) * 100;
+    return { ...h, value, currentPct, deviation, severity, pnl, pnlPct };
+  });
+}
+
+/* portfolio-level rollups + portfolio-of-portfolios target-allocation check (PRD section 8) */
+function computePortfolioSummaries() {
+  const rolled = PORTFOLIOS.map(p => {
+    const holdingsValue = p.holdings.reduce((s,h)=>s+h.shares*h.price, 0);
+    const value = holdingsValue + p.cashUsd;
+    const unrealized = p.holdings.reduce((s,h)=>s+(h.price-h.avgCost)*h.shares, 0);
+    const realized = p.holdings.reduce((s,h)=>s+(h.realizedPnl||0), 0);
+    return { ...p, holdingsValue, value, unrealized, realized };
+  });
+  const grandTotal = rolled.reduce((s,p)=>s+p.value, 0);
+  return rolled.map(p => {
+    const currentPct = grandTotal ? (p.value/grandTotal*100) : 0;
+    const deviation = currentPct - p.targetPct;
+    const absDev = Math.abs(deviation);
+    let severity = "green";
+    if (absDev > 10) severity = "red"; else if (absDev > 5) severity = "yellow";
+    return { ...p, currentPct, deviation, severity };
+  });
+}
+
+/* deterministic pseudo-random walk per ticker, for the placeholder chart */
+function priceSeries(ticker, n=60) {
+  let seed = [...ticker].reduce((a,c)=>a+c.charCodeAt(0),0);
+  const rnd = () => { seed = (seed*9301+49297)%233280; return seed/233280; };
+  let p = 100 + (seed % 50);
+  const pts = [];
+  for (let i=0;i<n;i++){ p += (rnd()-0.48)*p*0.03; pts.push(Math.max(p,5)); }
+  return pts;
+}
+
+function svgChart(ticker, w=560, h=220) {
+  const series = priceSeries(ticker);
+  const min = Math.min(...series), max = Math.max(...series);
+  const pad = (max-min)*0.1 || 1;
+  const y = v => h - ((v-min+pad)/(max-min+pad*2))*h;
+  const x = i => (i/(series.length-1))*w;
+  const path = series.map((v,i)=>`${i===0?'M':'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const last = series[series.length-1];
+  const sr = [last*0.90, last*0.95, last*1.06, last*1.12];
+  const srColor = { 0:'var(--green)',1:'var(--green)',2:'var(--red)',3:'var(--red)' };
+  const lines = sr.map((lv,i)=>`<line x1="0" x2="${w}" y1="${y(lv).toFixed(1)}" y2="${y(lv).toFixed(1)}"
+    stroke="${srColor[i]}" stroke-dasharray="4 3" stroke-width="1" opacity=".6"/>
+    <text x="${w-4}" y="${(y(lv)-3).toFixed(1)}" fill="${srColor[i]}" font-size="9" text-anchor="end">${lv.toFixed(1)}</text>`).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" style="display:block">
+    ${lines}
+    <path d="${path}" fill="none" stroke="var(--gold)" stroke-width="1.6"/>
+  </svg>`;
+}
+
+function donutSvg(holdings, size=64){
+  const total = holdings.reduce((s,h)=>s+h.shares*h.price,0) || 1;
+  let acc = 0;
+  const stops = holdings.map((h,i)=>{
+    const start = acc/total*100;
+    acc += h.shares*h.price;
+    const end = acc/total*100;
+    return `${DONUT_COLORS[i%DONUT_COLORS.length]} ${start.toFixed(1)}% ${end.toFixed(1)}%`;
+  }).join(', ');
+  return `<div class="donut" style="background:conic-gradient(${stops || '#333 0 100%'})"></div>`;
+}
+
+/* ---------------- shared bits ---------------- */
+function rebalanceAlerts(stats){ return stats.filter(s=>s.severity!=='green'); }
+
+function currencyToggleHtml(){
+  return `<div class="row" style="gap:4px">
+    <button class="btn ${displayCurrency==='USD'?'active':''}" onclick="setCurrency('USD')">USD</button>
+    <button class="btn ${displayCurrency==='THB'?'active':''}" onclick="setCurrency('THB')">THB</button>
+  </div>`;
+}
+function setCurrency(c){ displayCurrency=c; render(); }
+function selectTicker(t){ selectedTicker=t; render(); }
+function selectPortfolio(id){
+  selectedPortfolioId = id;
+  const p = PORTFOLIOS.find(x=>x.id===id);
+  selectedTicker = p.holdings[0] ? p.holdings[0].ticker : null;
+  render();
+}
+function setPage(p){ pageA = p; render(); }
+function toggleEditPortfolio(id){ editingPortfolioId = editingPortfolioId===id ? null : id; render(); }
+
+/* ================= VARIANT A — three-column trading terminal + Portfolios page ================= */
+function renderVariantA(root){
+  root.innerHTML = `<div class="vA-shell">
+    <div class="vA-nav">
+      <div class="row" style="gap:20px">
+        <b style="color:var(--gold)">Portfolio Tracker</b>
+        <div class="tabs">
+          <div class="tab ${pageA==='dashboard'?'active':''}" onclick="setPage('dashboard')">Dashboard</div>
+          <div class="tab ${pageA==='portfolios'?'active':''}" onclick="setPage('portfolios')">Portfolios</div>
+        </div>
+      </div>
+      ${currencyToggleHtml()}
+    </div>
+    <div id="vA-body" style="flex:1;overflow:hidden;display:flex"></div>
+  </div>`;
+  const body = document.getElementById('vA-body');
+  if (pageA === 'portfolios') renderPortfoliosPage(body);
+  else renderDashboardPage(body);
+}
+
+function renderDashboardPage(root){
+  const port = currentPortfolio();
+  const stats = computeStats(port);
+  const holdingsValue = stats.reduce((s,h)=>s+h.value,0);
+  const totalValue = holdingsValue + port.cashUsd;
+  const sel = stats.find(s=>s.ticker===selectedTicker) || stats[0];
+
+  root.innerHTML = `<div class="vA" style="flex:1">
+    <div class="colL">
+      <div class="muted" style="font-size:11px">PORTFOLIO</div>
+      <select class="btn" style="width:100%;margin:4px 0 10px" onchange="selectPortfolio(this.value)">
+        ${PORTFOLIOS.map(p=>`<option value="${p.id}" ${p.id===port.id?'selected':''}>${p.name}</option>`).join('')}
+      </select>
+      <div class="card" style="margin-bottom:12px">
+        <div class="row between"><span class="muted">Total value</span></div>
+        <div style="font-size:22px;font-weight:800;margin-top:4px">${fmtMoney(totalValue)}</div>
+        <div class="muted" style="font-size:11px;margin-top:4px">cash ${fmtMoney(port.cashUsd)}</div>
+      </div>
+      <div class="row between" style="margin-bottom:6px"><h3 style="font-size:12px;color:var(--muted)">HOLDINGS</h3>
+        <span class="pill ${rebalanceAlerts(stats).length?'red':'green'}">${rebalanceAlerts(stats).length} need rebalance</span></div>
+      ${stats.map(s=>`
+        <div class="holding-row ${sel && s.ticker===sel.ticker?'sel':''}" onclick="selectTicker('${s.ticker}')">
+          <div>
+            <div class="ticker">${s.ticker}</div>
+            <div class="bar-track" style="width:110px;margin-top:4px">
+              <div class="bar-fill" style="width:${Math.min(s.currentPct,100)}%;background:var(--${s.severity})"></div>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div>${s.currentPct.toFixed(1)}%</div>
+            <div class="muted" style="font-size:11px">tgt ${s.targetPct}%</div>
+          </div>
+        </div>`).join('')}
+      <h3 style="font-size:12px;color:var(--muted);margin-top:16px">WATCHLIST</h3>
+      ${port.watchlist.length ? port.watchlist.map(w=>`<div class="row between" style="padding:6px 4px">
+        <span>${w.ticker}</span><span class="muted" style="font-size:11px">${w.category}</span></div>`).join('')
+        : `<div class="muted" style="padding:6px 4px">Empty</div>`}
+    </div>
+
+    <div class="colC">
+      ${sel ? `
+      <div class="row between">
+        <div><h1>${sel.ticker}</h1><span class="muted">${fmtMoney(sel.price)} &middot; avg cost ${fmtMoney(sel.avgCost)}</span></div>
+        <span class="pill ${sel.pnl>=0?'green':'red'}">${sel.pnl>=0?'+':''}${sel.pnlPct.toFixed(1)}%</span>
+      </div>
+      <div class="chart-toolbar">
+        ${['1D','5D','1M','6M','YTD','1Y','5Y'].map(r=>`<button class="btn ${r==='6M'?'active':''}">${r}</button>`).join('')}
+        <span class="muted" style="align-self:center;margin-left:8px">S/R: <b style="color:var(--gold)">${sel.srMode}</b></span>
+      </div>
+      <div class="card">${svgChart(sel.ticker)}</div>
+      ` : `<div class="muted">No holdings in this portfolio yet.</div>`}
+    </div>
+
+    <div class="colR">
+      ${sel ? `
+      <h3>Manage ${sel.ticker}</h3>
+      <div class="card" style="margin-bottom:12px">
+        <div class="row between"><span class="muted">Shares</span><span>${sel.shares}</span></div>
+        <div class="row between"><span class="muted">Avg cost</span><span>${fmtMoney(sel.avgCost)}</span></div>
+        <div class="row between"><span class="muted">Target %</span><span>${sel.targetPct}%</span></div>
+        <div class="row between"><span class="muted">Realized P&amp;L</span><span>${fmtMoney(sel.realizedPnl)}</span></div>
+        <button class="btn gold" style="width:100%;margin-top:10px">Edit holding</button>
+      </div>
+      <h3>DCA calculator</h3>
+      <div class="card" style="margin-bottom:12px">
+        <label class="muted">Add investment (USD)</label>
+        <input placeholder="0" style="margin:6px 0 10px">
+        <div class="row between"><span class="muted">New avg cost</span><span>—</span></div>
+        <div class="row between"><span class="muted">New shares</span><span>—</span></div>
+        <button class="btn gold" style="width:100%;margin-top:10px">Calculate</button>
+      </div>
+      <h3>Stress test</h3>
+      <div class="card">
+        <label class="muted">Investment amount (USD)</label>
+        <input placeholder="0" style="margin:6px 0 10px">
+        ${[['-5%','😟'],['-10%','😩'],['-20%','😱']].map(([pct,e])=>`
+          <div class="row between" style="padding:4px 0"><span>${e} ${pct}</span><span class="muted">—</span></div>`).join('')}
+      </div>
+      ` : ''}
+    </div>
+  </div>`;
+}
+
+function renderPortfoliosPage(root){
+  const summaries = computePortfolioSummaries();
+  const grandValue = summaries.reduce((s,p)=>s+p.value,0);
+  const grandCash = summaries.reduce((s,p)=>s+p.cashUsd,0);
+  const grandUnrealized = summaries.reduce((s,p)=>s+p.unrealized,0);
+  const grandRealized = summaries.reduce((s,p)=>s+p.realized,0);
+
+  root.innerHTML = `<div class="vA-portfolios" style="flex:1"><div class="wrap">
+    <div class="stat-grid">
+      <div class="card"><div class="muted">Total value</div><div class="big">${fmtMoney(grandValue)}</div></div>
+      <div class="card"><div class="muted">Cash</div><div class="big">${fmtMoney(grandCash)}</div></div>
+      <div class="card"><div class="muted">Unrealized P&amp;L</div><div class="big" style="color:${grandUnrealized>=0?'var(--green)':'var(--red)'}">${fmtMoney(grandUnrealized)}</div></div>
+      <div class="card"><div class="muted">Realized P&amp;L</div><div class="big" style="color:var(--gold)">${fmtMoney(grandRealized)}</div></div>
+    </div>
+
+    <div class="row between" style="margin-bottom:10px">
+      <h2 style="margin:0">Portfolios</h2>
+      <button class="btn gold">+ Add portfolio</button>
+    </div>
+
+    ${summaries.map(p => `
+      <div class="card portfolio-card">
+        <div class="head">
+          <div class="row" style="gap:12px">
+            ${donutSvg(p.holdings)}
+            <div>
+              <div class="row" style="gap:8px">
+                <h3 style="margin:0">${p.name}</h3>
+                <span class="pill ${p.severity}">${p.currentPct.toFixed(1)}% / tgt ${p.targetPct}%</span>
+              </div>
+              <div class="muted" style="font-size:12px;margin-top:2px">value ${fmtMoney(p.value)} &middot; cash ${fmtMoney(p.cashUsd)}</div>
+              <div class="muted" style="font-size:12px">unrealized ${fmtMoney(p.unrealized)} &middot; realized ${fmtMoney(p.realized)}</div>
+            </div>
+          </div>
+          <div class="row" style="gap:6px">
+            <button class="btn" onclick="toggleEditPortfolio('${p.id}')">${editingPortfolioId===p.id?'ยกเลิก':'แก้ไข'}</button>
+            <button class="btn" onclick="selectPortfolio('${p.id}');setPage('dashboard')">เปิดใน Dashboard</button>
+          </div>
+        </div>
+
+        ${editingPortfolioId===p.id ? `
+        <div class="edit-panel">
+          <div class="field"><label>ชื่อพอร์ต (Name)</label><input value="${p.name}"></div>
+          <div class="field"><label>สัดส่วนเป้าหมาย (%) — ของเงินทั้งหมดทุกพอร์ตรวมกัน</label><input type="number" value="${p.targetPct}"></div>
+          <div class="muted" style="font-size:11px;margin-bottom:8px">▼ แก้ไขสัดส่วนพอร์ตอื่นพร้อมกัน (สัดส่วนรวมทุกพอร์ตต้อง = 100%)</div>
+          <button class="btn gold">บันทึกการแก้ไข</button>
+        </div>` : ''}
+
+        <div style="margin-top:12px">
+          ${p.holdings.map(h=>`<div class="holding-mini">
+            <span>${h.ticker}</span>
+            <span class="muted">${h.shares} sh @ ${fmtMoney(h.avgCost)}</span>
+            <span>${fmtMoney(h.shares*h.price)}</span>
+            <span class="row" style="gap:4px"><button class="btn ghost">แก้ไข</button><button class="btn ghost">ลบ</button></span>
+          </div>`).join('') || `<div class="muted">No holdings yet.</div>`}
+        </div>
+      </div>
+    `).join('')}
+  </div></div>`;
+}
+
+/* ================= VARIANT B — top-strip + tabs (kept single-portfolio; not the chosen variant) ================= */
+let activeTab = "overview";
+function setTab(t){ activeTab=t; render(); }
+function renderVariantB(root){
+  const port = PORTFOLIOS[0];
+  const stats = computeStats(port);
+  const totalValue = stats.reduce((s,h)=>s+h.value,0);
+  const totalPnl = stats.reduce((s,h)=>s+h.pnl,0);
+  const alerts = rebalanceAlerts(stats);
+  const sel = stats.find(s=>s.ticker===selectedTicker) || stats[0];
+
+  const tabs = ['overview','holdings','chart','watchlist'];
+  const tabLabel = {overview:'Overview',holdings:'Holdings',chart:'Chart',watchlist:'Watchlist'};
+
+  let body = '';
+  if (activeTab==='overview'){
+    body = `<div class="cards-grid">
+      <div class="card"><div class="muted">Total value</div><div class="big">${fmtMoney(totalValue)}</div></div>
+      <div class="card"><div class="muted">Total P&amp;L</div><div class="big" style="color:${totalPnl>=0?'var(--green)':'var(--red)'}">${fmtMoney(totalPnl)}</div></div>
+      <div class="card"><div class="muted">Rebalance alerts</div><div class="big" style="color:${alerts.length?'var(--red)':'var(--green)'}">${alerts.length}</div></div>
+      <div class="card"><div class="muted">Holdings</div><div class="big">${stats.length}</div></div>
+    </div>
+    <div class="card">
+      <h3>Needs attention</h3>
+      ${alerts.length ? alerts.map(a=>`<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--border)">
+        <span>${a.ticker}</span><span class="pill ${a.severity}">${a.currentPct.toFixed(1)}% vs ${a.targetPct}% target</span></div>`).join('')
+        : `<div class="muted">Everything's within threshold.</div>`}
+    </div>`;
+  } else if (activeTab==='holdings'){
+    body = `<div class="card"><table>
+      <tr><th>Ticker</th><th>Shares</th><th>Avg cost</th><th>Value</th><th>Allocation</th><th>P&amp;L</th></tr>
+      ${stats.map(s=>`<tr>
+        <td class="ticker" style="cursor:pointer" onclick="selectTicker('${s.ticker}');setTab('chart')">${s.ticker}</td>
+        <td>${s.shares}</td><td>${fmtMoney(s.avgCost)}</td><td>${fmtMoney(s.value)}</td>
+        <td><span class="pill ${s.severity}">${s.currentPct.toFixed(1)}% / ${s.targetPct}%</span></td>
+        <td style="color:${s.pnl>=0?'var(--green)':'var(--red)'}">${s.pnl>=0?'+':''}${s.pnlPct.toFixed(1)}%</td>
+      </tr>`).join('')}
+    </table></div>`;
+  } else if (activeTab==='chart'){
+    body = `<div class="card">
+      <div class="row between">
+        <select onchange="selectTicker(this.value)" class="btn">
+          ${stats.map(s=>`<option value="${s.ticker}" ${s.ticker===sel.ticker?'selected':''}>${s.ticker}</option>`).join('')}
+        </select>
+        <span>${fmtMoney(sel.price)}</span>
+      </div>
+      <div class="chart-toolbar" style="display:flex;gap:6px;margin:10px 0">
+        ${['1D','5D','1M','6M','YTD','1Y','5Y'].map(r=>`<button class="btn ${r==='6M'?'active':''}">${r}</button>`).join('')}
+      </div>
+      ${svgChart(sel.ticker)}
+    </div>`;
+  } else if (activeTab==='watchlist'){
+    body = `<div class="card">
+      ${port.watchlist.map(w=>`<div class="row between" style="padding:8px 0;border-bottom:1px solid var(--border)">
+        <span>${w.ticker} <span class="muted">(${w.category})</span></span>
+        <button class="btn">+ Add to portfolio</button></div>`).join('')}
+    </div>`;
+  }
+
+  root.innerHTML = `<div class="vB">
+    <div class="topstrip">
+      <div><div class="muted">${port.name}</div><h1 style="margin:0">${fmtMoney(totalValue)}</h1></div>
+      <div class="row" style="gap:16px">
+        <span class="pill ${alerts.length?'red':'green'}">${alerts.length} rebalance alerts</span>
+        ${currencyToggleHtml()}
+      </div>
+    </div>
+    <div class="tabs">
+      ${tabs.map(t=>`<div class="tab ${t===activeTab?'active':''}" onclick="setTab('${t}')">${tabLabel[t]}</div>`).join('')}
+    </div>
+    ${body}
+  </div>`;
+}
+
+/* ================= VARIANT C — modular card grid (kept single-portfolio; not the chosen variant) ================= */
+function renderVariantC(root){
+  const port = PORTFOLIOS[0];
+  const stats = computeStats(port);
+  const totalValue = stats.reduce((s,h)=>s+h.value,0);
+  const alerts = rebalanceAlerts(stats);
+  const sel = stats.find(s=>s.ticker===selectedTicker) || stats[0];
+
+  root.innerHTML = `<div class="vC">
+    <div class="card value-card">
+      <div class="row between"><span class="muted">${port.name} &middot; total value</span>${currencyToggleHtml()}</div>
+      <div class="big">${fmtMoney(totalValue)}</div>
+    </div>
+
+    <div class="card">
+      <h3>Rebalance alerts</h3>
+      ${alerts.length ? alerts.map(a=>`<div class="alert-item">
+          <span>${a.ticker}</span><span class="pill ${a.severity}">${a.deviation>0?'+':''}${a.deviation.toFixed(1)}pp</span>
+        </div>`).join('')
+        : `<div class="muted">Nothing needs attention.</div>`}
+    </div>
+
+    <div class="card">
+      <h3>Watchlist</h3>
+      ${port.watchlist.map(w=>`<span class="watch-chip">${w.ticker} <span class="muted">${w.category}</span></span>`).join('')}
+    </div>
+
+    <div class="card span2">
+      <h3>Holdings</h3>
+      ${stats.map(s=>`<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="selectTicker('${s.ticker}')">
+        <span class="ticker">${s.ticker}</span>
+        <div class="bar-track" style="width:120px"><div class="bar-fill" style="width:${Math.min(s.currentPct,100)}%;background:var(--${s.severity})"></div></div>
+        <span>${s.currentPct.toFixed(1)}% <span class="muted">/ ${s.targetPct}%</span></span>
+      </div>`).join('')}
+    </div>
+
+    <div class="card">
+      <h3>DCA calculator — ${sel.ticker}</h3>
+      <label class="muted">Add investment (USD)</label>
+      <input placeholder="0" style="margin:6px 0 10px">
+      <div class="row between"><span class="muted">New avg cost</span><span>—</span></div>
+      <button class="btn gold" style="width:100%;margin-top:10px">Calculate</button>
+    </div>
+
+    <div class="card span3">
+      <div class="row between">
+        <h3 style="margin:0">${sel.ticker} chart</h3>
+        <select onchange="selectTicker(this.value)" class="btn">
+          ${stats.map(s=>`<option value="${s.ticker}" ${s.ticker===sel.ticker?'selected':''}>${s.ticker}</option>`).join('')}
+        </select>
+      </div>
+      ${svgChart(sel.ticker, 1000, 220)}
+    </div>
+  </div>`;
+}
+
+/* ---------------- switcher plumbing ---------------- */
+const VARIANTS = {
+  A: { name:'Trading terminal (3-column, fixed panels) — CHOSEN', render: renderVariantA },
+  B: { name:'Top-strip + tabs (single column)',                    render: renderVariantB },
+  C: { name:'Modular card grid (Mint/YNAB-style)',                 render: renderVariantC },
+};
+const keys = Object.keys(VARIANTS);
+
+function currentVariant(){
+  const v = new URLSearchParams(location.search).get('variant');
+  return VARIANTS[v] ? v : 'A';
+}
+function setVariant(v){
+  const url = new URL(location.href);
+  url.searchParams.set('variant', v);
+  history.replaceState(null, '', url);
+  render();
+}
+function render(){
+  const v = currentVariant();
+  document.getElementById('lbl').textContent = `${v} — ${VARIANTS[v].name}`;
+  VARIANTS[v].render(document.getElementById('root'));
+}
+document.getElementById('prev').onclick = () => {
+  const i = keys.indexOf(currentVariant()); setVariant(keys[(i-1+keys.length)%keys.length]);
+};
+document.getElementById('next').onclick = () => {
+  const i = keys.indexOf(currentVariant()); setVariant(keys[(i+1)%keys.length]);
+};
+window.addEventListener('keydown', e=>{
+  const tag = document.activeElement.tagName;
+  if (tag==='INPUT'||tag==='TEXTAREA') return;
+  if (e.key==='ArrowLeft') document.getElementById('prev').click();
+  if (e.key==='ArrowRight') document.getElementById('next').click();
+});
+render();
+</script>
+</body>

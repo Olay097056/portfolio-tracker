@@ -90,3 +90,31 @@ def test_portfolio_stats_totals_value_cash_and_pnl():
     assert round(stats["realized_pnl"], 2) == 120.0
     assert len(stats["holdings"]) == 2
     assert stats["holdings"][0]["ticker"] == "AAPL"
+
+
+def test_portfolio_stats_with_empty_holdings():
+    """Test that portfolio_stats handles empty holdings list with cash correctly."""
+    portfolio = Portfolio(name="DIME", cash_usd=500.0, target_allocation_pct=70.0)
+    portfolio.holdings = []
+    prices = {}
+
+    stats = portfolio_stats(portfolio, prices)
+
+    assert stats["holdings_value"] == 0
+    assert stats["total_value"] == 500.0
+    assert stats["realized_pnl"] == 0
+    assert stats["unrealized_pnl"] == 0
+    assert stats["holdings"] == []
+
+
+def test_holding_stats_with_zero_portfolio_holdings_value():
+    """Test that holding_stats avoids division-by-zero when portfolio_holdings_value is 0."""
+    holding = Holding(
+        ticker="AAPL", shares=12, avg_cost_usd=187.40,
+        target_allocation_pct=20.0, realized_pnl_usd=0.0,
+    )
+    stats = holding_stats(holding, current_price=333.74, portfolio_holdings_value=0)
+
+    assert stats["current_pct"] == 0
+    assert stats["value"] == 12 * 333.74
+    assert stats["severity"] == "red"  # Because deviation_pp = 0 - 20.0 = -20.0

@@ -18,9 +18,17 @@ def severity_for_deviation(deviation_pp: float) -> str:
 def holding_stats(holding: Holding, current_price: float, portfolio_holdings_value: float) -> dict:
     value = holding.shares * current_price
     current_pct = (value / portfolio_holdings_value * 100) if portfolio_holdings_value else 0.0
-    target_pct = holding.target_allocation_pct or 0.0
-    deviation_pp = current_pct - target_pct
     unrealized_pnl = (current_price - holding.avg_cost_usd) * holding.shares
+
+    if holding.target_allocation_pct is None:
+        target_pct = None
+        deviation_pp = None
+        severity = None
+    else:
+        target_pct = holding.target_allocation_pct
+        deviation_pp = current_pct - target_pct
+        severity = severity_for_deviation(deviation_pp)
+
     return {
         "ticker": holding.ticker,
         "shares": holding.shares,
@@ -30,7 +38,7 @@ def holding_stats(holding: Holding, current_price: float, portfolio_holdings_val
         "current_pct": current_pct,
         "target_pct": target_pct,
         "deviation_pp": deviation_pp,
-        "severity": severity_for_deviation(deviation_pp),
+        "severity": severity,
         "unrealized_pnl": unrealized_pnl,
         "realized_pnl": holding.realized_pnl_usd,
     }

@@ -118,3 +118,18 @@ def test_holding_stats_with_zero_portfolio_holdings_value():
     assert stats["current_pct"] == 0
     assert stats["value"] == 12 * 333.74
     assert stats["severity"] == "red"  # Because deviation_pp = 0 - 20.0 = -20.0
+
+
+def test_holding_stats_with_no_target_allocation_returns_no_severity():
+    """A holding with no target set should not be scored against an implicit 0% target."""
+    holding = Holding(
+        ticker="AAPL", shares=12, avg_cost_usd=187.40,
+        target_allocation_pct=None, realized_pnl_usd=0.0,
+    )
+    stats = holding_stats(holding, current_price=333.74, portfolio_holdings_value=9732.85)
+
+    assert stats["target_pct"] is None
+    assert stats["deviation_pp"] is None
+    assert stats["severity"] is None
+    assert stats["current_pct"] > 0
+    assert stats["value"] == 12 * 333.74

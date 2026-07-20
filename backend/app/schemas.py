@@ -64,3 +64,7 @@ class WatchlistItemOut(BaseModel):
     ticker: str
     category: str | None
     created_at: datetime
+
+
+class PriceMap(BaseModel):
+    prices: dict[str, float]

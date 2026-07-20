@@ -72,3 +72,26 @@ def test_delete_portfolio(client):
 
     response = client.get(f"/portfolios/{created['id']}")
     assert response.status_code == 404
+
+
+def test_portfolio_summary_uses_supplied_prices(client):
+    portfolio = client.post("/portfolios", json={"name": "DIME", "cash_usd": 250, "target_allocation_pct": 70}).json()
+    client.post(
+        f"/portfolios/{portfolio['id']}/holdings",
+        json={"ticker": "AAPL", "shares": 12, "avg_cost_usd": 187.40, "target_allocation_pct": 20},
+    )
+
+    response = client.post(
+        f"/portfolios/{portfolio['id']}/summary", json={"prices": {"AAPL": 333.74}}
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert round(body["holdings_value"], 2) == round(12 * 333.74, 2)
+    assert round(body["total_value"], 2) == round(12 * 333.74 + 250, 2)
+    assert body["holdings"][0]["ticker"] == "AAPL"
+    assert body["holdings"][0]["severity"] in ("green", "yellow", "red")
+
+
+def test_portfolio_summary_404_for_missing_portfolio(client):
+    response = client.post("/portfolios/999/summary", json={"prices": {}})
+    assert response.status_code == 404

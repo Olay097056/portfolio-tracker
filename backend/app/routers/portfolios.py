@@ -2,9 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.calculations import portfolio_stats
 from app.database import get_db
 from app.models import Portfolio
-from app.schemas import PortfolioCreate, PortfolioOut, PortfolioUpdate
+from app.schemas import PortfolioCreate, PortfolioOut, PortfolioUpdate, PriceMap
 
 router = APIRouter(prefix="/portfolios", tags=["portfolios"])
 
@@ -69,3 +70,11 @@ def delete_portfolio(portfolio_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Portfolio not found")
     db.delete(portfolio)
     db.commit()
+
+
+@router.post("/{portfolio_id}/summary")
+def portfolio_summary(portfolio_id: int, payload: PriceMap, db: Session = Depends(get_db)):
+    portfolio = db.get(Portfolio, portfolio_id)
+    if portfolio is None:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    return portfolio_stats(portfolio, payload.prices)

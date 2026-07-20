@@ -1,3 +1,5 @@
+from datetime import timezone
+
 from app.models import Portfolio, Holding, WatchlistItem
 
 
@@ -29,3 +31,14 @@ def test_portfolio_holding_round_trip(db_session):
     assert portfolio.holdings[0].ticker == "AAPL"
     assert holding.realized_pnl_usd == 0.0
     assert watchlist_item.category == "Value"
+
+
+def test_created_at_round_trips_with_timezone_info(db_session):
+    """Verify that timezone-aware timestamps survive a round trip through the DB."""
+    portfolio = Portfolio(name="DIME")
+    db_session.add(portfolio)
+    db_session.commit()
+    db_session.refresh(portfolio)
+
+    assert portfolio.created_at.tzinfo is not None
+    assert portfolio.created_at.utcoffset() == timezone.utc.utcoffset(None)

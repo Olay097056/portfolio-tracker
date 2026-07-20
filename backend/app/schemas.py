@@ -68,3 +68,29 @@ class WatchlistItemOut(BaseModel):
 
 class PriceMap(BaseModel):
     prices: dict[str, float]
+
+
+class HoldingStatsOut(BaseModel):
+    ticker: str
+    shares: float
+    avg_cost_usd: float
+    current_price: float
+    value: float
+    current_pct: float
+    target_pct: float | None
+    deviation_pp: float | None
+    severity: str | None
+    unrealized_pnl: float
+    realized_pnl: float
+
+
+class PortfolioSummaryOut(BaseModel):
+    id: int
+    name: str
+    cash_usd: float
+    target_allocation_pct: float | None
+    holdings_value: float
+    total_value: float
+    unrealized_pnl: float
+    realized_pnl: float
+    holdings: list[HoldingStatsOut]

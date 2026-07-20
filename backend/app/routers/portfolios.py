@@ -6,7 +6,7 @@ from app.calculations import portfolio_stats
 from app.database import get_db
 from app.models import Portfolio
 from app.routers._deps import get_or_404
-from app.schemas import PortfolioCreate, PortfolioOut, PortfolioUpdate, PriceMap
+from app.schemas import PortfolioCreate, PortfolioOut, PortfolioSummaryOut, PortfolioUpdate, PriceMap
 
 router = APIRouter(prefix="/portfolios", tags=["portfolios"])
 
@@ -66,7 +66,7 @@ def delete_portfolio(portfolio_id: int, db: Session = Depends(get_db)):
     db.commit()
 
 
-@router.post("/{portfolio_id}/summary")
+@router.post("/{portfolio_id}/summary", response_model=PortfolioSummaryOut)
 def portfolio_summary(portfolio_id: int, payload: PriceMap, db: Session = Depends(get_db)):
     portfolio = get_or_404(db, Portfolio, portfolio_id, "Portfolio not found")
     return portfolio_stats(portfolio, payload.prices)

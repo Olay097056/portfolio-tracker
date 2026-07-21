@@ -1,4 +1,5 @@
 import type { Portfolio } from '../api/types';
+import { usePortfolioSummary } from '../hooks/usePortfolioSummary';
 
 interface PortfolioCardProps {
   portfolio: Portfolio;
@@ -8,10 +9,27 @@ interface PortfolioCardProps {
 }
 
 export function PortfolioCard({ portfolio, onDelete, onToggleHoldings, expanded }: PortfolioCardProps) {
+  const { summary, loading, error } = usePortfolioSummary(portfolio.id);
+  const needsRebalanceCount = summary
+    ? summary.holdings.filter((h) => h.severity === 'yellow' || h.severity === 'red').length
+    : 0;
+
   return (
     <div className="portfolio-card">
       <h3>{portfolio.name}</h3>
-      <div>Cash: ${portfolio.cash_usd.toLocaleString()}</div>
+      {loading && <div>Loading value…</div>}
+      {error && <div role="alert">{error}</div>}
+      {summary && (
+        <>
+          <div>Total value: ${summary.total_value.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+          <div>Unrealized P&amp;L: ${summary.unrealized_pnl.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+          {needsRebalanceCount > 0 && (
+            <div role="status">
+              {needsRebalanceCount} holding{needsRebalanceCount === 1 ? '' : 's'} need{needsRebalanceCount === 1 ? 's' : ''} rebalancing
+            </div>
+          )}
+        </>
+      )}
       <div>
         Target allocation: {portfolio.target_allocation_pct === null ? 'no target set' : `${portfolio.target_allocation_pct}%`}
       </div>

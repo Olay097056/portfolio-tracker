@@ -1,11 +1,25 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as client from '../api/client';
 import { PortfoliosPage } from './PortfoliosPage';
 
 const portfolio = { id: 1, name: 'DIME', cash_usd: 250, target_allocation_pct: 70, created_at: '2026-01-01T00:00:00Z' };
 
 describe('PortfoliosPage', () => {
+  beforeEach(() => {
+    vi.spyOn(client, 'getPortfolioSummary').mockResolvedValue({
+      id: portfolio.id,
+      name: portfolio.name,
+      cash_usd: portfolio.cash_usd,
+      target_allocation_pct: portfolio.target_allocation_pct,
+      holdings_value: 0,
+      total_value: portfolio.cash_usd,
+      unrealized_pnl: 0,
+      realized_pnl: 0,
+      holdings: [],
+    });
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });

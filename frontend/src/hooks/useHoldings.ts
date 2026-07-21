@@ -3,6 +3,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { createHolding, deleteHolding, listHoldings, updateHolding } from '../api/client';
 import type { Holding, HoldingCreateInput, HoldingUpdateInput } from '../api/types';
 
+function toMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 export function useHoldings(portfolioId: number) {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [loading, setLoading] = useState(true);
@@ -15,7 +19,7 @@ export function useHoldings(portfolioId: number) {
       const data = await listHoldings(portfolioId);
       setHoldings(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(toMessage(err));
     } finally {
       setLoading(false);
     }
@@ -27,24 +31,42 @@ export function useHoldings(portfolioId: number) {
 
   const create = useCallback(
     async (input: HoldingCreateInput) => {
-      await createHolding(portfolioId, input);
-      await refetch();
+      try {
+        await createHolding(portfolioId, input);
+        setError(null);
+        await refetch();
+      } catch (err) {
+        setError(toMessage(err));
+        throw err;
+      }
     },
     [portfolioId, refetch],
   );
 
   const update = useCallback(
     async (holdingId: number, input: HoldingUpdateInput) => {
-      await updateHolding(portfolioId, holdingId, input);
-      await refetch();
+      try {
+        await updateHolding(portfolioId, holdingId, input);
+        setError(null);
+        await refetch();
+      } catch (err) {
+        setError(toMessage(err));
+        throw err;
+      }
     },
     [portfolioId, refetch],
   );
 
   const remove = useCallback(
     async (holdingId: number) => {
-      await deleteHolding(portfolioId, holdingId);
-      await refetch();
+      try {
+        await deleteHolding(portfolioId, holdingId);
+        setError(null);
+        await refetch();
+      } catch (err) {
+        setError(toMessage(err));
+        throw err;
+      }
     },
     [portfolioId, refetch],
   );

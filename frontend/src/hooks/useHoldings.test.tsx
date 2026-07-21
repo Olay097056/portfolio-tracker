@@ -56,4 +56,48 @@ describe('useHoldings', () => {
     expect(client.createHolding).toHaveBeenCalledWith(1, { ticker: 'AAPL', shares: 12, avg_cost_usd: 187.4 });
     expect(result.current.holdings).toEqual([sampleHolding]);
   });
+
+  it('create() sets error and re-throws when the API call fails, without touching holdings', async () => {
+    vi.spyOn(client, 'listHoldings').mockResolvedValue([]);
+    vi.spyOn(client, 'createHolding').mockRejectedValue(new client.ApiError(400, 'Holding target allocations would exceed 100%'));
+
+    const { result } = renderHook(() => useHoldings(1));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let thrown: unknown;
+    await act(async () => {
+      try {
+        await result.current.create({ ticker: 'AAPL', shares: 12, avg_cost_usd: 187.4, target_allocation_pct: 90 });
+      } catch (err) {
+        thrown = err;
+      }
+    });
+
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).message).toBe('Holding target allocations would exceed 100%');
+    expect(result.current.error).toBe('Holding target allocations would exceed 100%');
+    expect(result.current.holdings).toEqual([]);
+  });
+
+  it('remove() sets error and re-throws when the API call fails', async () => {
+    vi.spyOn(client, 'listHoldings').mockResolvedValue([sampleHolding]);
+    vi.spyOn(client, 'deleteHolding').mockRejectedValue(new Error('network down'));
+
+    const { result } = renderHook(() => useHoldings(1));
+    await waitFor(() => expect(result.current.holdings).toEqual([sampleHolding]));
+
+    let thrown: unknown;
+    await act(async () => {
+      try {
+        await result.current.remove(1);
+      } catch (err) {
+        thrown = err;
+      }
+    });
+
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).message).toBe('network down');
+    expect(result.current.error).toBe('network down');
+    expect(result.current.holdings).toEqual([sampleHolding]);
+  });
 });

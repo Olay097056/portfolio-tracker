@@ -115,7 +115,7 @@ def test_portfolio_summaries_are_isolated_across_portfolios(client):
         json={"ticker": "SMH", "shares": 5, "avg_cost_usd": 200},
     )
 
-    with patch("app.routers.portfolios.get_prices", return_value={"AAPL": 150, "SMH": 300}):
+    with patch("app.routers.portfolios.get_prices", return_value={"AAPL": 150, "SMH": 300}) as mock_get_prices:
         response_a = client.get(f"/portfolios/{portfolio_a['id']}/summary")
         response_b = client.get(f"/portfolios/{portfolio_b['id']}/summary")
     assert response_a.status_code == 200
@@ -132,3 +132,7 @@ def test_portfolio_summaries_are_isolated_across_portfolios(client):
     assert round(body_b["holdings_value"], 2) == round(5 * 300, 2)
     assert round(body_b["total_value"], 2) == round(5 * 300 + 50, 2)
     assert [h["ticker"] for h in body_b["holdings"]] == ["SMH"]
+
+    # Verify get_prices was called with the correct per-portfolio ticker lists.
+    mock_get_prices.assert_any_call(["AAPL"])
+    mock_get_prices.assert_any_call(["SMH"])

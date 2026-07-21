@@ -66,10 +66,6 @@ class WatchlistItemOut(BaseModel):
     created_at: datetime
 
 
-class PriceMap(BaseModel):
-    prices: dict[str, float]
-
-
 class HoldingStatsOut(BaseModel):
     ticker: str
     shares: float

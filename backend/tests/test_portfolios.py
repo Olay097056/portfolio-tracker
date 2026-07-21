@@ -74,31 +74,35 @@ def test_delete_portfolio(client):
     assert response.status_code == 404
 
 
-def test_portfolio_summary_uses_supplied_prices(client):
+def test_portfolio_summary_fetches_prices_server_side(client):
+    from unittest.mock import patch
+
     portfolio = client.post("/portfolios", json={"name": "DIME", "cash_usd": 250, "target_allocation_pct": 70}).json()
     client.post(
         f"/portfolios/{portfolio['id']}/holdings",
         json={"ticker": "AAPL", "shares": 12, "avg_cost_usd": 187.40, "target_allocation_pct": 20},
     )
 
-    response = client.post(
-        f"/portfolios/{portfolio['id']}/summary", json={"prices": {"AAPL": 333.74}}
-    )
+    with patch("app.routers.portfolios.get_prices", return_value={"AAPL": 333.74}) as mock_get_prices:
+        response = client.get(f"/portfolios/{portfolio['id']}/summary")
+
     assert response.status_code == 200
     body = response.json()
     assert round(body["holdings_value"], 2) == round(12 * 333.74, 2)
     assert round(body["total_value"], 2) == round(12 * 333.74 + 250, 2)
     assert body["holdings"][0]["ticker"] == "AAPL"
-    assert body["holdings"][0]["severity"] in ("green", "yellow", "red")
+    mock_get_prices.assert_called_once_with(["AAPL"])
 
 
 def test_portfolio_summary_404_for_missing_portfolio(client):
-    response = client.post("/portfolios/999/summary", json={"prices": {}})
+    response = client.get("/portfolios/999/summary")
     assert response.status_code == 404
 
 
 def test_portfolio_summaries_are_isolated_across_portfolios(client):
     """Two portfolios, each with their own holding, must not leak values into each other's summary."""
+    from unittest.mock import patch
+
     portfolio_a = client.post("/portfolios", json={"name": "DIME", "cash_usd": 100}).json()
     portfolio_b = client.post("/portfolios", json={"name": "Speculative", "cash_usd": 50}).json()
 
@@ -111,12 +115,9 @@ def test_portfolio_summaries_are_isolated_across_portfolios(client):
         json={"ticker": "SMH", "shares": 5, "avg_cost_usd": 200},
     )
 
-    response_a = client.post(
-        f"/portfolios/{portfolio_a['id']}/summary", json={"prices": {"AAPL": 150, "SMH": 300}}
-    )
-    response_b = client.post(
-        f"/portfolios/{portfolio_b['id']}/summary", json={"prices": {"AAPL": 150, "SMH": 300}}
-    )
+    with patch("app.routers.portfolios.get_prices", return_value={"AAPL": 150, "SMH": 300}):
+        response_a = client.get(f"/portfolios/{portfolio_a['id']}/summary")
+        response_b = client.get(f"/portfolios/{portfolio_b['id']}/summary")
     assert response_a.status_code == 200
     assert response_b.status_code == 200
     body_a = response_a.json()

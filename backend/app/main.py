@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import Base, engine
-from app.routers import holdings, portfolios, watchlist
+from app.routers import holdings, portfolios, prices, watchlist
 
 
 @asynccontextmanager
@@ -25,6 +25,7 @@ app.add_middleware(
 app.include_router(portfolios.router)
 app.include_router(holdings.router)
 app.include_router(watchlist.router)
+app.include_router(prices.router)
 
 
 @app.get("/health")

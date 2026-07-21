@@ -68,7 +68,7 @@ describe('PortfolioHoldings', () => {
 
   it('shows an inline error banner on a failed create', async () => {
     vi.spyOn(client, 'listHoldings').mockResolvedValue([]);
-    vi.spyOn(client, 'createHolding').mockRejectedValue(new client.ApiError(400, 'Holding Target allocations would exceed 100%'));
+    vi.spyOn(client, 'createHolding').mockRejectedValue(new client.ApiError(400, 'Holding target allocations would exceed 100%'));
 
     render(<PortfolioHoldings portfolioId={1} />);
     await waitFor(() => expect(screen.getByText(/no holdings yet/i)).toBeInTheDocument());
@@ -78,6 +78,6 @@ describe('PortfolioHoldings', () => {
     fireEvent.change(screen.getByLabelText(/average cost/i), { target: { value: '187.4' } });
     fireEvent.click(screen.getByRole('button', { name: /add holding/i }));
 
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Target allocations would exceed 100%'));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Holding target allocations would exceed 100%'));
   });
 });

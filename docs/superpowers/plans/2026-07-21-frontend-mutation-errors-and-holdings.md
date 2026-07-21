@@ -789,7 +789,7 @@ describe('PortfolioHoldings', () => {
     fireEvent.change(screen.getByLabelText(/average cost/i), { target: { value: '187.4' } });
     fireEvent.click(screen.getByRole('button', { name: /add holding/i }));
 
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Target allocations would exceed 100%'));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Holding target allocations would exceed 100%'));
   });
 });
 ```

@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import type { HoldingCreateInput } from '../api/types';
 
 interface AddHoldingFormProps {
-  onSubmit: (input: HoldingCreateInput) => void;
+  onSubmit: (input: HoldingCreateInput) => void | Promise<void>;
 }
 
 export function AddHoldingForm({ onSubmit }: AddHoldingFormProps) {
@@ -10,15 +10,20 @@ export function AddHoldingForm({ onSubmit }: AddHoldingFormProps) {
   const [shares, setShares] = useState('');
   const [avgCost, setAvgCost] = useState('');
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!ticker.trim() || shares === '' || avgCost === '') {
       return;
     }
-    onSubmit({ ticker, shares: Number(shares), avg_cost_usd: Number(avgCost) });
-    setTicker('');
-    setShares('');
-    setAvgCost('');
+    try {
+      await onSubmit({ ticker, shares: Number(shares), avg_cost_usd: Number(avgCost) });
+      setTicker('');
+      setShares('');
+      setAvgCost('');
+    } catch {
+      // Leave the fields populated so the user can retry; the error itself
+      // is surfaced by the page-level error banner.
+    }
   }
 
   return (

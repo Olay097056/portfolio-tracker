@@ -31,4 +31,36 @@ describe('HoldingRow', () => {
 
     expect(onDelete).toHaveBeenCalledWith(1);
   });
+
+  it('renders current price, value, and a severity indicator when stats are provided', () => {
+    render(
+      <HoldingRow
+        holding={holding}
+        onDelete={vi.fn()}
+        stats={{
+          ticker: 'AAPL',
+          shares: 12,
+          avg_cost_usd: 187.4,
+          current_price: 333.74,
+          value: 4004.88,
+          current_pct: 41.1,
+          target_pct: 20,
+          deviation_pp: 21.1,
+          severity: 'red',
+          unrealized_pnl: 1755.28,
+          realized_pnl: 0,
+        }}
+      />,
+    );
+
+    expect(screen.getByText(/333.74/)).toBeInTheDocument();
+    expect(screen.getByText(/4,004.88/)).toBeInTheDocument();
+    expect(screen.getByTestId('severity-indicator')).toHaveAttribute('data-severity', 'red');
+  });
+
+  it('renders without price/value when stats are not provided', () => {
+    render(<HoldingRow holding={holding} onDelete={vi.fn()} />);
+
+    expect(screen.queryByTestId('severity-indicator')).not.toBeInTheDocument();
+  });
 });

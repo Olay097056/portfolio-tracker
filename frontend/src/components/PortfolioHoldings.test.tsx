@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as client from '../api/client';
 import { PortfolioHoldings } from './PortfolioHoldings';
 
@@ -16,6 +16,23 @@ const holding = {
 };
 
 describe('PortfolioHoldings', () => {
+  beforeEach(() => {
+    // Default mock so tests that don't care about pricing never hit a real
+    // fetch() via usePortfolioSummary — tests that DO care override this
+    // with their own vi.spyOn(client, 'getPortfolioSummary') call below.
+    vi.spyOn(client, 'getPortfolioSummary').mockResolvedValue({
+      id: 1,
+      name: 'DIME',
+      cash_usd: 0,
+      target_allocation_pct: null,
+      holdings_value: 0,
+      total_value: 0,
+      unrealized_pnl: 0,
+      realized_pnl: 0,
+      holdings: [],
+    });
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -79,5 +96,58 @@ describe('PortfolioHoldings', () => {
     fireEvent.click(screen.getByRole('button', { name: /add holding/i }));
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Holding target allocations would exceed 100%'));
+  });
+
+  it('matches each holding to its stats by ticker and passes them to HoldingRow', async () => {
+    vi.spyOn(client, 'listHoldings').mockResolvedValue([holding]);
+    vi.spyOn(client, 'getPortfolioSummary').mockResolvedValue({
+      id: 1,
+      name: 'DIME',
+      cash_usd: 0,
+      target_allocation_pct: null,
+      holdings_value: 4004.88,
+      total_value: 4004.88,
+      unrealized_pnl: 1755.28,
+      realized_pnl: 0,
+      holdings: [
+        {
+          ticker: 'AAPL',
+          shares: 12,
+          avg_cost_usd: 187.4,
+          current_price: 333.74,
+          value: 4004.88,
+          current_pct: 100,
+          target_pct: 20,
+          deviation_pp: 80,
+          severity: 'red',
+          unrealized_pnl: 1755.28,
+          realized_pnl: 0,
+        },
+      ],
+    });
+
+    render(<PortfolioHoldings portfolioId={1} />);
+
+    await waitFor(() => expect(screen.getByText(/333.74/)).toBeInTheDocument());
+  });
+
+  it('renders a holding with no matching summary entry gracefully (no price shown, no crash)', async () => {
+    vi.spyOn(client, 'listHoldings').mockResolvedValue([holding]);
+    vi.spyOn(client, 'getPortfolioSummary').mockResolvedValue({
+      id: 1,
+      name: 'DIME',
+      cash_usd: 0,
+      target_allocation_pct: null,
+      holdings_value: 0,
+      total_value: 0,
+      unrealized_pnl: 0,
+      realized_pnl: 0,
+      holdings: [],
+    });
+
+    render(<PortfolioHoldings portfolioId={1} />);
+
+    await waitFor(() => expect(screen.getByText('AAPL')).toBeInTheDocument());
+    expect(screen.queryByTestId('severity-indicator')).not.toBeInTheDocument();
   });
 });

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as client from '../api/client';
 import { PortfoliosPage } from './PortfoliosPage';
@@ -51,5 +51,23 @@ describe('PortfoliosPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /delete/i }));
 
     await waitFor(() => expect(screen.getByText(/no portfolios yet/i)).toBeInTheDocument());
+  });
+
+  it('shows an inline error banner on a failed create, while keeping the form and list visible', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([portfolio]);
+    vi.spyOn(client, 'createPortfolio').mockRejectedValue(new client.ApiError(400, 'Target allocations would exceed 100%'));
+
+    render(<PortfoliosPage />);
+    await waitFor(() => expect(screen.getByText('DIME')).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'Speculative' } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /add portfolio/i }));
+    });
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Target allocations would exceed 100%');
+    // the existing portfolio and the form itself must still be visible/usable:
+    expect(screen.getByText('DIME')).toBeInTheDocument();
+    expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
   });
 });

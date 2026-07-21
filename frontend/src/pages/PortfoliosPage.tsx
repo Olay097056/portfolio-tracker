@@ -9,13 +9,10 @@ export function PortfoliosPage() {
     return <div>Loading portfolios…</div>;
   }
 
-  if (error) {
-    return <div role="alert">Error loading portfolios: {error}</div>;
-  }
-
   return (
     <div>
       <h2>Portfolios</h2>
+      {error && <div role="alert">{error}</div>}
       <AddPortfolioForm onSubmit={create} />
       {portfolios.length === 0 ? (
         <p>No portfolios yet — add one above.</p>

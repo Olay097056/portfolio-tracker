@@ -67,3 +67,12 @@ def get_price(ticker: str) -> float | None:
         _set_cached(ticker, price)
 
     return price
+
+
+def get_prices(tickers: list[str]) -> dict[str, float]:
+    result: dict[str, float] = {}
+    for ticker in tickers:
+        price = get_price(ticker)
+        if price is not None:
+            result[ticker] = price
+    return result

@@ -99,3 +99,30 @@ def test_a_failed_fetch_is_not_cached(monkeypatch):
 
     assert price == 50.0
     assert call_count["n"] == 1
+
+
+def test_get_prices_returns_a_dict_keyed_by_ticker(monkeypatch):
+    prices = {"AAPL": 333.74, "SMH": 556.53}
+    monkeypatch.setattr(price_service, "_fetch_from_yfinance", lambda ticker: prices[ticker])
+
+    result = price_service.get_prices(["AAPL", "SMH"])
+
+    assert result == {"AAPL": 333.74, "SMH": 556.53}
+
+
+def test_get_prices_omits_tickers_that_fail_both_sources(monkeypatch):
+    def fake_yfinance(ticker):
+        return 100.0 if ticker == "AAPL" else None
+
+    monkeypatch.setattr(price_service, "_fetch_from_yfinance", fake_yfinance)
+    monkeypatch.setattr(price_service, "_fetch_from_twelvedata", lambda ticker: None)
+
+    result = price_service.get_prices(["AAPL", "BADTICKER"])
+
+    assert result == {"AAPL": 100.0}
+
+
+def test_get_prices_with_empty_list_returns_empty_dict():
+    result = price_service.get_prices([])
+
+    assert result == {}

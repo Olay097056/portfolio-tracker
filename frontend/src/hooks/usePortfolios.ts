@@ -1,7 +1,10 @@
-// frontend/src/hooks/usePortfolios.ts
 import { useCallback, useEffect, useState } from 'react';
 import { createPortfolio, deletePortfolio, listPortfolios, updatePortfolio } from '../api/client';
 import type { Portfolio, PortfolioCreateInput, PortfolioUpdateInput } from '../api/types';
+
+function toMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
 
 export function usePortfolios() {
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
@@ -15,7 +18,7 @@ export function usePortfolios() {
       const data = await listPortfolios();
       setPortfolios(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(toMessage(err));
     } finally {
       setLoading(false);
     }
@@ -27,24 +30,42 @@ export function usePortfolios() {
 
   const create = useCallback(
     async (input: PortfolioCreateInput) => {
-      await createPortfolio(input);
-      await refetch();
+      try {
+        await createPortfolio(input);
+        setError(null);
+        await refetch();
+      } catch (err) {
+        setError(toMessage(err));
+        throw err;
+      }
     },
     [refetch],
   );
 
   const update = useCallback(
     async (id: number, input: PortfolioUpdateInput) => {
-      await updatePortfolio(id, input);
-      await refetch();
+      try {
+        await updatePortfolio(id, input);
+        setError(null);
+        await refetch();
+      } catch (err) {
+        setError(toMessage(err));
+        throw err;
+      }
     },
     [refetch],
   );
 
   const remove = useCallback(
     async (id: number) => {
-      await deletePortfolio(id);
-      await refetch();
+      try {
+        await deletePortfolio(id);
+        setError(null);
+        await refetch();
+      } catch (err) {
+        setError(toMessage(err));
+        throw err;
+      }
     },
     [refetch],
   );

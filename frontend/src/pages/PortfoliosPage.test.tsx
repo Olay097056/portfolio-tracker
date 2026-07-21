@@ -70,4 +70,21 @@ describe('PortfoliosPage', () => {
     expect(screen.getByText('DIME')).toBeInTheDocument();
     expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
   });
+
+  it('expands a portfolio to show its holdings panel when "Show holdings" is clicked, and collapses on second click', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([portfolio]);
+    vi.spyOn(client, 'listHoldings').mockResolvedValue([]);
+
+    render(<PortfoliosPage />);
+    await waitFor(() => expect(screen.getByText('DIME')).toBeInTheDocument());
+
+    expect(screen.queryByText(/no holdings yet/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /show holdings/i }));
+    await waitFor(() => expect(screen.getByText(/no holdings yet/i)).toBeInTheDocument());
+    expect(client.listHoldings).toHaveBeenCalledWith(1);
+
+    fireEvent.click(screen.getByRole('button', { name: /hide holdings/i }));
+    expect(screen.queryByText(/no holdings yet/i)).not.toBeInTheDocument();
+  });
 });

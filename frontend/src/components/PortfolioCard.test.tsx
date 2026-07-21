@@ -6,7 +6,7 @@ const portfolio = { id: 1, name: 'DIME', cash_usd: 250, target_allocation_pct: 7
 
 describe('PortfolioCard', () => {
   it('renders the portfolio name, cash, and target allocation', () => {
-    render(<PortfolioCard portfolio={portfolio} onDelete={vi.fn()} />);
+    render(<PortfolioCard portfolio={portfolio} onDelete={vi.fn()} onToggleHoldings={vi.fn()} expanded={false} />);
 
     expect(screen.getByText('DIME')).toBeInTheDocument();
     expect(screen.getByText(/250/)).toBeInTheDocument();
@@ -14,17 +14,32 @@ describe('PortfolioCard', () => {
   });
 
   it('renders "no target set" when target_allocation_pct is null', () => {
-    render(<PortfolioCard portfolio={{ ...portfolio, target_allocation_pct: null }} onDelete={vi.fn()} />);
+    render(<PortfolioCard portfolio={{ ...portfolio, target_allocation_pct: null }} onDelete={vi.fn()} onToggleHoldings={vi.fn()} expanded={false} />);
 
     expect(screen.getByText(/no target set/i)).toBeInTheDocument();
   });
 
   it('calls onDelete with the portfolio id when the delete button is clicked', () => {
     const onDelete = vi.fn();
-    render(<PortfolioCard portfolio={portfolio} onDelete={onDelete} />);
+    render(<PortfolioCard portfolio={portfolio} onDelete={onDelete} onToggleHoldings={vi.fn()} expanded={false} />);
 
     fireEvent.click(screen.getByRole('button', { name: /delete/i }));
 
     expect(onDelete).toHaveBeenCalledWith(1);
+  });
+
+  it('calls onToggleHoldings with the portfolio id when the "show holdings" button is clicked', () => {
+    const onToggleHoldings = vi.fn();
+    render(<PortfolioCard portfolio={portfolio} onDelete={vi.fn()} onToggleHoldings={onToggleHoldings} expanded={false} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /show holdings/i }));
+
+    expect(onToggleHoldings).toHaveBeenCalledWith(1);
+  });
+
+  it('shows "hide holdings" label when expanded is true', () => {
+    render(<PortfolioCard portfolio={portfolio} onDelete={vi.fn()} onToggleHoldings={vi.fn()} expanded={true} />);
+
+    expect(screen.getByRole('button', { name: /hide holdings/i })).toBeInTheDocument();
   });
 });

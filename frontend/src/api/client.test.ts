@@ -7,6 +7,7 @@ import {
   updatePortfolio,
   createHolding,
   listHoldings,
+  getPortfolioSummary,
 } from './client';
 
 function mockFetchOnce(body: unknown, init: { status?: number } = {}) {
@@ -97,5 +98,42 @@ describe('api client', () => {
       'http://localhost:8000/portfolios/1/holdings',
       expect.objectContaining({ method: 'POST', body: JSON.stringify({ ticker: 'AAPL', shares: 12, avg_cost_usd: 187.4 }) }),
     );
+  });
+
+  it('getPortfolioSummary calls GET /portfolios/{id}/summary and returns the parsed body', async () => {
+    const summary = {
+      id: 1,
+      name: 'DIME',
+      cash_usd: 250,
+      target_allocation_pct: 70,
+      holdings_value: 4004.88,
+      total_value: 4254.88,
+      unrealized_pnl: 1751.28,
+      realized_pnl: 0,
+      holdings: [
+        {
+          ticker: 'AAPL',
+          shares: 12,
+          avg_cost_usd: 187.4,
+          current_price: 333.74,
+          value: 4004.88,
+          current_pct: 100,
+          target_pct: 20,
+          deviation_pp: 80,
+          severity: 'red' as const,
+          unrealized_pnl: 1755.28,
+          realized_pnl: 0,
+        },
+      ],
+    };
+    mockFetchOnce(summary);
+
+    const result = await getPortfolioSummary(1);
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:8000/portfolios/1/summary',
+      expect.objectContaining({ method: undefined }),
+    );
+    expect(result).toEqual(summary);
   });
 });

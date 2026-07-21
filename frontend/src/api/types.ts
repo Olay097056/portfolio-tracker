@@ -45,3 +45,29 @@ export interface HoldingUpdateInput {
   target_allocation_pct?: number | null;
   realized_pnl_usd?: number;
 }
+
+export interface HoldingStats {
+  ticker: string;
+  shares: number;
+  avg_cost_usd: number;
+  current_price: number;
+  value: number;
+  current_pct: number;
+  target_pct: number | null;
+  deviation_pp: number | null;
+  severity: 'green' | 'yellow' | 'red' | null;
+  unrealized_pnl: number;
+  realized_pnl: number;
+}
+
+export interface PortfolioSummary {
+  id: number;
+  name: string;
+  cash_usd: number;
+  target_allocation_pct: number | null;
+  holdings_value: number;
+  total_value: number;
+  unrealized_pnl: number;
+  realized_pnl: number;
+  holdings: HoldingStats[];
+}

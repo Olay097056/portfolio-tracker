@@ -5,6 +5,7 @@ import type {
   HoldingUpdateInput,
   Portfolio,
   PortfolioCreateInput,
+  PortfolioSummary,
   PortfolioUpdateInput,
 } from './types';
 
@@ -72,4 +73,8 @@ export function updateHolding(portfolioId: number, holdingId: number, input: Hol
 
 export function deleteHolding(portfolioId: number, holdingId: number): Promise<void> {
   return request<void>(`/portfolios/${portfolioId}/holdings/${holdingId}`, { method: 'DELETE' });
+}
+
+export function getPortfolioSummary(portfolioId: number): Promise<PortfolioSummary> {
+  return request<PortfolioSummary>(`/portfolios/${portfolioId}/summary`);
 }

@@ -69,12 +69,17 @@ describe('usePortfolios', () => {
     const { result } = renderHook(() => usePortfolios());
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    await expect(
-      act(async () => {
+    let thrown: unknown;
+    await act(async () => {
+      try {
         await result.current.create({ name: 'DIME', target_allocation_pct: 90 });
-      }),
-    ).rejects.toThrow('Target allocations would exceed 100%');
+      } catch (err) {
+        thrown = err;
+      }
+    });
 
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).message).toBe('Target allocations would exceed 100%');
     expect(result.current.error).toBe('Target allocations would exceed 100%');
     expect(result.current.portfolios).toEqual([]);
   });
@@ -86,31 +91,37 @@ describe('usePortfolios', () => {
     const { result } = renderHook(() => usePortfolios());
     await waitFor(() => expect(result.current.portfolios).toEqual([samplePortfolio]));
 
-    await expect(
-      act(async () => {
+    let thrown: unknown;
+    await act(async () => {
+      try {
         await result.current.remove(1);
-      }),
-    ).rejects.toThrow('network down');
+      } catch (err) {
+        thrown = err;
+      }
+    });
 
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).message).toBe('network down');
     expect(result.current.error).toBe('network down');
     expect(result.current.portfolios).toEqual([samplePortfolio]);
   });
 
   it('a successful create() clears any previous error', async () => {
-    vi.spyOn(client, 'listPortfolios')
-      .mockResolvedValueOnce([])
-      .mockRejectedValueOnce(new Error('first load failed'))
-      .mockResolvedValueOnce([samplePortfolio]);
-    vi.spyOn(client, 'createPortfolio').mockResolvedValue(samplePortfolio);
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+    vi.spyOn(client, 'createPortfolio')
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValueOnce(samplePortfolio);
 
-    const { result, rerender } = renderHook(() => usePortfolios());
+    const { result } = renderHook(() => usePortfolios());
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    // second render also triggers a load in this test setup via a manual refetch path is not available;
-    // instead directly exercise the success-clears-error branch through a failed then successful create.
-    vi.spyOn(client, 'createPortfolio').mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce(samplePortfolio);
-
-    await expect(act(async () => { await result.current.create({ name: 'X' }); })).rejects.toThrow('boom');
+    await act(async () => {
+      try {
+        await result.current.create({ name: 'X' });
+      } catch {
+        // expected; asserted via result.current.error below
+      }
+    });
     expect(result.current.error).toBe('boom');
 
     await act(async () => {
@@ -118,6 +129,5 @@ describe('usePortfolios', () => {
     });
 
     expect(result.current.error).toBeNull();
-    rerender();
   });
 });

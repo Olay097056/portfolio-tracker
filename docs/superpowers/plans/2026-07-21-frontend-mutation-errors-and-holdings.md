@@ -58,6 +58,14 @@ No backend changes in this plan.
 
 ```tsx
 // frontend/src/hooks/usePortfolios.test.tsx (append)
+// NOTE: catch the rejection INSIDE the act() callback (not by chaining
+// `.rejects` on act()'s own returned promise) — when act()'s callback
+// rejects instead of resolving, React/Testing Library does not reliably
+// flush state updates (like the setError() call right before the throw)
+// before act() itself settles, so an outer `.rejects.toThrow()` can see
+// stale state. Catching inside the callback lets act() resolve normally
+// after the state update has flushed, so assertions on `result.current`
+// afterward are trustworthy.
 it('create() sets error and re-throws when the API call fails, without touching portfolios', async () => {
   vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
   vi.spyOn(client, 'createPortfolio').mockRejectedValue(new client.ApiError(400, 'Target allocations would exceed 100%'));
@@ -65,12 +73,17 @@ it('create() sets error and re-throws when the API call fails, without touching 
   const { result } = renderHook(() => usePortfolios());
   await waitFor(() => expect(result.current.loading).toBe(false));
 
-  await expect(
-    act(async () => {
+  let thrown: unknown;
+  await act(async () => {
+    try {
       await result.current.create({ name: 'DIME', target_allocation_pct: 90 });
-    }),
-  ).rejects.toThrow('Target allocations would exceed 100%');
+    } catch (err) {
+      thrown = err;
+    }
+  });
 
+  expect(thrown).toBeInstanceOf(Error);
+  expect((thrown as Error).message).toBe('Target allocations would exceed 100%');
   expect(result.current.error).toBe('Target allocations would exceed 100%');
   expect(result.current.portfolios).toEqual([]);
 });
@@ -82,31 +95,37 @@ it('remove() sets error and re-throws when the API call fails', async () => {
   const { result } = renderHook(() => usePortfolios());
   await waitFor(() => expect(result.current.portfolios).toEqual([samplePortfolio]));
 
-  await expect(
-    act(async () => {
+  let thrown: unknown;
+  await act(async () => {
+    try {
       await result.current.remove(1);
-    }),
-  ).rejects.toThrow('network down');
+    } catch (err) {
+      thrown = err;
+    }
+  });
 
+  expect(thrown).toBeInstanceOf(Error);
+  expect((thrown as Error).message).toBe('network down');
   expect(result.current.error).toBe('network down');
   expect(result.current.portfolios).toEqual([samplePortfolio]);
 });
 
 it('a successful create() clears any previous error', async () => {
-  vi.spyOn(client, 'listPortfolios')
-    .mockResolvedValueOnce([])
-    .mockRejectedValueOnce(new Error('first load failed'))
-    .mockResolvedValueOnce([samplePortfolio]);
-  vi.spyOn(client, 'createPortfolio').mockResolvedValue(samplePortfolio);
+  vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+  vi.spyOn(client, 'createPortfolio')
+    .mockRejectedValueOnce(new Error('boom'))
+    .mockResolvedValueOnce(samplePortfolio);
 
-  const { result, rerender } = renderHook(() => usePortfolios());
+  const { result } = renderHook(() => usePortfolios());
   await waitFor(() => expect(result.current.loading).toBe(false));
 
-  // second render also triggers a load in this test setup via a manual refetch path is not available;
-  // instead directly exercise the success-clears-error branch through a failed then successful create.
-  vi.spyOn(client, 'createPortfolio').mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce(samplePortfolio);
-
-  await expect(act(async () => { await result.current.create({ name: 'X' }); })).rejects.toThrow('boom');
+  await act(async () => {
+    try {
+      await result.current.create({ name: 'X' });
+    } catch {
+      // expected; asserted via result.current.error below
+    }
+  });
   expect(result.current.error).toBe('boom');
 
   await act(async () => {
@@ -114,7 +133,6 @@ it('a successful create() clears any previous error', async () => {
   });
 
   expect(result.current.error).toBeNull();
-  rerender();
 });
 ```
 
@@ -238,6 +256,10 @@ git commit -m "fix: surface mutation errors from usePortfolios instead of swallo
 
 ```tsx
 // frontend/src/hooks/useHoldings.test.tsx (append)
+// NOTE: same act()-flushing caveat as usePortfolios.test.tsx — catch the
+// rejection INSIDE the act() callback, don't chain `.rejects` on act()'s
+// own promise, or the setError() state update may not have flushed yet
+// when you assert on result.current afterward.
 it('create() sets error and re-throws when the API call fails, without touching holdings', async () => {
   vi.spyOn(client, 'listHoldings').mockResolvedValue([]);
   vi.spyOn(client, 'createHolding').mockRejectedValue(new client.ApiError(400, 'Holding target allocations would exceed 100%'));
@@ -245,12 +267,17 @@ it('create() sets error and re-throws when the API call fails, without touching 
   const { result } = renderHook(() => useHoldings(1));
   await waitFor(() => expect(result.current.loading).toBe(false));
 
-  await expect(
-    act(async () => {
+  let thrown: unknown;
+  await act(async () => {
+    try {
       await result.current.create({ ticker: 'AAPL', shares: 12, avg_cost_usd: 187.4, target_allocation_pct: 90 });
-    }),
-  ).rejects.toThrow('Holding target allocations would exceed 100%');
+    } catch (err) {
+      thrown = err;
+    }
+  });
 
+  expect(thrown).toBeInstanceOf(Error);
+  expect((thrown as Error).message).toBe('Holding target allocations would exceed 100%');
   expect(result.current.error).toBe('Holding target allocations would exceed 100%');
   expect(result.current.holdings).toEqual([]);
 });
@@ -262,12 +289,17 @@ it('remove() sets error and re-throws when the API call fails', async () => {
   const { result } = renderHook(() => useHoldings(1));
   await waitFor(() => expect(result.current.holdings).toEqual([sampleHolding]));
 
-  await expect(
-    act(async () => {
+  let thrown: unknown;
+  await act(async () => {
+    try {
       await result.current.remove(1);
-    }),
-  ).rejects.toThrow('network down');
+    } catch (err) {
+      thrown = err;
+    }
+  });
 
+  expect(thrown).toBeInstanceOf(Error);
+  expect((thrown as Error).message).toBe('network down');
   expect(result.current.error).toBe('network down');
   expect(result.current.holdings).toEqual([sampleHolding]);
 });

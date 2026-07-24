@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getMarketData } from '../api/client';
+import type { MarketData } from '../api/types';
 import { calculateDcaProjection } from '../utils/dcaProjection';
 
 export function DcaProjectionCalculator() {
@@ -19,7 +20,7 @@ export function DcaProjectionCalculator() {
     }
     let cancelled = false;
     getMarketData([trimmed])
-      .then((data) => {
+      .then((data: Record<string, MarketData>) => {
         if (cancelled) return;
         const entry = data[trimmed];
         if (entry?.dividend_yield_pct != null) {

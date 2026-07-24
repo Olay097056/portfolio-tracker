@@ -63,4 +63,39 @@ describe('HoldingRow', () => {
 
     expect(screen.queryByTestId('severity-indicator')).not.toBeInTheDocument();
   });
+
+  const statsWithPrice = {
+    ticker: 'AAPL',
+    shares: 12,
+    avg_cost_usd: 187.4,
+    current_price: 333.74,
+    value: 4004.88,
+    current_pct: 41.1,
+    target_pct: 20,
+    deviation_pp: 21.1,
+    severity: 'red' as const,
+    unrealized_pnl: 1755.28,
+    realized_pnl: 0,
+  };
+
+  it('shows a "Calculate" toggle when stats (and thus a current price) are available', () => {
+    render(<HoldingRow holding={holding} onDelete={vi.fn()} stats={statsWithPrice} />);
+
+    expect(screen.getByRole('button', { name: /calculate/i })).toBeInTheDocument();
+  });
+
+  it('does not show a "Calculate" toggle when stats are unavailable', () => {
+    render(<HoldingRow holding={holding} onDelete={vi.fn()} />);
+
+    expect(screen.queryByRole('button', { name: /calculate/i })).not.toBeInTheDocument();
+  });
+
+  it('clicking "Calculate" reveals both the DCA and stress-test calculators', () => {
+    render(<HoldingRow holding={holding} onDelete={vi.fn()} stats={statsWithPrice} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /calculate/i }));
+
+    expect(screen.getByText(/dca calculator/i)).toBeInTheDocument();
+    expect(screen.getByText(/stress test/i)).toBeInTheDocument();
+  });
 });

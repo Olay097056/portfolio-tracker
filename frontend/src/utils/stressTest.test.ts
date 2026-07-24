@@ -43,4 +43,26 @@ describe('calculateStressTest', () => {
       expect(scenario.moneyLostUsd).toBe(0);
     }
   });
+
+  it('appends a custom scenario even when the custom target price is exactly 0', () => {
+    const scenarios = calculateStressTest({ investmentUsd: 1000, currentPriceUsd: 100, customTargetPriceUsd: 0 });
+
+    expect(scenarios).toHaveLength(4);
+    const custom = scenarios[3];
+    expect(custom.label).toBe('Custom');
+    expect(custom.targetPriceUsd).toBe(0);
+    expect(custom.remainingValueUsd).toBe(0);
+    expect(custom.moneyLostUsd).toBeCloseTo(1000, 6);
+  });
+
+  it('does not divide by zero when currentPriceUsd is 0', () => {
+    const scenarios = calculateStressTest({ investmentUsd: 1000, currentPriceUsd: 0 });
+
+    for (const scenario of scenarios) {
+      expect(scenario.remainingValueUsd).toBe(0);
+      expect(scenario.moneyLostUsd).toBe(1000);
+      expect(Number.isFinite(scenario.remainingValueUsd)).toBe(true);
+      expect(Number.isFinite(scenario.moneyLostUsd)).toBe(true);
+    }
+  });
 });

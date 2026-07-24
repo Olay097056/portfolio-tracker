@@ -8,6 +8,7 @@ import {
   createHolding,
   listHoldings,
   getPortfolioSummary,
+  getMarketData,
 } from './client';
 
 function mockFetchOnce(body: unknown, init: { status?: number } = {}) {
@@ -135,5 +136,27 @@ describe('api client', () => {
       expect.objectContaining({ method: undefined }),
     );
     expect(result).toEqual(summary);
+  });
+
+  it('getMarketData fetches from /market-data with a comma-joined tickers param and returns the market_data map', async () => {
+    const mockResponse = {
+      market_data: { JEPQ: { price: 58.51, dividend_yield_pct: 11.1, growth_rate_pct: 10.0 } },
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockResponse),
+      }),
+    );
+
+    const result = await getMarketData(['JEPQ']);
+
+    expect(result).toEqual(mockResponse.market_data);
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/market-data?tickers=JEPQ'),
+      expect.anything(),
+    );
   });
 });

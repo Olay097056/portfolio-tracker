@@ -71,3 +71,9 @@ export interface PortfolioSummary {
   realized_pnl: number;
   holdings: HoldingStats[];
 }
+
+export interface MarketData {
+  price: number | null;
+  dividend_yield_pct: number | null;
+  growth_rate_pct: number | null;
+}

@@ -3,6 +3,7 @@ import type {
   Holding,
   HoldingCreateInput,
   HoldingUpdateInput,
+  MarketData,
   Portfolio,
   PortfolioCreateInput,
   PortfolioSummary,
@@ -77,4 +78,11 @@ export function deleteHolding(portfolioId: number, holdingId: number): Promise<v
 
 export function getPortfolioSummary(portfolioId: number): Promise<PortfolioSummary> {
   return request<PortfolioSummary>(`/portfolios/${portfolioId}/summary`);
+}
+
+export function getMarketData(tickers: string[]): Promise<Record<string, MarketData>> {
+  const query = tickers.join(',');
+  return request<{ market_data: Record<string, MarketData> }>(`/market-data?tickers=${encodeURIComponent(query)}`).then(
+    (res) => res.market_data,
+  );
 }

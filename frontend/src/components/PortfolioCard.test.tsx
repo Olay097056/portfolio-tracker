@@ -24,7 +24,7 @@ describe('PortfolioCard', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders the portfolio name, cash, and target allocation', async () => {
+  it('renders the portfolio name, total value, and target allocation', async () => {
     render(<PortfolioCard portfolio={portfolio} onDelete={vi.fn()} onToggleHoldings={vi.fn()} expanded={false} />);
 
     await waitFor(() => expect(screen.getByText('DIME')).toBeInTheDocument());

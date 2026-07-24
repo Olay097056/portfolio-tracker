@@ -9,7 +9,7 @@ interface PortfolioHoldingsProps {
 
 export function PortfolioHoldings({ portfolioId }: PortfolioHoldingsProps) {
   const { holdings, loading, error, create, remove } = useHoldings(portfolioId);
-  const { summary } = usePortfolioSummary(portfolioId);
+  const { summary, error: summaryError } = usePortfolioSummary(portfolioId);
 
   if (loading) {
     return <div>Loading holdings…</div>;
@@ -18,6 +18,7 @@ export function PortfolioHoldings({ portfolioId }: PortfolioHoldingsProps) {
   return (
     <div>
       {error && <div role="alert">{error}</div>}
+      {summaryError && <div role="alert">{summaryError}</div>}
       <AddHoldingForm onSubmit={create} />
       {holdings.length === 0 ? (
         <p>No holdings yet — add one above.</p>

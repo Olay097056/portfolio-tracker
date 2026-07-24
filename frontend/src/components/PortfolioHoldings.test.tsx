@@ -131,6 +131,16 @@ describe('PortfolioHoldings', () => {
     await waitFor(() => expect(screen.getByText(/333.74/)).toBeInTheDocument());
   });
 
+  it('shows an inline error banner when the summary fetch fails', async () => {
+    vi.spyOn(client, 'listHoldings').mockResolvedValue([holding]);
+    vi.spyOn(client, 'getPortfolioSummary').mockRejectedValue(new Error('price service unavailable'));
+
+    render(<PortfolioHoldings portfolioId={1} />);
+
+    await waitFor(() => expect(screen.getByText('AAPL')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/price service unavailable/i)).toBeInTheDocument());
+  });
+
   it('renders a holding with no matching summary entry gracefully (no price shown, no crash)', async () => {
     vi.spyOn(client, 'listHoldings').mockResolvedValue([holding]);
     vi.spyOn(client, 'getPortfolioSummary').mockResolvedValue({

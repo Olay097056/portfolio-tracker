@@ -9,6 +9,8 @@ import {
   listHoldings,
   getPortfolioSummary,
   getMarketData,
+  getPrices,
+  getUsdToThbRate,
 } from './client';
 
 function mockFetchOnce(body: unknown, init: { status?: number } = {}) {
@@ -158,5 +160,42 @@ describe('api client', () => {
       expect.stringContaining('/market-data?tickers=JEPQ'),
       expect.anything(),
     );
+  });
+
+  it('getPrices fetches from /prices with a comma-joined tickers param and returns the prices map', async () => {
+    const mockResponse = { prices: { VTI: 210, SPY: 150 } };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockResponse),
+      }),
+    );
+
+    const result = await getPrices(['VTI', 'SPY']);
+
+    expect(result).toEqual(mockResponse.prices);
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/prices?tickers=VTI%2CSPY'),
+      expect.anything(),
+    );
+  });
+
+  it('getUsdToThbRate fetches from /fx/usd-thb and returns the rate', async () => {
+    const mockResponse = { usd_thb_rate: 35.2 };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockResponse),
+      }),
+    );
+
+    const result = await getUsdToThbRate();
+
+    expect(result).toBe(35.2);
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/fx/usd-thb'), expect.anything());
   });
 });

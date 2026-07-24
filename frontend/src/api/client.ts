@@ -86,3 +86,14 @@ export function getMarketData(tickers: string[]): Promise<Record<string, MarketD
     (res) => res.market_data,
   );
 }
+
+export function getPrices(tickers: string[]): Promise<Record<string, number>> {
+  const query = tickers.join(',');
+  return request<{ prices: Record<string, number> }>(`/prices?tickers=${encodeURIComponent(query)}`).then(
+    (res) => res.prices,
+  );
+}
+
+export function getUsdToThbRate(): Promise<number | null> {
+  return request<{ usd_thb_rate: number | null }>('/fx/usd-thb').then((res) => res.usd_thb_rate);
+}

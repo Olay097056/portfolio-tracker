@@ -1,17 +1,20 @@
 /* frontend/src/styles/theme.css */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap');
+
 :root {
-  --bg: #0a0d12;
-  --panel: #131822;
-  --panel2: #1a212c;
-  --panel3: #20293a;
-  --border: #232b38;
-  --gold: #f0b90b;
-  --gold-dim: #8a6c17;
-  --green: #2ecc71;
+  --bg: #0b0f19;
+  --panel: rgba(20, 26, 42, 0.85);
+  --panel2: rgba(30, 38, 60, 0.95);
+  --panel3: rgba(15, 23, 42, 0.8);
+  --border: rgba(255, 255, 255, 0.08);
+  --primary: #38bdf8;
+  --primary-glow: rgba(56, 189, 248, 0.25);
+  --accent-purple: #8b5cf6;
+  --green: #10b981;
+  --yellow: #f59e0b;
   --red: #ef4444;
-  --yellow: #f1c40f;
-  --text: #e6e9ef;
-  --muted: #8892a0;
+  --text: #f8fafc;
+  --muted: #94a3b8;
 }
 
 * {
@@ -20,9 +23,12 @@
 
 body {
   margin: 0;
-  background: var(--bg);
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(circle at 15% 15%, rgba(56, 189, 248, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 85% 85%, rgba(139, 92, 246, 0.08) 0%, transparent 40%);
   color: var(--text);
-  font: 14px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 14px/1.6 'Inter', -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 button {

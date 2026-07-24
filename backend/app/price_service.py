@@ -112,8 +112,18 @@ def _fetch_dividend_yield_pct(ticker: str) -> float | None:
     try:
         info = yf.Ticker(ticker).info
         raw_yield = info.get("dividendYield")
-        # yfinance returns dividendYield as a fraction (e.g. 0.111 for 11.1%)
-        return float(raw_yield) * 100 if raw_yield is not None else None
+        if raw_yield is None:
+            return None
+        raw_yield = float(raw_yield)
+        # yfinance has returned dividendYield as either a fraction (e.g. 0.111
+        # for 11.1%) or an already-scaled percentage (e.g. 11.1), depending on
+        # version/backend. No real equity/ETF dividend yield is ever >= 100%,
+        # so use that as the heuristic to detect which format we got.
+        if raw_yield < 0:
+            return None
+        if raw_yield > 1:
+            return raw_yield
+        return raw_yield * 100
     except Exception:
         return None
 

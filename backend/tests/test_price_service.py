@@ -201,3 +201,59 @@ def test_get_market_data_with_empty_list_returns_empty_dict():
     result = price_service.get_market_data([])
 
     assert result == {}
+
+
+def test_fetch_dividend_yield_pct_scales_fraction_to_percent(monkeypatch):
+    import yfinance
+
+    class FakeTicker:
+        def __init__(self, ticker):
+            self.info = {"dividendYield": 0.111}
+
+    monkeypatch.setattr(yfinance, "Ticker", FakeTicker)
+
+    result = price_service._fetch_dividend_yield_pct("JEPQ")
+
+    assert result == pytest.approx(11.1)
+
+
+def test_fetch_dividend_yield_pct_leaves_already_percentage_value_unscaled(monkeypatch):
+    import yfinance
+
+    class FakeTicker:
+        def __init__(self, ticker):
+            self.info = {"dividendYield": 11.1}
+
+    monkeypatch.setattr(yfinance, "Ticker", FakeTicker)
+
+    result = price_service._fetch_dividend_yield_pct("JEPQ")
+
+    assert result == pytest.approx(11.1)
+
+
+def test_fetch_dividend_yield_pct_returns_none_when_missing(monkeypatch):
+    import yfinance
+
+    class FakeTicker:
+        def __init__(self, ticker):
+            self.info = {}
+
+    monkeypatch.setattr(yfinance, "Ticker", FakeTicker)
+
+    result = price_service._fetch_dividend_yield_pct("JEPQ")
+
+    assert result is None
+
+
+def test_fetch_dividend_yield_pct_returns_none_for_negative_value(monkeypatch):
+    import yfinance
+
+    class FakeTicker:
+        def __init__(self, ticker):
+            self.info = {"dividendYield": -0.5}
+
+    monkeypatch.setattr(yfinance, "Ticker", FakeTicker)
+
+    result = price_service._fetch_dividend_yield_pct("JEPQ")
+
+    assert result is None

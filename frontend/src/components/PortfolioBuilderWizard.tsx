@@ -61,6 +61,8 @@ export function PortfolioBuilderWizard() {
       setCapitalThb('');
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+      // clear the preview on failure so a retry can't blindly re-call createPortfolio and create a duplicate — force a fresh Preview first
+      setLines(null);
     } finally {
       setCreating(false);
     }

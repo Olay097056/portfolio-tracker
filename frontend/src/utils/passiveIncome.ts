@@ -1,4 +1,4 @@
-import { calculateDcaProjection } from './dcaProjection';
+import { calculateDcaProjection, type DcaProjectionInput } from './dcaProjection';
 
 export interface PassiveIncomeInput {
   targetMonthlyIncomeThb: number;
@@ -47,7 +47,7 @@ export function calculateRequiredPortfolio(input: PassiveIncomeInput): PassiveIn
     priceGrowthRatePct,
     reinvestDividends: true,
     taxRatePct,
-  });
+  } as DcaProjectionInput);
 
   let yearsToTarget = -1;
   const yearlyProjection: PassiveIncomeYearProgress[] = dcaResults.map((res) => {

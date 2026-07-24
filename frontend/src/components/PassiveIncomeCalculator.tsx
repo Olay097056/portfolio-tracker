@@ -18,22 +18,25 @@ export function PassiveIncomeCalculator() {
       return;
     }
     let cancelled = false;
-    getMarketData([trimmed])
-      .then((data: Record<string, MarketData>) => {
-        if (cancelled) return;
-        const entry = data[trimmed];
-        if (entry?.dividend_yield_pct != null) {
-          setDividendYieldPct(String(entry.dividend_yield_pct.toFixed(2)));
-        }
-        if (entry?.growth_rate_pct != null) {
-          setPriceGrowthRatePct(String(entry.growth_rate_pct.toFixed(2)));
-        }
-      })
-      .catch(() => {
-        // leave fields blank/editable on failure — never fabricate a value
-      });
+    const timeoutId = setTimeout(() => {
+      getMarketData([trimmed])
+        .then((data: Record<string, MarketData>) => {
+          if (cancelled) return;
+          const entry = data[trimmed];
+          if (entry?.dividend_yield_pct != null) {
+            setDividendYieldPct(String(entry.dividend_yield_pct.toFixed(2)));
+          }
+          if (entry?.growth_rate_pct != null) {
+            setPriceGrowthRatePct(String(entry.growth_rate_pct.toFixed(2)));
+          }
+        })
+        .catch(() => {
+          // leave fields blank/editable on failure — never fabricate a value
+        });
+    }, 400);
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
     };
   }, [ticker]);
 

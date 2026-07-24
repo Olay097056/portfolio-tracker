@@ -6,8 +6,10 @@ from app import price_service
 @pytest.fixture(autouse=True)
 def _clear_cache():
     price_service.clear_cache()
+    price_service.clear_market_data_cache()
     yield
     price_service.clear_cache()
+    price_service.clear_market_data_cache()
 
 
 def test_get_price_returns_yfinance_price_and_does_not_call_twelvedata(monkeypatch):
@@ -124,5 +126,78 @@ def test_get_prices_omits_tickers_that_fail_both_sources(monkeypatch):
 
 def test_get_prices_with_empty_list_returns_empty_dict():
     result = price_service.get_prices([])
+
+    assert result == {}
+
+
+def test_get_market_data_returns_price_yield_and_growth(monkeypatch):
+    monkeypatch.setattr(price_service, "get_price", lambda ticker: 58.51)
+    monkeypatch.setattr(price_service, "_fetch_dividend_yield_pct", lambda ticker: 11.1)
+    monkeypatch.setattr(price_service, "_fetch_growth_rate_pct", lambda ticker: 10.0)
+
+    result = price_service.get_market_data(["JEPQ"])
+
+    assert result == {"JEPQ": {"price": 58.51, "dividend_yield_pct": 11.1, "growth_rate_pct": 10.0}}
+
+
+def test_get_market_data_leaves_yield_and_growth_none_when_they_fail(monkeypatch):
+    monkeypatch.setattr(price_service, "get_price", lambda ticker: 58.51)
+    monkeypatch.setattr(price_service, "_fetch_dividend_yield_pct", lambda ticker: None)
+    monkeypatch.setattr(price_service, "_fetch_growth_rate_pct", lambda ticker: None)
+
+    result = price_service.get_market_data(["JEPQ"])
+
+    assert result == {"JEPQ": {"price": 58.51, "dividend_yield_pct": None, "growth_rate_pct": None}}
+
+
+def test_get_market_data_includes_ticker_even_when_price_fails(monkeypatch):
+    monkeypatch.setattr(price_service, "get_price", lambda ticker: None)
+    monkeypatch.setattr(price_service, "_fetch_dividend_yield_pct", lambda ticker: None)
+    monkeypatch.setattr(price_service, "_fetch_growth_rate_pct", lambda ticker: None)
+
+    result = price_service.get_market_data(["BADTICKER"])
+
+    assert result == {"BADTICKER": {"price": None, "dividend_yield_pct": None, "growth_rate_pct": None}}
+
+
+def test_get_market_data_caches_and_does_not_refetch_within_ttl(monkeypatch):
+    call_count = {"n": 0}
+
+    def fake_get_price(ticker):
+        call_count["n"] += 1
+        return 58.51
+
+    monkeypatch.setattr(price_service, "get_price", fake_get_price)
+    monkeypatch.setattr(price_service, "_fetch_dividend_yield_pct", lambda ticker: 11.1)
+    monkeypatch.setattr(price_service, "_fetch_growth_rate_pct", lambda ticker: 10.0)
+
+    price_service.get_market_data(["JEPQ"])
+    price_service.get_market_data(["JEPQ"])
+
+    assert call_count["n"] == 1
+
+
+def test_get_market_data_does_not_cache_when_price_fails(monkeypatch):
+    monkeypatch.setattr(price_service, "get_price", lambda ticker: None)
+    monkeypatch.setattr(price_service, "_fetch_dividend_yield_pct", lambda ticker: None)
+    monkeypatch.setattr(price_service, "_fetch_growth_rate_pct", lambda ticker: None)
+
+    price_service.get_market_data(["BADTICKER"])
+
+    call_count = {"n": 0}
+
+    def fake_get_price(ticker):
+        call_count["n"] += 1
+        return 58.51
+
+    monkeypatch.setattr(price_service, "get_price", fake_get_price)
+
+    price_service.get_market_data(["BADTICKER"])
+
+    assert call_count["n"] == 1
+
+
+def test_get_market_data_with_empty_list_returns_empty_dict():
+    result = price_service.get_market_data([])
 
     assert result == {}

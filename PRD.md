@@ -174,3 +174,15 @@ Panel ต่อ holding ที่ตอบคำถาม "ถ้าราคา
 ## 12. Open items for later (not blocking v1 build)
 
 ดู "Not yet specified" ใน [map.md](.scratch/planning/map.md) — AI insights, แถบข่าวตลาด, CSV import จากโบรกเกอร์
+
+### จาก stockvision-app merge (2026-07-24) — ยังไม่ grill รายละเอียด เก็บเป็น ticket ไว้ก่อน
+
+แท็บ/ฟีเจอร์เหล่านี้อยู่ใน draft stockvision-app แต่ทั้งหมดใช้ preset/mock data คงที่ (ไม่ใช่การ scan ตลาดจริง) — ต้องมี market-data source ใหม่ที่ยังไม่เลือก ก่อนจะ specify ได้:
+
+- **Dividend Ranking** — จัดกลุ่ม ETF/หุ้นปันผลตาม filter (รายเดือน/yield สูง/เหมาะ DCA/passive) — `src/screenerEngine.js` ในดราฟท์
+- **Momentum Scanner** ("หุ้นมีแนวโน้มจะพุ่ง") — ให้คะแนนจาก Volume/RSI/MA/Sentiment สมมติ
+- **Pre-Squeeze Scanner** — ให้คะแนนจาก market cap/earnings proximity/Bollinger squeeze/volume/RSI/liquidity สมมติ
+- **Trending Stocks Today** — ranking gainers/losers/volume สูงสุด
+- **AI News Summary** — สรุปข่าวหุ้น + AI (ซ้ำกับ "แถบข่าว/สรุปภาพรวมตลาด" ที่ deferred อยู่แล้วด้านบน)
+- **AI Stock Analysis** — สร้าง AI analysis report ต่อหุ้น (ในดราฟท์ใช้ prompt/logic ที่ระบุว่า "exact" มาจาก doohoon.net ตรงๆ — ถ้าทำจริงต้องคิด prompt ใหม่เอง ไม่ใช้ของ doohoon.net ตามหลักเดียวกับที่ห้ามใช้เนื้อหา AI ของ wethaiinvest.com)
+- **ETF Comparison — fundamentals ลึก** (dividend yield, P/E, forward P/E, beta, MA score จาก yfinance `.info` จริง) — v1 ของ ETF Comparison ใช้แค่ราคา/P&L จาก `price_service` เดิม ส่วนนี้ค่อยขยายทีหลัง

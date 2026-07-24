@@ -39,7 +39,7 @@ export function calculateRequiredPortfolio(input: PassiveIncomeInput): PassiveIn
   const requiredAnnualNetDividendThb = targetMonthlyIncomeThb * 12;
   const requiredPortfolioThb = netYield > 0 ? requiredAnnualNetDividendThb / netYield : 0;
 
-  const dcaResults = calculateDcaProjection({
+  const dcaInput: DcaProjectionInput = {
     initialInvestmentThb,
     monthlyContributionThb,
     years: MAX_YEARS,
@@ -47,7 +47,9 @@ export function calculateRequiredPortfolio(input: PassiveIncomeInput): PassiveIn
     priceGrowthRatePct,
     reinvestDividends: true,
     taxRatePct,
-  } as DcaProjectionInput);
+  };
+
+  const dcaResults = calculateDcaProjection(dcaInput);
 
   let yearsToTarget = -1;
   const yearlyProjection: PassiveIncomeYearProgress[] = dcaResults.map((res) => {

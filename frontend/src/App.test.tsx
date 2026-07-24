@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as client from './api/client';
 import { App } from './App';
@@ -22,12 +22,29 @@ describe('App', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders the app title and the portfolios page', async () => {
+  it('renders the app title and the portfolios page by default', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
 
     render(<App />);
 
     expect(screen.getByRole('heading', { name: 'Portfolio Tracker' })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText(/no portfolios yet/i)).toBeInTheDocument());
+  });
+
+  it('switches to the Tools tab and back without losing the Portfolios tab content', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByText(/no portfolios yet/i)).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tools' }));
+
+    expect(screen.getByRole('heading', { name: 'Tools' })).toBeInTheDocument();
+    expect(screen.queryByText(/no portfolios yet/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Portfolios' }));
+
+    await waitFor(() => expect(screen.getByText(/no portfolios yet/i)).toBeInTheDocument());
+    expect(screen.queryByRole('heading', { name: 'Tools' })).not.toBeInTheDocument();
   });
 });

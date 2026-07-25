@@ -1,8 +1,14 @@
 import { useState } from 'react';
+import { TabStrip } from './components/TabStrip';
 import { PortfoliosPage } from './pages/PortfoliosPage';
 import { ToolsPage } from './pages/ToolsPage';
 
 type Tab = 'portfolios' | 'tools';
+
+const TABS = [
+  { id: 'portfolios', label: 'Portfolios' },
+  { id: 'tools', label: 'Tools' },
+] as const satisfies { id: Tab; label: string }[];
 
 export function App() {
   const [activeTab, setActiveTab] = useState<Tab>('portfolios');
@@ -10,14 +16,7 @@ export function App() {
   return (
     <div>
       <h1>Portfolio Tracker</h1>
-      <nav>
-        <button type="button" aria-pressed={activeTab === 'portfolios'} onClick={() => setActiveTab('portfolios')}>
-          Portfolios
-        </button>
-        <button type="button" aria-pressed={activeTab === 'tools'} onClick={() => setActiveTab('tools')}>
-          Tools
-        </button>
-      </nav>
+      <TabStrip tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
       {activeTab === 'portfolios' && <PortfoliosPage />}
       {activeTab === 'tools' && <ToolsPage />}
     </div>

@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { TabStrip } from '../components/TabStrip';
 import { DcaProjectionCalculator } from '../components/DcaProjectionCalculator';
 import { EtfComparisonTool } from '../components/EtfComparisonTool';
 import { PassiveIncomeCalculator } from '../components/PassiveIncomeCalculator';
 import { PortfolioBuilderWizard } from '../components/PortfolioBuilderWizard';
+import { TabStrip } from '../components/TabStrip';
 
 type ToolsTab = 'dca-projection' | 'passive-income' | 'portfolio-builder' | 'etf-comparison';
 

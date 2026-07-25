@@ -26,3 +26,4 @@ _Avoid_: score (implies a validated weighting that this project does not have)
 
 **Pre-squeeze**:
 A state where a ticker's volatility has contracted relative to *its own* recent history — not relative to other tickers.
+_Avoid_: relative strength / momentum (a comparison against other tickers or the market, not a ticker's own history)

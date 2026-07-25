@@ -10,10 +10,10 @@ Work the **frontier**: any ticket whose blockers are all done. After "Watchlist 
 
 **Blocked by:** None — can start immediately.
 
-- [ ] Both the top-level navigation and the Tools sub-tabs render through one shared tab component
-- [ ] Every existing test passes **without modification** — this is the proof the refactor preserved behaviour
-- [ ] The active tab is still communicated to assistive technology the same way it is today
-- [ ] Type checking passes
+- [x] Both the top-level navigation and the Tools sub-tabs render through one shared tab component
+- [x] Every existing test passes **without modification** — this is the proof the refactor preserved behaviour
+- [x] The active tab is still communicated to assistive technology the same way it is today
+- [x] Type checking passes
 
 ## Watchlist area
 

@@ -18,6 +18,11 @@ def rsi(closes: list[float], period: int = 14) -> float | None:
     losses = [-c for c in recent if c < 0]
     avg_gain = sum(gains) / period
     avg_loss = sum(losses) / period
+    if avg_gain == 0 and avg_loss == 0:
+        # No movement at all over the whole window (e.g. a halted or stale-data ticker) is not
+        # the same thing as "every change was a gain" — returning 100 here would fabricate the
+        # single strongest possible overbought reading out of an absence of data.
+        return None
     if avg_loss == 0:
         return 100.0
     rs = avg_gain / avg_loss

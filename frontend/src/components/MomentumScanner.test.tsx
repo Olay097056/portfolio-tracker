@@ -65,6 +65,44 @@ describe('MomentumScanner', () => {
     expect(screen.getByRole('button', { name: /^scan$/i })).not.toBeDisabled();
   });
 
+  it('sorts rows by the clicked column, reports the active sort via aria-sort, and defaults a newly-clicked column to descending', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([
+      { id: 1, ticker: 'LOW', category: null, created_at: '2026-01-01T00:00:00Z' },
+      { id: 2, ticker: 'HIGH', category: null, created_at: '2026-01-01T00:00:00Z' },
+    ]);
+    vi.spyOn(client, 'getPriceSignal').mockImplementation(async (ticker) => ({
+      ticker,
+      percent_change_pct: ticker === 'HIGH' ? 9.0 : 1.0,
+      rsi_14: ticker === 'HIGH' ? 20.0 : 80.0,
+      volume_ratio: 1,
+      distance_from_sma50_pct: 1,
+    }));
+
+    render(<Wrapper />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /^scan$/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /^scan$/i }));
+    await waitFor(() => expect(screen.getByText('LOW')).toBeInTheDocument());
+
+    // Default sort is % change, descending — HIGH (9.0%) before LOW (1.0%).
+    let tickerCells = screen.getAllByRole('row').slice(1).map((row) => row.querySelectorAll('td')[0].textContent);
+    expect(tickerCells).toEqual(['HIGH', 'LOW']);
+    expect(screen.getByRole('columnheader', { name: /% change/i })).toHaveAttribute('aria-sort', 'descending');
+
+    fireEvent.click(screen.getByRole('button', { name: 'RSI (14)' }));
+
+    // A newly-clicked column defaults to descending too — LOW's RSI (80.0) before HIGH's (20.0).
+    tickerCells = screen.getAllByRole('row').slice(1).map((row) => row.querySelectorAll('td')[0].textContent);
+    expect(tickerCells).toEqual(['LOW', 'HIGH']);
+    expect(screen.getByRole('columnheader', { name: /RSI/i })).toHaveAttribute('aria-sort', 'descending');
+    expect(screen.getByRole('columnheader', { name: /% change/i })).not.toHaveAttribute('aria-sort');
+
+    fireEvent.click(screen.getByRole('button', { name: 'RSI (14)' }));
+
+    tickerCells = screen.getAllByRole('row').slice(1).map((row) => row.querySelectorAll('td')[0].textContent);
+    expect(tickerCells).toEqual(['HIGH', 'LOW']);
+    expect(screen.getByRole('columnheader', { name: /RSI/i })).toHaveAttribute('aria-sort', 'ascending');
+  });
+
   it('shows a signal as unavailable when its own value is null while other signals for the same ticker still render', async () => {
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([
       { id: 1, ticker: 'NEWLISTING', category: null, created_at: '2026-01-01T00:00:00Z' },

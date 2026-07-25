@@ -46,6 +46,7 @@ export function MomentumScanner({ scanState }: MomentumScannerProps) {
   const sortedRows = [...rows].sort((a, b) => {
     const aValue = a[sortColumn];
     const bValue = b[sortColumn];
+    if (aValue == null && bValue == null) return 0;
     if (aValue == null) return 1;
     if (bValue == null) return -1;
     return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
@@ -67,7 +68,16 @@ export function MomentumScanner({ scanState }: MomentumScannerProps) {
     );
   }
 
+  // Read from scannedPeriod (the period the displayed results were actually computed with), not
+  // the `period` selector — the selector can be changed without rescanning, and results survive
+  // a remount while the selector resets, so either would let the heading state a period the
+  // numbers weren't computed with.
   const headingPeriod = scannedPeriod ?? period;
+
+  function ariaSortFor(column: SortColumn): 'ascending' | 'descending' | undefined {
+    if (sortColumn !== column) return undefined;
+    return sortDirection === 'asc' ? 'ascending' : 'descending';
+  }
 
   return (
     <div>
@@ -100,22 +110,22 @@ export function MomentumScanner({ scanState }: MomentumScannerProps) {
           <thead>
             <tr>
               <th>Ticker</th>
-              <th>
+              <th aria-sort={ariaSortFor('percent_change_pct')}>
                 <button type="button" onClick={() => toggleSort('percent_change_pct')}>
                   % change ({headingPeriod})
                 </button>
               </th>
-              <th>
+              <th aria-sort={ariaSortFor('rsi_14')}>
                 <button type="button" onClick={() => toggleSort('rsi_14')}>
                   RSI (14)
                 </button>
               </th>
-              <th>
+              <th aria-sort={ariaSortFor('volume_ratio')}>
                 <button type="button" onClick={() => toggleSort('volume_ratio')}>
                   Volume vs 20-day avg
                 </button>
               </th>
-              <th>
+              <th aria-sort={ariaSortFor('distance_from_sma50_pct')}>
                 <button type="button" onClick={() => toggleSort('distance_from_sma50_pct')}>
                   Distance from SMA (50)
                 </button>

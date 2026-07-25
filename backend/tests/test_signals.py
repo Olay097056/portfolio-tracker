@@ -75,12 +75,12 @@ def test_rsi_returns_none_when_not_enough_history():
     assert result is None
 
 
-def test_rsi_with_exactly_enough_history():
-    closes = [100.0 + i for i in range(15)]
+def test_rsi_returns_none_for_a_completely_flat_series():
+    closes = [100.0] * 15
 
     result = rsi(closes, 14)
 
-    assert result is not None
+    assert result is None
 
 
 def test_volume_ratio_above_average():

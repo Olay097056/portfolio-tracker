@@ -161,8 +161,9 @@ def test_bollinger_band_width_pct_returns_none_when_not_enough_history():
 
 
 def test_bollinger_band_width_percentile_ranks_todays_width_against_own_trailing_history():
-    # Each of the last 3 days' own trailing-2-close width: day1 wide (110/100 swing), day2 and
-    # day3 (today) both flat/zero — today ties the lowest width seen in its own 3-day lookback.
+    # Each of the last 3 days' own trailing-2-close width: the first two days are flat/zero,
+    # today's own trailing window ([100, 110]) is the widest of the three — so today ranks at
+    # the top (100th percentile) of its own 3-day lookback.
     closes = [100.0, 100.0, 100.0, 100.0, 110.0]
 
     result = bollinger_band_width_percentile(closes, period=2, num_std=2.0, lookback=3)

@@ -148,4 +148,15 @@ describe('WatchlistPage', () => {
     expect(screen.queryByText('% change (1m)')).not.toBeInTheDocument();
     expect(client.getPriceSignal).toHaveBeenCalledTimes(1);
   });
+
+  it('switches to the Dividend Ranking sub-tab and shows its content', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([]);
+
+    render(<WatchlistPage />);
+    await waitFor(() => expect(screen.getByText(/watchlist is empty/i)).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dividend Ranking' }));
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Dividend Ranking' })).toBeInTheDocument());
+  });
 });

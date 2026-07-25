@@ -15,6 +15,7 @@ import {
   createWatchlistItem,
   deleteWatchlistItem,
   getPriceSignal,
+  getDividendSignal,
 } from './client';
 
 function mockFetchOnce(body: unknown, init: { status?: number } = {}) {
@@ -251,5 +252,17 @@ describe('api client', () => {
       expect.objectContaining({ method: undefined }),
     );
     expect(result).toEqual({ ticker: 'VTI', percent_change_pct: 2.3 });
+  });
+
+  it('getDividendSignal calls GET /watchlist/scan/dividends with the ticker', async () => {
+    mockFetchOnce({ ticker: 'JEPQ', price: 58.51, gross_yield_pct: 11.1, payment_frequency: 12, dividend_growth_pct: 3.2 });
+
+    const result = await getDividendSignal('JEPQ');
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:8000/watchlist/scan/dividends?ticker=JEPQ',
+      expect.objectContaining({ method: undefined }),
+    );
+    expect(result.gross_yield_pct).toBe(11.1);
   });
 });

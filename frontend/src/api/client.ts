@@ -1,5 +1,6 @@
 // frontend/src/api/client.ts
 import type {
+  DividendSignalRow,
   Holding,
   HoldingCreateInput,
   HoldingUpdateInput,
@@ -118,4 +119,8 @@ export function getPriceSignal(ticker: string, period: ScanPeriod): Promise<Pric
   return request<PriceSignalRow>(
     `/watchlist/scan/price-signals?ticker=${encodeURIComponent(ticker)}&period=${period}`,
   );
+}
+
+export function getDividendSignal(ticker: string): Promise<DividendSignalRow> {
+  return request<DividendSignalRow>(`/watchlist/scan/dividends?ticker=${encodeURIComponent(ticker)}`);
 }

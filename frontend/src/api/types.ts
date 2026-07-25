@@ -102,3 +102,11 @@ export interface PriceSignalRow {
   bb_width_percentile: number | null;
   atr_pct: number | null;
 }
+
+export interface DividendSignalRow {
+  ticker: string;
+  price: number | null;
+  gross_yield_pct: number | null;
+  payment_frequency: number | null;
+  dividend_growth_pct: number | null;
+}

@@ -10,7 +10,15 @@ from app.history_service import get_history
 from app.models import WatchlistItem
 from app.routers._deps import get_or_404
 from app.schemas import PriceSignalOut, WatchlistItemCreate, WatchlistItemOut
-from app.signals import distance_from_sma, percent_change, rsi, volume_ratio
+from app.signals import (
+    atr_pct,
+    bollinger_band_width_pct,
+    bollinger_band_width_percentile,
+    distance_from_sma,
+    percent_change,
+    rsi,
+    volume_ratio,
+)
 
 router = APIRouter(prefix="/watchlist", tags=["watchlist"])
 
@@ -49,8 +57,13 @@ def scan_price_signal(ticker: str, period: Literal["1d", "1w", "1m"] = "1w"):
             rsi_14=None,
             volume_ratio=None,
             distance_from_sma50_pct=None,
+            bb_width_pct=None,
+            bb_width_percentile=None,
+            atr_pct=None,
         )
     closes = [bar["close"] for bar in bars]
+    highs = [bar["high"] for bar in bars]
+    lows = [bar["low"] for bar in bars]
     volumes = [bar["volume"] for bar in bars]
     return PriceSignalOut(
         ticker=ticker,
@@ -58,4 +71,7 @@ def scan_price_signal(ticker: str, period: Literal["1d", "1w", "1m"] = "1w"):
         rsi_14=rsi(closes),
         volume_ratio=volume_ratio(volumes),
         distance_from_sma50_pct=distance_from_sma(closes),
+        bb_width_pct=bollinger_band_width_pct(closes),
+        bb_width_percentile=bollinger_band_width_percentile(closes),
+        atr_pct=atr_pct(highs, lows, closes),
     )

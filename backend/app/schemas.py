@@ -98,3 +98,6 @@ class PriceSignalOut(BaseModel):
     rsi_14: float | None
     volume_ratio: float | None
     distance_from_sma50_pct: float | None
+    bb_width_pct: float | None
+    bb_width_percentile: float | None
+    atr_pct: float | None

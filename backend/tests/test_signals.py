@@ -131,3 +131,76 @@ def test_distance_from_sma_returns_none_when_not_enough_history():
     result = distance_from_sma(closes, 50)
 
     assert result is None
+
+
+from app.signals import atr_pct, bollinger_band_width_pct, bollinger_band_width_percentile
+
+
+def test_bollinger_band_width_pct_computes_width_as_percent_of_mean():
+    closes = [100.0] * 19 + [110.0]
+
+    result = bollinger_band_width_pct(closes, period=20, num_std=2.0)
+
+    assert result == pytest.approx(8.674426, abs=1e-4)
+
+
+def test_bollinger_band_width_pct_is_zero_for_a_flat_series():
+    closes = [100.0] * 20
+
+    result = bollinger_band_width_pct(closes, period=20, num_std=2.0)
+
+    assert result == pytest.approx(0.0)
+
+
+def test_bollinger_band_width_pct_returns_none_when_not_enough_history():
+    closes = [100.0] * 10
+
+    result = bollinger_band_width_pct(closes, period=20, num_std=2.0)
+
+    assert result is None
+
+
+def test_bollinger_band_width_percentile_ranks_todays_width_against_own_trailing_history():
+    # Each of the last 3 days' own trailing-2-close width: day1 wide (110/100 swing), day2 and
+    # day3 (today) both flat/zero — today ties the lowest width seen in its own 3-day lookback.
+    closes = [100.0, 100.0, 100.0, 100.0, 110.0]
+
+    result = bollinger_band_width_percentile(closes, period=2, num_std=2.0, lookback=3)
+
+    assert result == pytest.approx(100.0)
+
+
+def test_bollinger_band_width_percentile_low_when_todays_width_is_the_narrowest_seen():
+    closes = [100.0, 100.0, 110.0, 100.0, 100.0]
+
+    result = bollinger_band_width_percentile(closes, period=2, num_std=2.0, lookback=3)
+
+    assert result == pytest.approx(33.333333, abs=1e-4)
+
+
+def test_bollinger_band_width_percentile_returns_none_when_not_enough_history():
+    closes = [100.0] * 4
+
+    result = bollinger_band_width_percentile(closes, period=2, num_std=2.0, lookback=3)
+
+    assert result is None
+
+
+def test_atr_pct_computes_average_true_range_as_percent_of_latest_close():
+    closes = [100.0] * 15
+    highs = [101.0] * 15
+    lows = [99.0] * 15
+
+    result = atr_pct(highs, lows, closes, period=14)
+
+    assert result == pytest.approx(2.0)
+
+
+def test_atr_pct_returns_none_when_not_enough_history():
+    closes = [100.0] * 5
+    highs = [101.0] * 5
+    lows = [99.0] * 5
+
+    result = atr_pct(highs, lows, closes, period=14)
+
+    assert result is None

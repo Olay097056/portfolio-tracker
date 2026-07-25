@@ -14,6 +14,7 @@ import {
   listWatchlist,
   createWatchlistItem,
   deleteWatchlistItem,
+  getPriceSignal,
 } from './client';
 
 function mockFetchOnce(body: unknown, init: { status?: number } = {}) {
@@ -238,5 +239,17 @@ describe('api client', () => {
       'http://localhost:8000/watchlist/1',
       expect.objectContaining({ method: 'DELETE' }),
     );
+  });
+
+  it('getPriceSignal calls GET /watchlist/scan/price-signals with ticker and period', async () => {
+    mockFetchOnce({ ticker: 'VTI', percent_change_pct: 2.3 });
+
+    const result = await getPriceSignal('VTI', '1w');
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:8000/watchlist/scan/price-signals?ticker=VTI&period=1w',
+      expect.objectContaining({ method: undefined }),
+    );
+    expect(result).toEqual({ ticker: 'VTI', percent_change_pct: 2.3 });
   });
 });

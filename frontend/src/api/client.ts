@@ -8,6 +8,8 @@ import type {
   PortfolioCreateInput,
   PortfolioSummary,
   PortfolioUpdateInput,
+  PriceSignalRow,
+  ScanPeriod,
   WatchlistItem,
   WatchlistItemCreateInput,
 } from './types';
@@ -110,4 +112,10 @@ export function createWatchlistItem(input: WatchlistItemCreateInput): Promise<Wa
 
 export function deleteWatchlistItem(id: number): Promise<void> {
   return request<void>(`/watchlist/${id}`, { method: 'DELETE' });
+}
+
+export function getPriceSignal(ticker: string, period: ScanPeriod): Promise<PriceSignalRow> {
+  return request<PriceSignalRow>(
+    `/watchlist/scan/price-signals?ticker=${encodeURIComponent(ticker)}&period=${period}`,
+  );
 }

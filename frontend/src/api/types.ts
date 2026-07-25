@@ -89,3 +89,10 @@ export interface WatchlistItemCreateInput {
   ticker: string;
   category?: string | null;
 }
+
+export type ScanPeriod = '1d' | '1w' | '1m';
+
+export interface PriceSignalRow {
+  ticker: string;
+  percent_change_pct: number | null;
+}

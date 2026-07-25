@@ -95,3 +95,6 @@ class PortfolioSummaryOut(BaseModel):
 class PriceSignalOut(BaseModel):
     ticker: str
     percent_change_pct: float | None
+    rsi_14: float | None
+    volume_ratio: float | None
+    distance_from_sma50_pct: float | None

@@ -13,7 +13,8 @@ def test_scan_price_signal_returns_percent_change(client):
         response = client.get("/watchlist/scan/price-signals", params={"ticker": "VTI", "period": "1d"})
 
     assert response.status_code == 200
-    assert response.json() == {"ticker": "VTI", "percent_change_pct" : 10.0}
+    assert response.json()["ticker"] == "VTI"
+    assert response.json()["percent_change_pct"] == pytest.approx(10.0)
     mock_get_history.assert_called_once_with("VTI")
 
 
@@ -22,7 +23,7 @@ def test_scan_price_signal_returns_null_when_history_unavailable(client):
         response = client.get("/watchlist/scan/price-signals", params={"ticker": "BADTICKER", "period": "1d"})
 
     assert response.status_code == 200
-    assert response.json() == {"ticker": "BADTICKER", "percent_change_pct": None}
+    assert response.json()["percent_change_pct"] is None
 
 
 def test_scan_price_signal_defaults_to_one_week_period(client):
@@ -50,3 +51,43 @@ def test_scan_price_signal_one_month_period_uses_21_trading_days(client):
         response = client.get("/watchlist/scan/price-signals", params={"ticker": "VTI", "period": "1m"})
 
     assert response.json()["percent_change_pct"] == pytest.approx(21.0)
+
+
+def test_scan_price_signal_includes_rsi_volume_ratio_and_sma_distance(client):
+    bars = [{"close": 100.0, "high": 101.0, "low": 99.0, "volume": 1000.0} for _ in range(50)]
+    bars.append({"close": 110.0, "high": 111.0, "low": 109.0, "volume": 2000.0})
+
+    with patch("app.routers.watchlist.get_history", return_value=bars):
+        response = client.get("/watchlist/scan/price-signals", params={"ticker": "VTI", "period": "1d"})
+
+    body = response.json()
+    assert body["rsi_14"] == pytest.approx(100.0)
+    assert body["volume_ratio"] == pytest.approx(2.0)
+    assert body["distance_from_sma50_pct"] is not None
+
+
+def test_scan_price_signal_returns_null_signals_when_history_unavailable(client):
+    with patch("app.routers.watchlist.get_history", return_value=None):
+        response = client.get("/watchlist/scan/price-signals", params={"ticker": "BADTICKER", "period": "1d"})
+
+    assert response.json() == {
+        "ticker": "BADTICKER",
+        "percent_change_pct": None,
+        "rsi_14": None,
+        "volume_ratio": None,
+        "distance_from_sma50_pct": None,
+    }
+
+
+def test_scan_price_signal_computes_available_signals_when_history_is_partial(client):
+    # 10 bars: enough for percent_change(1d) but not enough for rsi(14), volume_ratio(20), or sma(50)
+    bars = [{"close": 100.0 + i, "high": 101.0, "low": 99.0, "volume": 1000.0} for i in range(10)]
+
+    with patch("app.routers.watchlist.get_history", return_value=bars):
+        response = client.get("/watchlist/scan/price-signals", params={"ticker": "VTI", "period": "1d"})
+
+    body = response.json()
+    assert body["percent_change_pct"] is not None
+    assert body["rsi_14"] is None
+    assert body["volume_ratio"] is None
+    assert body["distance_from_sma50_pct"] is None

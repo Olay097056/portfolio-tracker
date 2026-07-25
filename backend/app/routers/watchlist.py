@@ -10,7 +10,7 @@ from app.history_service import get_history
 from app.models import WatchlistItem
 from app.routers._deps import get_or_404
 from app.schemas import PriceSignalOut, WatchlistItemCreate, WatchlistItemOut
-from app.signals import percent_change
+from app.signals import distance_from_sma, percent_change, rsi, volume_ratio
 
 router = APIRouter(prefix="/watchlist", tags=["watchlist"])
 
@@ -43,7 +43,19 @@ PERIOD_TRADING_DAYS: dict[str, int] = {"1d": 1, "1w": 5, "1m": 21}
 def scan_price_signal(ticker: str, period: Literal["1d", "1w", "1m"] = "1w"):
     bars = get_history(ticker)
     if bars is None:
-        return PriceSignalOut(ticker=ticker, percent_change_pct=None)
+        return PriceSignalOut(
+            ticker=ticker,
+            percent_change_pct=None,
+            rsi_14=None,
+            volume_ratio=None,
+            distance_from_sma50_pct=None,
+        )
     closes = [bar["close"] for bar in bars]
-    pct = percent_change(closes, PERIOD_TRADING_DAYS[period])
-    return PriceSignalOut(ticker=ticker, percent_change_pct=pct)
+    volumes = [bar["volume"] for bar in bars]
+    return PriceSignalOut(
+        ticker=ticker,
+        percent_change_pct=percent_change(closes, PERIOD_TRADING_DAYS[period]),
+        rsi_14=rsi(closes),
+        volume_ratio=volume_ratio(volumes),
+        distance_from_sma50_pct=distance_from_sma(closes),
+    )

@@ -90,3 +90,8 @@ class PortfolioSummaryOut(BaseModel):
     unrealized_pnl: float
     realized_pnl: float
     holdings: list[HoldingStatsOut]
+
+
+class PriceSignalOut(BaseModel):
+    ticker: str
+    percent_change_pct: float | None

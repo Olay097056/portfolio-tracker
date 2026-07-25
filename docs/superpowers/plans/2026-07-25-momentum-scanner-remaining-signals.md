@@ -104,7 +104,8 @@ def test_distance_from_sma_above_average():
 
     result = distance_from_sma(closes, 50)
 
-    assert result == pytest.approx(0.2)
+    # average = (49*100 + 110) / 50 = 100.2; distance = (110 - 100.2) / 100.2 * 100
+    assert result == pytest.approx(9.780439, abs=1e-4)
 
 
 def test_distance_from_sma_below_average():
@@ -112,7 +113,8 @@ def test_distance_from_sma_below_average():
 
     result = distance_from_sma(closes, 50)
 
-    assert result == pytest.approx(-0.2)
+    # average = (49*100 + 90) / 50 = 99.8; distance = (90 - 99.8) / 99.8 * 100
+    assert result == pytest.approx(-9.819639, abs=1e-4)
 
 
 def test_distance_from_sma_returns_none_when_not_enough_history():

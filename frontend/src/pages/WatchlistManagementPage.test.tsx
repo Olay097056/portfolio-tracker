@@ -19,6 +19,14 @@ describe('WatchlistManagementPage', () => {
     await waitFor(() => expect(screen.getByText('VTI')).toBeInTheDocument());
   });
 
+  it('renders a heading matching its tab label, following the pattern every Tools sub-tab uses', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([]);
+
+    render(<WatchlistManagementPage />);
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Manage Watchlist' })).toBeInTheDocument());
+  });
+
   it('shows an empty state when the watchlist has no items', async () => {
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([]);
 

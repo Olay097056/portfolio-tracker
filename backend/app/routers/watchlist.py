@@ -1,4 +1,5 @@
 # backend/app/routers/watchlist.py
+from datetime import date
 from typing import Literal
 
 from fastapi import APIRouter, Depends
@@ -6,10 +7,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.dividend_metrics import dividend_growth_pct, gross_yield_pct, payment_frequency
+from app.dividend_service import get_dividend_payments
 from app.history_service import get_history
 from app.models import WatchlistItem
+from app.price_service import get_price
 from app.routers._deps import get_or_404
-from app.schemas import PriceSignalOut, WatchlistItemCreate, WatchlistItemOut
+from app.schemas import DividendSignalOut, PriceSignalOut, WatchlistItemCreate, WatchlistItemOut
 from app.signals import (
     atr_pct,
     bollinger_band_width_pct,
@@ -74,4 +78,20 @@ def scan_price_signal(ticker: str, period: Literal["1d", "1w", "1m"] = "1w"):
         bb_width_pct=bollinger_band_width_pct(closes),
         bb_width_percentile=bollinger_band_width_percentile(closes),
         atr_pct=atr_pct(highs, lows, closes),
+    )
+
+
+@router.get("/scan/dividends", response_model=DividendSignalOut)
+def scan_dividends(ticker: str):
+    price = get_price(ticker)
+    payments = get_dividend_payments(ticker)
+    if payments is None:
+        return DividendSignalOut(ticker=ticker, price=price, gross_yield_pct=None, payment_frequency=None, dividend_growth_pct=None)
+    as_of = date.today()
+    return DividendSignalOut(
+        ticker=ticker,
+        price=price,
+        gross_yield_pct=gross_yield_pct(payments, price, as_of),
+        payment_frequency=payment_frequency([d for d, _ in payments], as_of),
+        dividend_growth_pct=dividend_growth_pct(payments, as_of),
     )

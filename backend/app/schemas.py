@@ -101,3 +101,11 @@ class PriceSignalOut(BaseModel):
     bb_width_pct: float | None
     bb_width_percentile: float | None
     atr_pct: float | None
+
+
+class DividendSignalOut(BaseModel):
+    ticker: str
+    price: float | None
+    gross_yield_pct: float | None
+    payment_frequency: int | None
+    dividend_growth_pct: float | None

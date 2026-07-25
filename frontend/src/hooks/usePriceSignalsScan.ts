@@ -10,6 +10,7 @@ interface ScanProgress {
 
 export function usePriceSignalsScan() {
   const [results, setResults] = useState<Record<string, PriceSignalRow>>({});
+  const [scannedPeriod, setScannedPeriod] = useState<ScanPeriod | null>(null);
   const [scanning, setScanning] = useState(false);
   const [progress, setProgress] = useState<ScanProgress | null>(null);
 
@@ -30,9 +31,14 @@ export function usePriceSignalsScan() {
       setProgress({ done: i + 1, total: tickers.length });
     }
 
+    // Recorded alongside results, not read from the caller's own period state, so a column
+    // heading built from this can never desync from the data actually being displayed —
+    // even after the results survive a remount (e.g. switching Watchlist sub-tabs and back).
+    setScannedPeriod(period);
     setResults(next);
     setScanning(false);
+    setProgress(null);
   }, []);
 
-  return { results, scanning, progress, scan };
+  return { results, scannedPeriod, scanning, progress, scan };
 }

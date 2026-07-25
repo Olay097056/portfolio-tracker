@@ -1,5 +1,5 @@
 // frontend/src/hooks/usePriceSignalsScan.test.tsx
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as client from '../api/client';
 import { usePriceSignalsScan } from './usePriceSignalsScan';
@@ -13,6 +13,7 @@ describe('usePriceSignalsScan', () => {
     const { result } = renderHook(() => usePriceSignalsScan());
 
     expect(result.current.results).toEqual({});
+    expect(result.current.scannedPeriod).toBeNull();
     expect(result.current.scanning).toBe(false);
     expect(result.current.progress).toBeNull();
   });
@@ -37,23 +38,35 @@ describe('usePriceSignalsScan', () => {
     });
     expect(client.getPriceSignal).toHaveBeenNthCalledWith(1, 'VTI', '1w');
     expect(client.getPriceSignal).toHaveBeenNthCalledWith(2, 'SPY', '1w');
+    expect(result.current.scannedPeriod).toBe('1w');
   });
 
   it('updates progress after each ticker completes and clears it when done', async () => {
-    vi.spyOn(client, 'getPriceSignal').mockImplementation(async (ticker) => ({
-      ticker,
-      percent_change_pct: 1,
-    }));
+    let resolveVti!: (row: { ticker: string; percent_change_pct: number | null }) => void;
+    const vtiPromise = new Promise<{ ticker: string; percent_change_pct: number | null }>((resolve) => {
+      resolveVti = resolve;
+    });
+    vi.spyOn(client, 'getPriceSignal').mockImplementation(async (ticker) => {
+      if (ticker === 'VTI') return vtiPromise;
+      return { ticker, percent_change_pct: 1 };
+    });
 
     const { result } = renderHook(() => usePriceSignalsScan());
 
-    const scanPromise = act(async () => {
-      await result.current.scan(['VTI', 'SPY', 'BND'], '1d');
+    let scanPromise!: Promise<void>;
+    act(() => {
+      scanPromise = result.current.scan(['VTI', 'SPY'], '1d');
     });
 
-    await scanPromise;
+    await waitFor(() => expect(result.current.progress).toEqual({ done: 0, total: 2 }));
+
+    await act(async () => {
+      resolveVti({ ticker: 'VTI', percent_change_pct: 1 });
+      await scanPromise;
+    });
 
     expect(result.current.scanning).toBe(false);
+    expect(result.current.progress).toBeNull();
   });
 
   it('records a null-valued row for a ticker whose fetch fails, without abandoning the rest', async () => {

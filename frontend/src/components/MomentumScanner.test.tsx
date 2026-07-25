@@ -54,6 +54,26 @@ describe('MomentumScanner', () => {
     expect(screen.getByText('1.50%')).toBeInTheDocument();
     expect(screen.getByText('-2.25%')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^scan$/i })).not.toBeDisabled();
+    expect(screen.getByText('% change (1w)')).toBeInTheDocument();
+  });
+
+  it('keeps the column heading in sync with the period the displayed results were scanned with, even after changing the selector without rescanning', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([
+      { id: 1, ticker: 'VTI', category: null, created_at: '2026-01-01T00:00:00Z' },
+    ]);
+    vi.spyOn(client, 'getPriceSignal').mockResolvedValue({ ticker: 'VTI', percent_change_pct: 1.5 });
+
+    render(<Wrapper />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /^scan$/i })).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /^scan$/i }));
+    await waitFor(() => expect(screen.getByText('% change (1w)')).toBeInTheDocument());
+
+    // Changing the selector after a scan must not relabel results that were never recomputed.
+    fireEvent.change(screen.getByLabelText(/period/i), { target: { value: '1m' } });
+
+    expect(screen.getByText('% change (1w)')).toBeInTheDocument();
+    expect(screen.queryByText('% change (1m)')).not.toBeInTheDocument();
   });
 
   it('shows a row marked unavailable for a ticker whose signal could not be fetched', async () => {

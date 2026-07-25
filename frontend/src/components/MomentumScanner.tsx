@@ -5,6 +5,7 @@ import { useWatchlist } from '../hooks/useWatchlist';
 
 interface PriceSignalsScanState {
   results: Record<string, PriceSignalRow>;
+  scannedPeriod: ScanPeriod | null;
   scanning: boolean;
   progress: { done: number; total: number } | null;
   scan: (tickers: string[], period: ScanPeriod) => Promise<void>;
@@ -20,7 +21,7 @@ export function MomentumScanner({ scanState }: MomentumScannerProps) {
   const { items, loading } = useWatchlist();
   const [period, setPeriod] = useState<ScanPeriod>('1w');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const { results, scanning, progress, scan } = scanState;
+  const { results, scannedPeriod, scanning, progress, scan } = scanState;
 
   if (loading) {
     return <div>Loading watchlist…</div>;
@@ -85,7 +86,11 @@ export function MomentumScanner({ scanState }: MomentumScannerProps) {
               <th>Ticker</th>
               <th>
                 <button type="button" onClick={() => setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'))}>
-                  % change ({period})
+                  {/* Read from scannedPeriod (the period the displayed results were actually computed
+                      with), not the `period` selector — the selector can be changed without rescanning,
+                      and results survive a remount while the selector resets, so either would let the
+                      heading state a period the numbers weren't computed with. */}
+                  % change ({scannedPeriod ?? period})
                 </button>
               </th>
             </tr>

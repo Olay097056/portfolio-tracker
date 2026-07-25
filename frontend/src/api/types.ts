@@ -77,3 +77,15 @@ export interface MarketData {
   dividend_yield_pct: number | null;
   growth_rate_pct: number | null;
 }
+
+export interface WatchlistItem {
+  id: number;
+  ticker: string;
+  category: string | null;
+  created_at: string;
+}
+
+export interface WatchlistItemCreateInput {
+  ticker: string;
+  category?: string | null;
+}

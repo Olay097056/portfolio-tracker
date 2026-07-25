@@ -8,6 +8,8 @@ import type {
   PortfolioCreateInput,
   PortfolioSummary,
   PortfolioUpdateInput,
+  WatchlistItem,
+  WatchlistItemCreateInput,
 } from './types';
 
 const BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
@@ -96,4 +98,16 @@ export function getPrices(tickers: string[]): Promise<Record<string, number>> {
 
 export function getUsdToThbRate(): Promise<number | null> {
   return request<{ usd_thb_rate: number | null }>('/fx/usd-thb').then((res) => res.usd_thb_rate);
+}
+
+export function listWatchlist(): Promise<WatchlistItem[]> {
+  return request<WatchlistItem[]>('/watchlist');
+}
+
+export function createWatchlistItem(input: WatchlistItemCreateInput): Promise<WatchlistItem> {
+  return request<WatchlistItem>('/watchlist', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function deleteWatchlistItem(id: number): Promise<void> {
+  return request<void>(`/watchlist/${id}`, { method: 'DELETE' });
 }

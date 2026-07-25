@@ -11,6 +11,9 @@ import {
   getMarketData,
   getPrices,
   getUsdToThbRate,
+  listWatchlist,
+  createWatchlistItem,
+  deleteWatchlistItem,
 } from './client';
 
 function mockFetchOnce(body: unknown, init: { status?: number } = {}) {
@@ -197,5 +200,43 @@ describe('api client', () => {
 
     expect(result).toBe(35.2);
     expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/fx/usd-thb'), expect.anything());
+  });
+
+  it('listWatchlist calls GET /watchlist and returns the parsed body', async () => {
+    mockFetchOnce([{ id: 1, ticker: 'VTI', category: 'Core', created_at: '2026-01-01T00:00:00Z' }]);
+
+    const result = await listWatchlist();
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:8000/watchlist',
+      expect.objectContaining({ method: undefined }),
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].ticker).toBe('VTI');
+  });
+
+  it('createWatchlistItem POSTs the payload as JSON', async () => {
+    mockFetchOnce({ id: 1, ticker: 'VTI', category: null, created_at: '2026-01-01T00:00:00Z' }, { status: 201 });
+
+    await createWatchlistItem({ ticker: 'VTI', category: null });
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:8000/watchlist',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ ticker: 'VTI', category: null }),
+      }),
+    );
+  });
+
+  it('deleteWatchlistItem DELETEs the item by id', async () => {
+    mockFetchOnce(undefined, { status: 204 });
+
+    await deleteWatchlistItem(1);
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:8000/watchlist/1',
+      expect.objectContaining({ method: 'DELETE' }),
+    );
   });
 });

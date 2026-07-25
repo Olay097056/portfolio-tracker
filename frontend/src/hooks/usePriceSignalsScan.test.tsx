@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as client from '../api/client';
 import type { PriceSignalRow } from '../api/types';
-import { usePriceSignalsScan } from './usePriceSignalsScan';
+import { DEFAULT_PERIOD, usePriceSignalsScan } from './usePriceSignalsScan';
 
 describe('usePriceSignalsScan', () => {
   afterEach(() => {
@@ -216,7 +216,7 @@ describe('usePriceSignalsScan', () => {
     });
   });
 
-  it('a scan without an explicit period reuses the last explicit period for percent_change_pct, and does not change scannedPeriod', async () => {
+  it('a scan without an explicit period reuses the last explicit period for percent_change_pct, and scannedPeriod tracks that reused period', async () => {
     vi.spyOn(client, 'getPriceSignal').mockImplementation(async (ticker) => ({
       ticker,
       percent_change_pct: 1,
@@ -242,5 +242,28 @@ describe('usePriceSignalsScan', () => {
 
     expect(client.getPriceSignal).toHaveBeenLastCalledWith('SPY', '1m');
     expect(result.current.scannedPeriod).toBe('1m');
+  });
+
+  it('a scan without an explicit period, as the very first scan, sets scannedPeriod to the default rather than leaving it null', async () => {
+    vi.spyOn(client, 'getPriceSignal').mockResolvedValue({
+      ticker: 'VTI',
+      percent_change_pct: 1,
+      rsi_14: null,
+      volume_ratio: null,
+      distance_from_sma50_pct: null,
+      bb_width_pct: null,
+      bb_width_percentile: null,
+      atr_pct: null,
+    });
+
+    const { result } = renderHook(() => usePriceSignalsScan());
+    expect(result.current.scannedPeriod).toBeNull();
+
+    await act(async () => {
+      await result.current.scan(['VTI']);
+    });
+
+    expect(client.getPriceSignal).toHaveBeenCalledWith('VTI', DEFAULT_PERIOD);
+    expect(result.current.scannedPeriod).toBe(DEFAULT_PERIOD);
   });
 });

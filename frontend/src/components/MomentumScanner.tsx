@@ -15,8 +15,9 @@ type SortDirection = 'asc' | 'desc';
 export function MomentumScanner({ scanState }: MomentumScannerProps) {
   const { items, loading } = useWatchlist();
   // Matches usePriceSignalsScan's own DEFAULT_PERIOD — a period-agnostic scan (e.g. triggered
-  // from Pre-Squeeze) uses that same default, so this selector's initial value always agrees
-  // with what a scan Momentum didn't request would have used.
+  // from Pre-Squeeze) before Momentum's user has ever explicitly chosen one falls back to this
+  // exact constant, so the two only need to agree on the untouched-default case, not in general
+  // (scannedPeriod itself, not this selector, is always what the heading reads).
   const [period, setPeriod] = useState<ScanPeriod>(DEFAULT_PERIOD);
   const [sortColumn, setSortColumn] = useState<SortColumn>('percent_change_pct');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');

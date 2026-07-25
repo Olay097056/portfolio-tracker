@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { PriceSignalRow, ScanPeriod } from '../api/types';
 import type { PriceSignalsScanState } from '../hooks/usePriceSignalsScan';
 import { useWatchlist } from '../hooks/useWatchlist';
+import { formatNumber, formatSignedPercent } from '../utils/signalFormatting';
 
 interface MomentumScannerProps {
   scanState: PriceSignalsScanState;
@@ -10,14 +11,6 @@ interface MomentumScannerProps {
 
 type SortColumn = 'percent_change_pct' | 'rsi_14' | 'volume_ratio' | 'distance_from_sma50_pct';
 type SortDirection = 'asc' | 'desc';
-
-function formatSignedPercent(value: number | null | undefined): string {
-  return value == null ? 'Unavailable' : `${value.toFixed(2)}%`;
-}
-
-function formatNumber(value: number | null | undefined): string {
-  return value == null ? 'Unavailable' : value.toFixed(2);
-}
 
 export function MomentumScanner({ scanState }: MomentumScannerProps) {
   const { items, loading } = useWatchlist();

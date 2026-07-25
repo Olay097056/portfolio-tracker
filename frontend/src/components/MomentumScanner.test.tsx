@@ -45,6 +45,9 @@ describe('MomentumScanner', () => {
       rsi_14: ticker === 'VTI' ? 65.4 : 32.1,
       volume_ratio: ticker === 'VTI' ? 1.8 : 0.9,
       distance_from_sma50_pct: ticker === 'VTI' ? 3.2 : -1.1,
+      bb_width_pct: null,
+      bb_width_percentile: null,
+      atr_pct: null,
     }));
 
     render(<Wrapper />);
@@ -76,6 +79,9 @@ describe('MomentumScanner', () => {
       rsi_14: ticker === 'HIGH' ? 20.0 : 80.0,
       volume_ratio: 1,
       distance_from_sma50_pct: 1,
+      bb_width_pct: null,
+      bb_width_percentile: null,
+      atr_pct: null,
     }));
 
     render(<Wrapper />);
@@ -113,6 +119,9 @@ describe('MomentumScanner', () => {
       rsi_14: null,
       volume_ratio: null,
       distance_from_sma50_pct: null,
+      bb_width_pct: null,
+      bb_width_percentile: null,
+      atr_pct: null,
     });
 
     render(<Wrapper />);
@@ -135,6 +144,9 @@ describe('MomentumScanner', () => {
       rsi_14: null,
       volume_ratio: null,
       distance_from_sma50_pct: null,
+      bb_width_pct: null,
+      bb_width_percentile: null,
+      atr_pct: null,
     });
 
     render(<Wrapper />);
@@ -175,6 +187,9 @@ describe('MomentumScanner', () => {
       rsi_14: null,
       volume_ratio: null,
       distance_from_sma50_pct: null,
+      bb_width_pct: null,
+      bb_width_percentile: null,
+      atr_pct: null,
     });
 
     render(<Wrapper />);

@@ -98,4 +98,7 @@ export interface PriceSignalRow {
   rsi_14: number | null;
   volume_ratio: number | null;
   distance_from_sma50_pct: number | null;
+  bb_width_pct: number | null;
+  bb_width_percentile: number | null;
+  atr_pct: number | null;
 }

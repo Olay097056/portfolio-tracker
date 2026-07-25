@@ -39,6 +39,9 @@ describe('WatchlistPage', () => {
       rsi_14: null,
       volume_ratio: null,
       distance_from_sma50_pct: null,
+      bb_width_pct: null,
+      bb_width_percentile: null,
+      atr_pct: null,
     });
 
     render(<WatchlistPage />);

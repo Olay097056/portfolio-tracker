@@ -29,6 +29,9 @@ describe('usePriceSignalsScan', () => {
         rsi_14: null,
         volume_ratio: null,
         distance_from_sma50_pct: null,
+        bb_width_pct: null,
+        bb_width_percentile: null,
+        atr_pct: null,
       };
     });
 
@@ -40,8 +43,26 @@ describe('usePriceSignalsScan', () => {
 
     expect(calls).toEqual(['VTI', 'SPY']);
     expect(result.current.results).toEqual({
-      VTI: { ticker: 'VTI', percent_change_pct: 1.5, rsi_14: null, volume_ratio: null, distance_from_sma50_pct: null },
-      SPY: { ticker: 'SPY', percent_change_pct: 2.5, rsi_14: null, volume_ratio: null, distance_from_sma50_pct: null },
+      VTI: {
+        ticker: 'VTI',
+        percent_change_pct: 1.5,
+        rsi_14: null,
+        volume_ratio: null,
+        distance_from_sma50_pct: null,
+        bb_width_pct: null,
+        bb_width_percentile: null,
+        atr_pct: null,
+      },
+      SPY: {
+        ticker: 'SPY',
+        percent_change_pct: 2.5,
+        rsi_14: null,
+        volume_ratio: null,
+        distance_from_sma50_pct: null,
+        bb_width_pct: null,
+        bb_width_percentile: null,
+        atr_pct: null,
+      },
     });
     expect(client.getPriceSignal).toHaveBeenNthCalledWith(1, 'VTI', '1w');
     expect(client.getPriceSignal).toHaveBeenNthCalledWith(2, 'SPY', '1w');
@@ -69,12 +90,30 @@ describe('usePriceSignalsScan', () => {
     await waitFor(() => expect(result.current.progress).toEqual({ done: 0, total: 2 }));
 
     await act(async () => {
-      resolveVti({ ticker: 'VTI', percent_change_pct: 1, rsi_14: null, volume_ratio: null, distance_from_sma50_pct: null });
+      resolveVti({
+        ticker: 'VTI',
+        percent_change_pct: 1,
+        rsi_14: null,
+        volume_ratio: null,
+        distance_from_sma50_pct: null,
+        bb_width_pct: null,
+        bb_width_percentile: null,
+        atr_pct: null,
+      });
     });
     await waitFor(() => expect(result.current.progress).toEqual({ done: 1, total: 2 }));
 
     await act(async () => {
-      resolveSpy({ ticker: 'SPY', percent_change_pct: 1, rsi_14: null, volume_ratio: null, distance_from_sma50_pct: null });
+      resolveSpy({
+        ticker: 'SPY',
+        percent_change_pct: 1,
+        rsi_14: null,
+        volume_ratio: null,
+        distance_from_sma50_pct: null,
+        bb_width_pct: null,
+        bb_width_percentile: null,
+        atr_pct: null,
+      });
       await scanPromise;
     });
 
@@ -87,7 +126,16 @@ describe('usePriceSignalsScan', () => {
       if (ticker === 'BADTICKER') {
         throw new client.ApiError(502, 'upstream error');
       }
-      return { ticker, percent_change_pct: 3, rsi_14: null, volume_ratio: null, distance_from_sma50_pct: null };
+      return {
+        ticker,
+        percent_change_pct: 3,
+        rsi_14: null,
+        volume_ratio: null,
+        distance_from_sma50_pct: null,
+        bb_width_pct: null,
+        bb_width_percentile: null,
+        atr_pct: null,
+      };
     });
 
     const { result } = renderHook(() => usePriceSignalsScan());
@@ -97,8 +145,26 @@ describe('usePriceSignalsScan', () => {
     });
 
     expect(result.current.results).toEqual({
-      VTI: { ticker: 'VTI', percent_change_pct: 3, rsi_14: null, volume_ratio: null, distance_from_sma50_pct: null },
-      BADTICKER: { ticker: 'BADTICKER', percent_change_pct: null, rsi_14: null, volume_ratio: null, distance_from_sma50_pct: null },
+      VTI: {
+        ticker: 'VTI',
+        percent_change_pct: 3,
+        rsi_14: null,
+        volume_ratio: null,
+        distance_from_sma50_pct: null,
+        bb_width_pct: null,
+        bb_width_percentile: null,
+        atr_pct: null,
+      },
+      BADTICKER: {
+        ticker: 'BADTICKER',
+        percent_change_pct: null,
+        rsi_14: null,
+        volume_ratio: null,
+        distance_from_sma50_pct: null,
+        bb_width_pct: null,
+        bb_width_percentile: null,
+        atr_pct: null,
+      },
     });
   });
 
@@ -109,6 +175,9 @@ describe('usePriceSignalsScan', () => {
       rsi_14: null,
       volume_ratio: null,
       distance_from_sma50_pct: null,
+      bb_width_pct: null,
+      bb_width_percentile: null,
+      atr_pct: null,
     }));
 
     const { result } = renderHook(() => usePriceSignalsScan());
@@ -117,7 +186,16 @@ describe('usePriceSignalsScan', () => {
       await result.current.scan(['VTI'], '1w');
     });
     expect(result.current.results).toEqual({
-      VTI: { ticker: 'VTI', percent_change_pct: 1, rsi_14: null, volume_ratio: null, distance_from_sma50_pct: null },
+      VTI: {
+        ticker: 'VTI',
+        percent_change_pct: 1,
+        rsi_14: null,
+        volume_ratio: null,
+        distance_from_sma50_pct: null,
+        bb_width_pct: null,
+        bb_width_percentile: null,
+        atr_pct: null,
+      },
     });
 
     await act(async () => {
@@ -125,7 +203,44 @@ describe('usePriceSignalsScan', () => {
     });
 
     expect(result.current.results).toEqual({
-      SPY: { ticker: 'SPY', percent_change_pct: 1, rsi_14: null, volume_ratio: null, distance_from_sma50_pct: null },
+      SPY: {
+        ticker: 'SPY',
+        percent_change_pct: 1,
+        rsi_14: null,
+        volume_ratio: null,
+        distance_from_sma50_pct: null,
+        bb_width_pct: null,
+        bb_width_percentile: null,
+        atr_pct: null,
+      },
     });
+  });
+
+  it('a scan without an explicit period reuses the last explicit period for percent_change_pct, and does not change scannedPeriod', async () => {
+    vi.spyOn(client, 'getPriceSignal').mockImplementation(async (ticker) => ({
+      ticker,
+      percent_change_pct: 1,
+      rsi_14: null,
+      volume_ratio: null,
+      distance_from_sma50_pct: null,
+      bb_width_pct: null,
+      bb_width_percentile: null,
+      atr_pct: null,
+    }));
+
+    const { result } = renderHook(() => usePriceSignalsScan());
+
+    await act(async () => {
+      await result.current.scan(['VTI'], '1m');
+    });
+    expect(result.current.scannedPeriod).toBe('1m');
+    expect(client.getPriceSignal).toHaveBeenLastCalledWith('VTI', '1m');
+
+    await act(async () => {
+      await result.current.scan(['SPY']);
+    });
+
+    expect(client.getPriceSignal).toHaveBeenLastCalledWith('SPY', '1m');
+    expect(result.current.scannedPeriod).toBe('1m');
   });
 });

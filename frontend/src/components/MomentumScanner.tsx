@@ -1,7 +1,7 @@
 // frontend/src/components/MomentumScanner.tsx
 import { useState } from 'react';
 import type { PriceSignalRow, ScanPeriod } from '../api/types';
-import type { PriceSignalsScanState } from '../hooks/usePriceSignalsScan';
+import { DEFAULT_PERIOD, type PriceSignalsScanState } from '../hooks/usePriceSignalsScan';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { formatNumber, formatSignedPercent } from '../utils/signalFormatting';
 
@@ -14,7 +14,10 @@ type SortDirection = 'asc' | 'desc';
 
 export function MomentumScanner({ scanState }: MomentumScannerProps) {
   const { items, loading } = useWatchlist();
-  const [period, setPeriod] = useState<ScanPeriod>('1w');
+  // Matches usePriceSignalsScan's own DEFAULT_PERIOD — a period-agnostic scan (e.g. triggered
+  // from Pre-Squeeze) uses that same default, so this selector's initial value always agrees
+  // with what a scan Momentum didn't request would have used.
+  const [period, setPeriod] = useState<ScanPeriod>(DEFAULT_PERIOD);
   const [sortColumn, setSortColumn] = useState<SortColumn>('percent_change_pct');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const { results, scannedPeriod, scanning, progress, scan } = scanState;

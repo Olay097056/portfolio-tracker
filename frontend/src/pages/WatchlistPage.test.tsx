@@ -111,4 +111,41 @@ describe('WatchlistPage', () => {
     await waitFor(() => expect(screen.getByText('12.50')).toBeInTheDocument());
     expect(client.getPriceSignal).toHaveBeenCalledTimes(1);
   });
+
+  it('keeps the Momentum Scanner heading truthful even when Pre-Squeeze Scanner scans first', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([
+      { id: 1, ticker: 'VTI', category: null, created_at: '2026-01-01T00:00:00Z' },
+    ]);
+    vi.spyOn(client, 'getPriceSignal').mockResolvedValue({
+      ticker: 'VTI',
+      percent_change_pct: 1.5,
+      rsi_14: 60,
+      volume_ratio: 1.2,
+      distance_from_sma50_pct: 2,
+      bb_width_pct: 4.2,
+      bb_width_percentile: 12.5,
+      atr_pct: 3.1,
+    });
+
+    render(<WatchlistPage />);
+    await waitFor(() => expect(screen.getByText('VTI')).toBeInTheDocument());
+
+    // Scan from Pre-Squeeze first — it has no period selector, so this scan is period-agnostic.
+    fireEvent.click(screen.getByRole('button', { name: 'Pre-Squeeze Scanner' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /^scan$/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /^scan$/i }));
+    await waitFor(() => expect(screen.getByText('12.50')).toBeInTheDocument());
+    expect(client.getPriceSignal).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Momentum Scanner' }));
+    await waitFor(() => expect(screen.getByText('% change (1w)')).toBeInTheDocument());
+
+    // Changing the selector without rescanning must not relabel data that came from the
+    // Pre-Squeeze-triggered scan, even though Momentum itself never explicitly requested a period.
+    fireEvent.change(screen.getByLabelText(/period/i), { target: { value: '1m' } });
+
+    expect(screen.getByText('% change (1w)')).toBeInTheDocument();
+    expect(screen.queryByText('% change (1m)')).not.toBeInTheDocument();
+    expect(client.getPriceSignal).toHaveBeenCalledTimes(1);
+  });
 });

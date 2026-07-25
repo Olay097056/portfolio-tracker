@@ -8,7 +8,7 @@ interface ScanProgress {
   total: number;
 }
 
-const DEFAULT_PERIOD: ScanPeriod = '1w';
+export const DEFAULT_PERIOD: ScanPeriod = '1w';
 
 export function usePriceSignalsScan() {
   const [results, setResults] = useState<Record<string, PriceSignalRow>>({});
@@ -20,9 +20,8 @@ export function usePriceSignalsScan() {
   const scan = useCallback(async (tickers: string[], period?: ScanPeriod) => {
     // A caller that doesn't care about percent_change_pct's period (Pre-Squeeze has no period
     // selector and never displays that field) can omit it — the last explicitly-requested period
-    // keeps feeding percent_change_pct so results stay consistently labelled, but scannedPeriod
-    // itself, and therefore Momentum's heading, is left untouched by a scan Momentum didn't ask
-    // for. This is what stops a Pre-Squeeze scan from silently relabelling Momentum's column.
+    // (or DEFAULT_PERIOD, which is also Momentum's own selector default) keeps feeding
+    // percent_change_pct so results stay consistently labelled.
     const effectivePeriod = period ?? lastExplicitPeriod.current;
 
     setScanning(true);
@@ -52,11 +51,15 @@ export function usePriceSignalsScan() {
 
     if (period !== undefined) {
       lastExplicitPeriod.current = period;
-      // Recorded alongside results, not read from the caller's own period state, so a column
-      // heading built from this can never desync from the data actually being displayed — even
-      // after the results survive a remount (e.g. switching Watchlist sub-tabs and back).
-      setScannedPeriod(period);
     }
+    // Always recorded as the period actually used for this scan — never left at its previous
+    // value (or null) when a period-agnostic caller like Pre-Squeeze triggers the scan. Momentum's
+    // heading reads this, not its own local selector, so it can never desync from the data
+    // actually displayed: a scan Momentum didn't request still used a real, known period (the
+    // last one Momentum's own user explicitly chose, or the shared default), never an arbitrary
+    // or stale one. Recording it here rather than reading a local selector state is also what
+    // keeps the heading correct after results survive a remount (e.g. switching sub-tabs).
+    setScannedPeriod(effectivePeriod);
     setResults(next);
     setScanning(false);
     setProgress(null);

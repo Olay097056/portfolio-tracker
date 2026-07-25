@@ -26,7 +26,13 @@ export function usePriceSignalsScan() {
       } catch {
         // One ticker's failure must not abandon the rest of the scan — record it as
         // unavailable and keep going, per the never-fabricate-a-value rule.
-        next[ticker] = { ticker, percent_change_pct: null };
+        next[ticker] = {
+          ticker,
+          percent_change_pct: null,
+          rsi_14: null,
+          volume_ratio: null,
+          distance_from_sma50_pct: null,
+        };
       }
       setProgress({ done: i + 1, total: tickers.length });
     }
@@ -42,3 +48,5 @@ export function usePriceSignalsScan() {
 
   return { results, scannedPeriod, scanning, progress, scan };
 }
+
+export type PriceSignalsScanState = ReturnType<typeof usePriceSignalsScan>;

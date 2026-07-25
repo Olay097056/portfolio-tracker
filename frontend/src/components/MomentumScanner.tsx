@@ -1,25 +1,28 @@
 // frontend/src/components/MomentumScanner.tsx
 import { useState } from 'react';
 import type { PriceSignalRow, ScanPeriod } from '../api/types';
+import type { PriceSignalsScanState } from '../hooks/usePriceSignalsScan';
 import { useWatchlist } from '../hooks/useWatchlist';
-
-interface PriceSignalsScanState {
-  results: Record<string, PriceSignalRow>;
-  scannedPeriod: ScanPeriod | null;
-  scanning: boolean;
-  progress: { done: number; total: number } | null;
-  scan: (tickers: string[], period: ScanPeriod) => Promise<void>;
-}
 
 interface MomentumScannerProps {
   scanState: PriceSignalsScanState;
 }
 
+type SortColumn = 'percent_change_pct' | 'rsi_14' | 'volume_ratio' | 'distance_from_sma50_pct';
 type SortDirection = 'asc' | 'desc';
+
+function formatSignedPercent(value: number | null | undefined): string {
+  return value == null ? 'Unavailable' : `${value.toFixed(2)}%`;
+}
+
+function formatNumber(value: number | null | undefined): string {
+  return value == null ? 'Unavailable' : value.toFixed(2);
+}
 
 export function MomentumScanner({ scanState }: MomentumScannerProps) {
   const { items, loading } = useWatchlist();
   const [period, setPeriod] = useState<ScanPeriod>('1w');
+  const [sortColumn, setSortColumn] = useState<SortColumn>('percent_change_pct');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const { results, scannedPeriod, scanning, progress, scan } = scanState;
 
@@ -41,10 +44,21 @@ export function MomentumScanner({ scanState }: MomentumScannerProps) {
     .filter((row): row is PriceSignalRow => row !== undefined);
 
   const sortedRows = [...rows].sort((a, b) => {
-    if (a.percent_change_pct === null) return 1;
-    if (b.percent_change_pct === null) return -1;
-    return sortDirection === 'asc' ? a.percent_change_pct - b.percent_change_pct : b.percent_change_pct - a.percent_change_pct;
+    const aValue = a[sortColumn];
+    const bValue = b[sortColumn];
+    if (aValue == null) return 1;
+    if (bValue == null) return -1;
+    return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
   });
+
+  function toggleSort(column: SortColumn) {
+    if (column === sortColumn) {
+      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortColumn(column);
+      setSortDirection('desc');
+    }
+  }
 
   async function handleScan() {
     await scan(
@@ -52,6 +66,8 @@ export function MomentumScanner({ scanState }: MomentumScannerProps) {
       period,
     );
   }
+
+  const headingPeriod = scannedPeriod ?? period;
 
   return (
     <div>
@@ -85,12 +101,23 @@ export function MomentumScanner({ scanState }: MomentumScannerProps) {
             <tr>
               <th>Ticker</th>
               <th>
-                <button type="button" onClick={() => setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'))}>
-                  {/* Read from scannedPeriod (the period the displayed results were actually computed
-                      with), not the `period` selector — the selector can be changed without rescanning,
-                      and results survive a remount while the selector resets, so either would let the
-                      heading state a period the numbers weren't computed with. */}
-                  % change ({scannedPeriod ?? period})
+                <button type="button" onClick={() => toggleSort('percent_change_pct')}>
+                  % change ({headingPeriod})
+                </button>
+              </th>
+              <th>
+                <button type="button" onClick={() => toggleSort('rsi_14')}>
+                  RSI (14)
+                </button>
+              </th>
+              <th>
+                <button type="button" onClick={() => toggleSort('volume_ratio')}>
+                  Volume vs 20-day avg
+                </button>
+              </th>
+              <th>
+                <button type="button" onClick={() => toggleSort('distance_from_sma50_pct')}>
+                  Distance from SMA (50)
                 </button>
               </th>
             </tr>
@@ -99,7 +126,10 @@ export function MomentumScanner({ scanState }: MomentumScannerProps) {
             {sortedRows.map((row) => (
               <tr key={row.ticker}>
                 <td>{row.ticker}</td>
-                <td>{row.percent_change_pct === null ? 'Unavailable' : `${row.percent_change_pct.toFixed(2)}%`}</td>
+                <td>{formatSignedPercent(row.percent_change_pct)}</td>
+                <td>{formatNumber(row.rsi_14)}</td>
+                <td>{formatNumber(row.volume_ratio)}</td>
+                <td>{formatSignedPercent(row.distance_from_sma50_pct)}</td>
               </tr>
             ))}
           </tbody>

@@ -33,7 +33,13 @@ describe('WatchlistPage', () => {
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([
       { id: 1, ticker: 'VTI', category: null, created_at: '2026-01-01T00:00:00Z' },
     ]);
-    vi.spyOn(client, 'getPriceSignal').mockResolvedValue({ ticker: 'VTI', percent_change_pct: 1.5 });
+    vi.spyOn(client, 'getPriceSignal').mockResolvedValue({
+      ticker: 'VTI',
+      percent_change_pct: 1.5,
+      rsi_14: null,
+      volume_ratio: null,
+      distance_from_sma50_pct: null,
+    });
 
     render(<WatchlistPage />);
     await waitFor(() => expect(screen.getByText('VTI')).toBeInTheDocument());

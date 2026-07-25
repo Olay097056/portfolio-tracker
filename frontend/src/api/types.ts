@@ -95,4 +95,7 @@ export type ScanPeriod = '1d' | '1w' | '1m';
 export interface PriceSignalRow {
   ticker: string;
   percent_change_pct: number | null;
+  rsi_14: number | null;
+  volume_ratio: number | null;
+  distance_from_sma50_pct: number | null;
 }

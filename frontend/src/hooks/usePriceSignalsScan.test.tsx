@@ -2,6 +2,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as client from '../api/client';
+import type { PriceSignalRow } from '../api/types';
 import { usePriceSignalsScan } from './usePriceSignalsScan';
 
 describe('usePriceSignalsScan', () => {
@@ -22,7 +23,13 @@ describe('usePriceSignalsScan', () => {
     const calls: string[] = [];
     vi.spyOn(client, 'getPriceSignal').mockImplementation(async (ticker) => {
       calls.push(ticker);
-      return { ticker, percent_change_pct: ticker === 'VTI' ? 1.5 : 2.5 };
+      return {
+        ticker,
+        percent_change_pct: ticker === 'VTI' ? 1.5 : 2.5,
+        rsi_14: null,
+        volume_ratio: null,
+        distance_from_sma50_pct: null,
+      };
     });
 
     const { result } = renderHook(() => usePriceSignalsScan());
@@ -33,8 +40,8 @@ describe('usePriceSignalsScan', () => {
 
     expect(calls).toEqual(['VTI', 'SPY']);
     expect(result.current.results).toEqual({
-      VTI: { ticker: 'VTI', percent_change_pct: 1.5 },
-      SPY: { ticker: 'SPY', percent_change_pct: 2.5 },
+      VTI: { ticker: 'VTI', percent_change_pct: 1.5, rsi_14: null, volume_ratio: null, distance_from_sma50_pct: null },
+      SPY: { ticker: 'SPY', percent_change_pct: 2.5, rsi_14: null, volume_ratio: null, distance_from_sma50_pct: null },
     });
     expect(client.getPriceSignal).toHaveBeenNthCalledWith(1, 'VTI', '1w');
     expect(client.getPriceSignal).toHaveBeenNthCalledWith(2, 'SPY', '1w');
@@ -42,12 +49,12 @@ describe('usePriceSignalsScan', () => {
   });
 
   it('updates progress after each ticker completes and clears it when done', async () => {
-    let resolveVti!: (row: { ticker: string; percent_change_pct: number | null }) => void;
-    let resolveSpy!: (row: { ticker: string; percent_change_pct: number | null }) => void;
-    const vtiPromise = new Promise<{ ticker: string; percent_change_pct: number | null }>((resolve) => {
+    let resolveVti!: (row: PriceSignalRow) => void;
+    let resolveSpy!: (row: PriceSignalRow) => void;
+    const vtiPromise = new Promise<PriceSignalRow>((resolve) => {
       resolveVti = resolve;
     });
-    const spyPromise = new Promise<{ ticker: string; percent_change_pct: number | null }>((resolve) => {
+    const spyPromise = new Promise<PriceSignalRow>((resolve) => {
       resolveSpy = resolve;
     });
     vi.spyOn(client, 'getPriceSignal').mockImplementation(async (ticker) => (ticker === 'VTI' ? vtiPromise : spyPromise));
@@ -62,12 +69,12 @@ describe('usePriceSignalsScan', () => {
     await waitFor(() => expect(result.current.progress).toEqual({ done: 0, total: 2 }));
 
     await act(async () => {
-      resolveVti({ ticker: 'VTI', percent_change_pct: 1 });
+      resolveVti({ ticker: 'VTI', percent_change_pct: 1, rsi_14: null, volume_ratio: null, distance_from_sma50_pct: null });
     });
     await waitFor(() => expect(result.current.progress).toEqual({ done: 1, total: 2 }));
 
     await act(async () => {
-      resolveSpy({ ticker: 'SPY', percent_change_pct: 1 });
+      resolveSpy({ ticker: 'SPY', percent_change_pct: 1, rsi_14: null, volume_ratio: null, distance_from_sma50_pct: null });
       await scanPromise;
     });
 
@@ -80,7 +87,7 @@ describe('usePriceSignalsScan', () => {
       if (ticker === 'BADTICKER') {
         throw new client.ApiError(502, 'upstream error');
       }
-      return { ticker, percent_change_pct: 3 };
+      return { ticker, percent_change_pct: 3, rsi_14: null, volume_ratio: null, distance_from_sma50_pct: null };
     });
 
     const { result } = renderHook(() => usePriceSignalsScan());
@@ -90,8 +97,8 @@ describe('usePriceSignalsScan', () => {
     });
 
     expect(result.current.results).toEqual({
-      VTI: { ticker: 'VTI', percent_change_pct: 3 },
-      BADTICKER: { ticker: 'BADTICKER', percent_change_pct: null },
+      VTI: { ticker: 'VTI', percent_change_pct: 3, rsi_14: null, volume_ratio: null, distance_from_sma50_pct: null },
+      BADTICKER: { ticker: 'BADTICKER', percent_change_pct: null, rsi_14: null, volume_ratio: null, distance_from_sma50_pct: null },
     });
   });
 
@@ -99,6 +106,9 @@ describe('usePriceSignalsScan', () => {
     vi.spyOn(client, 'getPriceSignal').mockImplementation(async (ticker) => ({
       ticker,
       percent_change_pct: 1,
+      rsi_14: null,
+      volume_ratio: null,
+      distance_from_sma50_pct: null,
     }));
 
     const { result } = renderHook(() => usePriceSignalsScan());
@@ -106,12 +116,16 @@ describe('usePriceSignalsScan', () => {
     await act(async () => {
       await result.current.scan(['VTI'], '1w');
     });
-    expect(result.current.results).toEqual({ VTI: { ticker: 'VTI', percent_change_pct: 1 } });
+    expect(result.current.results).toEqual({
+      VTI: { ticker: 'VTI', percent_change_pct: 1, rsi_14: null, volume_ratio: null, distance_from_sma50_pct: null },
+    });
 
     await act(async () => {
       await result.current.scan(['SPY'], '1w');
     });
 
-    expect(result.current.results).toEqual({ SPY: { ticker: 'SPY', percent_change_pct: 1 } });
+    expect(result.current.results).toEqual({
+      SPY: { ticker: 'SPY', percent_change_pct: 1, rsi_14: null, volume_ratio: null, distance_from_sma50_pct: null },
+    });
   });
 });

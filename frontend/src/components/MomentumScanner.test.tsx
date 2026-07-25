@@ -34,7 +34,7 @@ describe('MomentumScanner', () => {
     expect(getPriceSignalSpy).not.toHaveBeenCalled();
   });
 
-  it('scans each watchlist ticker, shows progress, disables the button, then renders results', async () => {
+  it('scans each watchlist ticker, shows progress, disables the button, then renders all four signal columns', async () => {
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([
       { id: 1, ticker: 'VTI', category: null, created_at: '2026-01-01T00:00:00Z' },
       { id: 2, ticker: 'SPY', category: null, created_at: '2026-01-01T00:00:00Z' },
@@ -42,6 +42,9 @@ describe('MomentumScanner', () => {
     vi.spyOn(client, 'getPriceSignal').mockImplementation(async (ticker) => ({
       ticker,
       percent_change_pct: ticker === 'VTI' ? 1.5 : -2.25,
+      rsi_14: ticker === 'VTI' ? 65.4 : 32.1,
+      volume_ratio: ticker === 'VTI' ? 1.8 : 0.9,
+      distance_from_sma50_pct: ticker === 'VTI' ? 3.2 : -1.1,
     }));
 
     render(<Wrapper />);
@@ -53,15 +56,48 @@ describe('MomentumScanner', () => {
     expect(screen.getByText('SPY')).toBeInTheDocument();
     expect(screen.getByText('1.50%')).toBeInTheDocument();
     expect(screen.getByText('-2.25%')).toBeInTheDocument();
+    expect(screen.getByText('65.40')).toBeInTheDocument();
+    expect(screen.getByText('32.10')).toBeInTheDocument();
+    expect(screen.getByText('1.80')).toBeInTheDocument();
+    expect(screen.getByText('0.90')).toBeInTheDocument();
+    expect(screen.getByText('3.20%')).toBeInTheDocument();
+    expect(screen.getByText('-1.10%')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^scan$/i })).not.toBeDisabled();
-    expect(screen.getByText('% change (1w)')).toBeInTheDocument();
+  });
+
+  it('shows a signal as unavailable when its own value is null while other signals for the same ticker still render', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([
+      { id: 1, ticker: 'NEWLISTING', category: null, created_at: '2026-01-01T00:00:00Z' },
+    ]);
+    vi.spyOn(client, 'getPriceSignal').mockResolvedValue({
+      ticker: 'NEWLISTING',
+      percent_change_pct: 4.0,
+      rsi_14: null,
+      volume_ratio: null,
+      distance_from_sma50_pct: null,
+    });
+
+    render(<Wrapper />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /^scan$/i })).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /^scan$/i }));
+
+    await waitFor(() => expect(screen.getByText('NEWLISTING')).toBeInTheDocument());
+    expect(screen.getByText('4.00%')).toBeInTheDocument();
+    expect(screen.getAllByText('Unavailable')).toHaveLength(3);
   });
 
   it('keeps the column heading in sync with the period the displayed results were scanned with, even after changing the selector without rescanning', async () => {
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([
       { id: 1, ticker: 'VTI', category: null, created_at: '2026-01-01T00:00:00Z' },
     ]);
-    vi.spyOn(client, 'getPriceSignal').mockResolvedValue({ ticker: 'VTI', percent_change_pct: 1.5 });
+    vi.spyOn(client, 'getPriceSignal').mockResolvedValue({
+      ticker: 'VTI',
+      percent_change_pct: 1.5,
+      rsi_14: null,
+      volume_ratio: null,
+      distance_from_sma50_pct: null,
+    });
 
     render(<Wrapper />);
     await waitFor(() => expect(screen.getByRole('button', { name: /^scan$/i })).toBeInTheDocument());
@@ -88,14 +124,20 @@ describe('MomentumScanner', () => {
     fireEvent.click(screen.getByRole('button', { name: /^scan$/i }));
 
     await waitFor(() => expect(screen.getByText('BADTICKER')).toBeInTheDocument());
-    expect(screen.getByText(/unavailable/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/unavailable/i).length).toBeGreaterThan(0);
   });
 
   it('sends the selected period to getPriceSignal', async () => {
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([
       { id: 1, ticker: 'VTI', category: null, created_at: '2026-01-01T00:00:00Z' },
     ]);
-    vi.spyOn(client, 'getPriceSignal').mockResolvedValue({ ticker: 'VTI', percent_change_pct: 1 });
+    vi.spyOn(client, 'getPriceSignal').mockResolvedValue({
+      ticker: 'VTI',
+      percent_change_pct: 1,
+      rsi_14: null,
+      volume_ratio: null,
+      distance_from_sma50_pct: null,
+    });
 
     render(<Wrapper />);
     await waitFor(() => expect(screen.getByRole('button', { name: /^scan$/i })).toBeInTheDocument());

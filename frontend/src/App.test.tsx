@@ -47,4 +47,18 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText(/no portfolios yet/i)).toBeInTheDocument());
     expect(screen.queryByRole('heading', { name: 'Tools' })).not.toBeInTheDocument();
   });
+
+  it('switches to the Watchlist tab and shows its content', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([]);
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByText(/no portfolios yet/i)).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Watchlist' }));
+
+    expect(screen.getByRole('heading', { name: 'Watchlist' })).toBeInTheDocument();
+    expect(screen.queryByText(/no portfolios yet/i)).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/watchlist is empty/i)).toBeInTheDocument());
+  });
 });

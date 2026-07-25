@@ -70,4 +70,45 @@ describe('WatchlistPage', () => {
     expect(screen.getByText('1.50%')).toBeInTheDocument();
     expect(client.getPriceSignal).toHaveBeenCalledTimes(1);
   });
+
+  it('switches to the Pre-Squeeze Scanner sub-tab and shows its content', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([]);
+
+    render(<WatchlistPage />);
+    await waitFor(() => expect(screen.getByText(/watchlist is empty/i)).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pre-Squeeze Scanner' }));
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Pre-Squeeze Scanner' })).toBeInTheDocument());
+  });
+
+  it('scanning on Momentum Scanner populates Pre-Squeeze Scanner too, with no second request', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([
+      { id: 1, ticker: 'VTI', category: null, created_at: '2026-01-01T00:00:00Z' },
+    ]);
+    vi.spyOn(client, 'getPriceSignal').mockResolvedValue({
+      ticker: 'VTI',
+      percent_change_pct: 1.5,
+      rsi_14: 60,
+      volume_ratio: 1.2,
+      distance_from_sma50_pct: 2,
+      bb_width_pct: 4.2,
+      bb_width_percentile: 12.5,
+      atr_pct: 3.1,
+    });
+
+    render(<WatchlistPage />);
+    await waitFor(() => expect(screen.getByText('VTI')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Momentum Scanner' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /^scan$/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /^scan$/i }));
+    await waitFor(() => expect(screen.getByText('VTI')).toBeInTheDocument());
+    expect(client.getPriceSignal).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pre-Squeeze Scanner' }));
+
+    await waitFor(() => expect(screen.getByText('12.50')).toBeInTheDocument());
+    expect(client.getPriceSignal).toHaveBeenCalledTimes(1);
+  });
 });

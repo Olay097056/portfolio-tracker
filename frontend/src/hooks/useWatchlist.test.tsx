@@ -46,6 +46,20 @@ describe('useWatchlist', () => {
     expect(result.current.items).toEqual([sampleItem]);
   });
 
+  it('create() upper-cases the ticker even when called with lower case directly, so a caller that skips AddWatchlistItemForm cannot create a casing duplicate', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([]);
+    vi.spyOn(client, 'createWatchlistItem').mockResolvedValue(sampleItem);
+
+    const { result } = renderHook(() => useWatchlist());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.create({ ticker: 'vti', category: 'Core' });
+    });
+
+    expect(client.createWatchlistItem).toHaveBeenCalledWith({ ticker: 'VTI', category: 'Core' });
+  });
+
   it('remove() deletes and refetches the list', async () => {
     vi.spyOn(client, 'listWatchlist').mockResolvedValueOnce([sampleItem]).mockResolvedValueOnce([]);
     vi.spyOn(client, 'deleteWatchlistItem').mockResolvedValue(undefined);

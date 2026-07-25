@@ -31,7 +31,10 @@ export function useWatchlist() {
   const create = useCallback(
     async (input: WatchlistItemCreateInput) => {
       try {
-        await createWatchlistItem(input);
+        // Upper-cased here too (not just in AddWatchlistItemForm) so any future caller of
+        // create() directly — e.g. a "Add to Watchlist" button elsewhere — can't create a
+        // casing-duplicate by skipping the form's own normalisation.
+        await createWatchlistItem({ ...input, ticker: input.ticker.toUpperCase() });
         setError(null);
         await refetch();
       } catch (err) {

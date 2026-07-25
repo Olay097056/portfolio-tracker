@@ -43,13 +43,14 @@ describe('usePriceSignalsScan', () => {
 
   it('updates progress after each ticker completes and clears it when done', async () => {
     let resolveVti!: (row: { ticker: string; percent_change_pct: number | null }) => void;
+    let resolveSpy!: (row: { ticker: string; percent_change_pct: number | null }) => void;
     const vtiPromise = new Promise<{ ticker: string; percent_change_pct: number | null }>((resolve) => {
       resolveVti = resolve;
     });
-    vi.spyOn(client, 'getPriceSignal').mockImplementation(async (ticker) => {
-      if (ticker === 'VTI') return vtiPromise;
-      return { ticker, percent_change_pct: 1 };
+    const spyPromise = new Promise<{ ticker: string; percent_change_pct: number | null }>((resolve) => {
+      resolveSpy = resolve;
     });
+    vi.spyOn(client, 'getPriceSignal').mockImplementation(async (ticker) => (ticker === 'VTI' ? vtiPromise : spyPromise));
 
     const { result } = renderHook(() => usePriceSignalsScan());
 
@@ -62,6 +63,11 @@ describe('usePriceSignalsScan', () => {
 
     await act(async () => {
       resolveVti({ ticker: 'VTI', percent_change_pct: 1 });
+    });
+    await waitFor(() => expect(result.current.progress).toEqual({ done: 1, total: 2 }));
+
+    await act(async () => {
+      resolveSpy({ ticker: 'SPY', percent_change_pct: 1 });
       await scanPromise;
     });
 

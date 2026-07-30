@@ -193,4 +193,40 @@ describe('WatchlistPage', () => {
     expect(screen.getByText('7.00%')).toBeInTheDocument();
     expect(client.getDividendSignal).toHaveBeenCalledTimes(1);
   });
+
+  it('switches to the Trending Stocks Today sub-tab and shows its content', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([]);
+
+    render(<WatchlistPage />);
+    await waitFor(() => expect(screen.getByText(/watchlist is empty/i)).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Trending Stocks Today' }));
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Trending Stocks Today' })).toBeInTheDocument());
+  });
+
+  it('keeps Trending Stocks Today data after switching away and back, with no re-fetch', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([]);
+    vi.spyOn(client, 'getTrending').mockResolvedValue({
+      gainers: [{ ticker: 'AAPL', name: 'Apple Inc.', price: 195.5, change_pct: 4.2 }],
+      losers: [],
+      most_active: [],
+      api_key_configured: true,
+    });
+
+    render(<WatchlistPage />);
+    await waitFor(() => expect(screen.getByText(/watchlist is empty/i)).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Trending Stocks Today' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /^refresh$/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /^refresh$/i }));
+    await waitFor(() => expect(screen.getByText('AAPL')).toBeInTheDocument());
+    expect(client.getTrending).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Manage Watchlist' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Trending Stocks Today' }));
+
+    expect(screen.getByText('AAPL')).toBeInTheDocument();
+    expect(client.getTrending).toHaveBeenCalledTimes(1);
+  });
 });

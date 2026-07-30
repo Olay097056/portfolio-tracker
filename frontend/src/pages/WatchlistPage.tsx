@@ -4,11 +4,13 @@ import { TabStrip } from '../components/TabStrip';
 import { DividendRanking } from '../components/DividendRanking';
 import { MomentumScanner } from '../components/MomentumScanner';
 import { PreSqueezeScanner } from '../components/PreSqueezeScanner';
+import { TrendingStocksToday } from '../components/TrendingStocksToday';
 import { useDividendScan } from '../hooks/useDividendScan';
 import { usePriceSignalsScan } from '../hooks/usePriceSignalsScan';
+import { useTrendingData } from '../hooks/useTrendingData';
 import { WatchlistManagementPage } from './WatchlistManagementPage';
 
-type WatchlistTab = 'manage' | 'dividend-ranking' | 'momentum' | 'pre-squeeze';
+type WatchlistTab = 'manage' | 'dividend-ranking' | 'momentum' | 'pre-squeeze' | 'trending';
 
 // "Manage Watchlist", not "Watchlist" — the top-level nav button in App.tsx is already labelled
 // "Watchlist"; a same-labelled sub-tab button would make getByRole('button', { name: 'Watchlist' })
@@ -18,6 +20,7 @@ const TABS = [
   { id: 'dividend-ranking', label: 'Dividend Ranking' },
   { id: 'momentum', label: 'Momentum Scanner' },
   { id: 'pre-squeeze', label: 'Pre-Squeeze Scanner' },
+  { id: 'trending', label: 'Trending Stocks Today' },
 ] as const satisfies { id: WatchlistTab; label: string }[];
 
 export function WatchlistPage() {
@@ -28,6 +31,7 @@ export function WatchlistPage() {
   // nothing with the price-signal scanners.
   const priceSignalsScan = usePriceSignalsScan();
   const dividendScan = useDividendScan();
+  const trendingData = useTrendingData();
   const [dividendTaxRatePct, setDividendTaxRatePct] = useState('15');
 
   return (
@@ -40,6 +44,7 @@ export function WatchlistPage() {
       )}
       {activeTab === 'momentum' && <MomentumScanner scanState={priceSignalsScan} />}
       {activeTab === 'pre-squeeze' && <PreSqueezeScanner scanState={priceSignalsScan} />}
+      {activeTab === 'trending' && <TrendingStocksToday scanState={trendingData} />}
     </div>
   );
 }

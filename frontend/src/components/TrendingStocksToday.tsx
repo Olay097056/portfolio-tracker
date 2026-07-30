@@ -1,0 +1,91 @@
+import type { TrendingRow } from '../api/types';
+import type { TrendingDataState } from '../hooks/useTrendingData';
+import { useWatchlist } from '../hooks/useWatchlist';
+import { formatNumber, formatSignedPercent } from '../utils/signalFormatting';
+
+interface TrendingStocksTodayProps {
+  scanState: TrendingDataState;
+}
+
+interface TrendingListProps {
+  title: string;
+  rows: TrendingRow[] | null;
+  watchedTickers: Set<string>;
+  onAdd: (ticker: string) => void;
+}
+
+function TrendingList({ title, rows, watchedTickers, onAdd }: TrendingListProps) {
+  return (
+    <div>
+      <h4>{title}</h4>
+      {rows === null || rows.length === 0 ? (
+        <p>No data.</p>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th>Ticker</th>
+              <th>Name</th>
+              <th>Price</th>
+              <th>% change</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.ticker}>
+                <td>{row.ticker}</td>
+                <td>{row.name}</td>
+                <td>{formatNumber(row.price)}</td>
+                <td>{formatSignedPercent(row.change_pct)}</td>
+                <td>
+                  {watchedTickers.has(row.ticker) ? (
+                    <span>Already watched</span>
+                  ) : (
+                    <button type="button" onClick={() => onAdd(row.ticker)}>
+                      Add to Watchlist
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+export function TrendingStocksToday({ scanState }: TrendingStocksTodayProps) {
+  const { items, create } = useWatchlist();
+  const { data, loading, error, refresh } = scanState;
+  const watchedTickers = new Set(items.map((item) => item.ticker));
+
+  async function handleAdd(ticker: string) {
+    await create({ ticker });
+  }
+
+  return (
+    <div>
+      <h3>Trending Stocks Today</h3>
+
+      <button type="button" onClick={refresh} disabled={loading}>
+        {loading ? 'Refreshing…' : 'Refresh'}
+      </button>
+
+      {error && <div role="alert">{error}</div>}
+
+      {data && !data.api_key_configured && (
+        <p>Set the FMP_API_KEY environment variable to enable Trending Stocks Today.</p>
+      )}
+
+      {data && data.api_key_configured && (
+        <>
+          <TrendingList title="Gainers" rows={data.gainers} watchedTickers={watchedTickers} onAdd={handleAdd} />
+          <TrendingList title="Losers" rows={data.losers} watchedTickers={watchedTickers} onAdd={handleAdd} />
+          <TrendingList title="Most active" rows={data.most_active} watchedTickers={watchedTickers} onAdd={handleAdd} />
+        </>
+      )}
+    </div>
+  );
+}

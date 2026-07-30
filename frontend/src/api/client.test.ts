@@ -16,6 +16,7 @@ import {
   deleteWatchlistItem,
   getPriceSignal,
   getDividendSignal,
+  getTrending,
 } from './client';
 
 function mockFetchOnce(body: unknown, init: { status?: number } = {}) {
@@ -264,5 +265,14 @@ describe('api client', () => {
       expect.objectContaining({ method: undefined }),
     );
     expect(result.gross_yield_pct).toBe(11.1);
+  });
+
+  it('getTrending calls GET /market/trending', async () => {
+    mockFetchOnce({ gainers: [], losers: [], most_active: [], api_key_configured: true });
+
+    const result = await getTrending();
+
+    expect(fetch).toHaveBeenCalledWith('http://localhost:8000/market/trending', expect.objectContaining({ method: undefined }));
+    expect(result.api_key_configured).toBe(true);
   });
 });

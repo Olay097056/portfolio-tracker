@@ -11,6 +11,7 @@ import type {
   PortfolioUpdateInput,
   PriceSignalRow,
   ScanPeriod,
+  TrendingData,
   WatchlistItem,
   WatchlistItemCreateInput,
 } from './types';
@@ -123,4 +124,8 @@ export function getPriceSignal(ticker: string, period: ScanPeriod): Promise<Pric
 
 export function getDividendSignal(ticker: string): Promise<DividendSignalRow> {
   return request<DividendSignalRow>(`/watchlist/scan/dividends?ticker=${encodeURIComponent(ticker)}`);
+}
+
+export function getTrending(): Promise<TrendingData> {
+  return request<TrendingData>('/market/trending');
 }

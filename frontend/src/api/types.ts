@@ -110,3 +110,17 @@ export interface DividendSignalRow {
   payment_frequency: number | null;
   dividend_growth_pct: number | null;
 }
+
+export interface TrendingRow {
+  ticker: string;
+  name: string;
+  price: number | null;
+  change_pct: number | null;
+}
+
+export interface TrendingData {
+  gainers: TrendingRow[] | null;
+  losers: TrendingRow[] | null;
+  most_active: TrendingRow[] | null;
+  api_key_configured: boolean;
+}

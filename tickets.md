@@ -113,3 +113,39 @@ Work the **frontier**: any ticket whose blockers are all done. After "Watchlist 
 - [x] Each row has a button that adds that ticker to the Watchlist
 - [x] A ticker already on the Watchlist is shown as already watched instead of offering to add it again
 - [x] The endpoint does not read the Watchlist
+
+# Tickets: Dashboard — Price Chart (Phase 1 of 3)
+
+Builds a new Dashboard tab with a single-ticker price chart, from the spec in `docs/specs/2026-07-30-dashboard-price-chart.md`. Phase 1 of 3 — auto support/resistance (phase 2) and manual support/resistance editing (phase 3) are deliberately separate specs/tickets, grilled only once this phase ships. Respects ADR 0001's structural layout decision (Dashboard tab, positioned first).
+
+Work the **frontier**: Ticket 1 can start immediately; Ticket 2 needs Ticket 1 done first — this is a linear chain, not a fan-out.
+
+## Dashboard price chart walking skeleton
+
+**What to build:** A new Dashboard tab, positioned first in the top navigation. It holds a dropdown listing every ticker across all Portfolios' holdings and the Watchlist, deduplicated, and nothing is selected by default. Picking a ticker fetches and renders its closing price as a line chart over a fixed one-year daily window — this ticket proves the full pipeline (pick a ticker, fetch real data through a new independent chart service, render it with a newly-added charting library) end-to-end before a range selector is layered on. No candlesticks, no support/resistance, no 3-column mockup layout, no moving the DCA/stress-test calculators out of `HoldingRow` — those stay exactly where they are today.
+
+**Blocked by:** None — can start immediately.
+
+- [ ] A Dashboard tab appears in the top navigation, positioned ahead of Portfolios
+- [ ] The tab shows a ticker dropdown populated from the deduplicated union of every ticker across all Portfolios' holdings and the Watchlist
+- [ ] No ticker is selected on open, and no chart request is issued until one is picked
+- [ ] Picking a ticker fetches and renders its closing price as a line chart over a fixed one-year daily window
+- [ ] A new, independent chart-data service is added, following the existing provider-service pattern (private raw-fetch function behind a cached public function, in-memory cache, a cache-clearing test entry point, a failed fetch is never cached) — it is not a reuse or extension of the existing Scanner history service, and that service is left untouched
+- [ ] A new endpoint returns chart data for a requested ticker and range; the range parameter is accepted and threaded through from day one even though this ticket only ever sends one fixed range, so the next ticket needs no API-shape change
+- [ ] A fetch that fails returns an explicit unavailable signal, never a 500 and never a fabricated or partial series
+- [ ] The frontend shows an explicit loading state while fetching and an explicit error state on failure — never a blank chart that looks like an empty result
+- [ ] A charting library is added as a new frontend dependency and used to render the line series
+- [ ] Switching to a different ticker replaces the chart's data; an in-flight request for a since-abandoned selection cannot land after a newer one
+
+## Dashboard range selector
+
+**What to build:** The range selector (1D, 5D, 1M, 6M, YTD, 1Y, 5Y) that Ticket 1 deferred. Each range maps to a fixed, hardcoded fetch interval (1D→5min, 5D→30min, 1M/6M/YTD/1Y→daily, 5Y→weekly) rather than exposing interval as a separate user choice, so no combination the user can pick is ever one the price provider rejects. Changing range re-fetches through the same service and endpoint Ticket 1 built, now exercising the cache's per-range keying for real.
+
+**Blocked by:** Dashboard price chart walking skeleton
+
+- [ ] A range selector offers all seven ranges (1D, 5D, 1M, 6M, YTD, 1Y, 5Y)
+- [ ] The range→interval mapping table is complete for all seven ranges, each with a direct hand-computed test
+- [ ] Changing the selected range re-fetches and re-renders the chart for the current ticker
+- [ ] The chart-data cache is keyed by ticker and range together — switching between two ranges for the same ticker, then back, is served from cache within the TTL without a second fetch
+- [ ] Changing ticker or range while a fetch is in flight supersedes it — the stale response cannot land and relabel the chart with the wrong range's data
+- [ ] There is still no interval selector anywhere in the UI

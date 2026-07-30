@@ -73,6 +73,64 @@ describe('PortfolioBuilderWizard', () => {
     expect(screen.queryByRole('button', { name: /create portfolio/i })).not.toBeInTheDocument();
   });
 
+  it('rolls back the partially created portfolio when a holding fails to create', async () => {
+    vi.spyOn(client, 'getUsdToThbRate').mockResolvedValue(35);
+    vi.spyOn(client, 'getPrices').mockResolvedValue({ VTI: 210, SPY: 150, BND: 90 });
+    vi.spyOn(client, 'createPortfolio').mockResolvedValue({
+      id: 1,
+      name: 'Test Portfolio',
+      cash_usd: 0,
+      target_allocation_pct: null,
+      created_at: '2026-01-01T00:00:00Z',
+    });
+    vi.spyOn(client, 'createHolding').mockRejectedValue(new Error('holding create failed'));
+    const deletePortfolioSpy = vi.spyOn(client, 'deletePortfolio').mockResolvedValue(undefined);
+
+    render(<PortfolioBuilderWizard />);
+
+    fireEvent.change(screen.getByLabelText(/portfolio name/i), { target: { value: 'Test Portfolio' } });
+    fireEvent.change(screen.getByLabelText('Capital (THB)'), { target: { value: '105000' } });
+    fireEvent.click(screen.getByRole('button', { name: /preview allocation/i }));
+
+    await waitFor(() => expect(screen.getByText(/5.0000 shares/)).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /create portfolio/i }));
+
+    await waitFor(() => expect(deletePortfolioSpy).toHaveBeenCalledWith(1));
+    expect(screen.getByRole('alert')).toHaveTextContent(/holding create failed/i);
+    expect(screen.getByRole('alert')).toHaveTextContent(/removed|rolled back/i);
+    expect(screen.queryByRole('button', { name: /create portfolio/i })).not.toBeInTheDocument();
+  });
+
+  it('tells the user to clean up manually when the rollback itself also fails', async () => {
+    vi.spyOn(client, 'getUsdToThbRate').mockResolvedValue(35);
+    vi.spyOn(client, 'getPrices').mockResolvedValue({ VTI: 210, SPY: 150, BND: 90 });
+    vi.spyOn(client, 'createPortfolio').mockResolvedValue({
+      id: 1,
+      name: 'Test Portfolio',
+      cash_usd: 0,
+      target_allocation_pct: null,
+      created_at: '2026-01-01T00:00:00Z',
+    });
+    vi.spyOn(client, 'createHolding').mockRejectedValue(new Error('holding create failed'));
+    vi.spyOn(client, 'deletePortfolio').mockRejectedValue(new Error('delete failed'));
+
+    render(<PortfolioBuilderWizard />);
+
+    fireEvent.change(screen.getByLabelText(/portfolio name/i), { target: { value: 'Test Portfolio' } });
+    fireEvent.change(screen.getByLabelText('Capital (THB)'), { target: { value: '105000' } });
+    fireEvent.click(screen.getByRole('button', { name: /preview allocation/i }));
+
+    await waitFor(() => expect(screen.getByText(/5.0000 shares/)).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /create portfolio/i }));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/holding create failed/i));
+    expect(screen.getByRole('alert')).toHaveTextContent(/Test Portfolio/);
+    expect(screen.getByRole('alert')).toHaveTextContent(/manually|portfolios/i);
+    expect(screen.queryByRole('button', { name: /create portfolio/i })).not.toBeInTheDocument();
+  });
+
   it('shows an error and does not create a portfolio when the USD/THB rate cannot be fetched', async () => {
     vi.spyOn(client, 'getUsdToThbRate').mockResolvedValue(null);
     vi.spyOn(client, 'getPrices').mockResolvedValue({ VTI: 210, SPY: 150, BND: 90 });

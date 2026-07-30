@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { createHolding, createPortfolio, getPrices, getUsdToThbRate } from '../api/client';
+import { createHolding, createPortfolio, deletePortfolio, getPrices, getUsdToThbRate } from '../api/client';
+import type { Portfolio } from '../api/types';
 import { buildPortfolioPlan, type PortfolioBuilderLine } from '../utils/portfolioBuilder';
 import { PORTFOLIO_BUILDER_PRESETS } from '../utils/portfolioBuilderPresets';
 
@@ -50,8 +51,9 @@ export function PortfolioBuilderWizard() {
     }
     setCreating(true);
     setError(null);
+    let portfolio: Portfolio | null = null;
     try {
-      const portfolio = await createPortfolio({ name });
+      portfolio = await createPortfolio({ name });
       for (const line of lines) {
         await createHolding(portfolio.id, { ticker: line.ticker, shares: line.shares, avg_cost_usd: line.priceUsd });
       }
@@ -60,7 +62,22 @@ export function PortfolioBuilderWizard() {
       setName('');
       setCapitalThb('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const message = err instanceof Error ? err.message : String(err);
+      if (portfolio) {
+        // A holding failed after the portfolio itself was created — a portfolio with only some
+        // of its planned holdings is a broken half-state, not a usable partial result, so roll
+        // it back (cascade-deletes any holdings already created) rather than leaving it behind.
+        try {
+          await deletePortfolio(portfolio.id);
+          setError(`${message} — the partially created portfolio was removed. You can try again.`);
+        } catch {
+          setError(
+            `${message} — and could not remove the partially created portfolio "${portfolio.name}" either. Check Portfolios and delete it manually.`,
+          );
+        }
+      } else {
+        setError(message);
+      }
       // clear the preview on failure so a retry can't blindly re-call createPortfolio and create a duplicate — force a fresh Preview first
       setLines(null);
     } finally {

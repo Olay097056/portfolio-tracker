@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import Base, engine
-from app.routers import fx, holdings, market_data, portfolios, prices, watchlist
+from app.routers import fx, holdings, market, market_data, portfolios, prices, watchlist
 
 
 @asynccontextmanager
@@ -28,6 +28,7 @@ app.include_router(watchlist.router)
 app.include_router(prices.router)
 app.include_router(fx.router)
 app.include_router(market_data.router)
+app.include_router(market.router)
 
 
 @app.get("/health")

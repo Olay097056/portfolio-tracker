@@ -109,3 +109,17 @@ class DividendSignalOut(BaseModel):
     gross_yield_pct: float | None
     payment_frequency: int | None
     dividend_growth_pct: float | None
+
+
+class TrendingRowOut(BaseModel):
+    ticker: str
+    name: str
+    price: float | None
+    change_pct: float | None
+
+
+class TrendingOut(BaseModel):
+    gainers: list[TrendingRowOut] | None
+    losers: list[TrendingRowOut] | None
+    most_active: list[TrendingRowOut] | None
+    api_key_configured: bool

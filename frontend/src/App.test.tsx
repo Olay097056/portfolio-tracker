@@ -61,4 +61,17 @@ describe('App', () => {
     expect(screen.queryByText(/no portfolios yet/i)).not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByText(/watchlist is empty/i)).toBeInTheDocument());
   });
+
+  it('switches to the Dashboard tab and shows its content', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([]);
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByText(/no portfolios yet/i)).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dashboard' }));
+
+    expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/no tickers to chart/i)).toBeInTheDocument());
+  });
 });

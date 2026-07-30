@@ -22,6 +22,7 @@ describe('MomentumScanner', () => {
 
     await waitFor(() => expect(screen.getByText(/watchlist is empty/i)).toBeInTheDocument());
     expect(screen.queryByRole('button', { name: /^scan$/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/trending stocks today/i)).toBeInTheDocument();
   });
 
   it('shows a Scan button and issues no request until it is pressed', async () => {

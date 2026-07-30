@@ -28,7 +28,10 @@ export function PreSqueezeScanner({ scanState }: PreSqueezeScannerProps) {
     return (
       <div>
         <h3>Pre-Squeeze Scanner</h3>
-        <p>Your watchlist is empty — add tickers in Manage Watchlist before scanning.</p>
+        <p>
+          Your watchlist is empty — add tickers in Manage Watchlist, or add some instantly from Trending Stocks
+          Today, before scanning.
+        </p>
       </div>
     );
   }

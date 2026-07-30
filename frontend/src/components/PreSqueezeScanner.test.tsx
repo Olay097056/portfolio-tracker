@@ -31,6 +31,7 @@ describe('PreSqueezeScanner', () => {
 
     await waitFor(() => expect(screen.getByText(/watchlist is empty/i)).toBeInTheDocument());
     expect(screen.queryByRole('button', { name: /^scan$/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/trending stocks today/i)).toBeInTheDocument();
   });
 
   it('has no period selector, unlike Momentum Scanner', async () => {

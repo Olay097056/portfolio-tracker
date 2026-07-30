@@ -24,6 +24,7 @@ describe('DividendRanking', () => {
 
     await waitFor(() => expect(screen.getByText(/watchlist is empty/i)).toBeInTheDocument());
     expect(screen.queryByRole('button', { name: /^scan$/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/trending stocks today/i)).toBeInTheDocument();
   });
 
   it('scans and renders price, gross yield, net yield (default 15% tax), frequency, and growth', async () => {

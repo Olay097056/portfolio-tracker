@@ -35,7 +35,10 @@ export function DividendRanking({ scanState, taxRatePct, onTaxRatePctChange }: D
     return (
       <div>
         <h3>Dividend Ranking</h3>
-        <p>Your watchlist is empty — add tickers in Manage Watchlist before scanning.</p>
+        <p>
+          Your watchlist is empty — add tickers in Manage Watchlist, or add some instantly from Trending Stocks
+          Today, before scanning.
+        </p>
       </div>
     );
   }

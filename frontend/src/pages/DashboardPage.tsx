@@ -7,7 +7,7 @@ import { useDashboardTickers } from '../hooks/useDashboardTickers';
 const RANGE = '1Y' as const;
 
 export function DashboardPage() {
-  const { tickers, loading: tickersLoading } = useDashboardTickers();
+  const { tickers, loading: tickersLoading, error: tickersError } = useDashboardTickers();
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
   const { points, loading, error } = useChartData(selectedTicker, RANGE);
 
@@ -15,7 +15,9 @@ export function DashboardPage() {
     <div>
       <h2>Dashboard</h2>
 
-      {tickersLoading ? (
+      {tickersError ? (
+        <div role="alert">{tickersError}</div>
+      ) : tickersLoading ? (
         <div>Loading tickers…</div>
       ) : tickers.length === 0 ? (
         <p>No tickers to chart yet — add a holding or a Watchlist ticker first.</p>
@@ -31,7 +33,7 @@ export function DashboardPage() {
             ))}
           </select>
 
-          {selectedTicker && <PriceChart points={points} loading={loading} error={error} />}
+          {selectedTicker && <PriceChart key={selectedTicker} points={points} loading={loading} error={error} />}
         </>
       )}
     </div>

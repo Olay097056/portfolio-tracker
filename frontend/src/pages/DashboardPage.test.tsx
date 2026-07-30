@@ -73,6 +73,38 @@ describe('DashboardPage', () => {
     await waitFor(() => expect(client.getChartData).toHaveBeenCalledWith('AAPL', '1Y'));
   });
 
+  it('remounts the chart (fresh createChart, old instance removed) when the selected ticker changes', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([
+      { id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' },
+      { id: 2, ticker: 'MSFT', category: null, created_at: '2026-01-01T00:00:00Z' },
+    ]);
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }] });
+
+    const firstRemove = vi.fn();
+    const secondRemove = vi.fn();
+    vi.mocked(createChart)
+      .mockReturnValueOnce({
+        addSeries: vi.fn(() => ({ setData: vi.fn() })),
+        remove: firstRemove,
+      } as unknown as ReturnType<typeof createChart>)
+      .mockReturnValueOnce({
+        addSeries: vi.fn(() => ({ setData: vi.fn() })),
+        remove: secondRemove,
+      } as unknown as ReturnType<typeof createChart>);
+
+    render(<DashboardPage />);
+    await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+    await waitFor(() => expect(createChart).toHaveBeenCalledTimes(1));
+
+    fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'MSFT' } });
+
+    await waitFor(() => expect(createChart).toHaveBeenCalledTimes(2));
+    expect(firstRemove).toHaveBeenCalledTimes(1);
+  });
+
   it('shows a message instead of a dropdown when there are no tickers anywhere', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([]);
@@ -81,5 +113,15 @@ describe('DashboardPage', () => {
 
     await waitFor(() => expect(screen.getByText(/no tickers to chart/i)).toBeInTheDocument());
     expect(screen.queryByLabelText(/ticker/i)).not.toBeInTheDocument();
+  });
+
+  it('shows an alert instead of the empty-state message when the ticker list fails to load', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+    vi.spyOn(client, 'listWatchlist').mockRejectedValue(new Error('backend is down'));
+
+    render(<DashboardPage />);
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('backend is down'));
+    expect(screen.queryByText(/no tickers to chart/i)).not.toBeInTheDocument();
   });
 });

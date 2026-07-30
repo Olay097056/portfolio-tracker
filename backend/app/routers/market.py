@@ -1,9 +1,8 @@
 import os
-from typing import Literal
 
 from fastapi import APIRouter
 
-from app.chart_service import get_chart_data
+from app.chart_service import ChartRange, get_chart_data
 from app.schemas import ChartOut, TrendingOut
 from app.trending_service import get_gainers, get_losers, get_most_active
 
@@ -24,6 +23,6 @@ def get_trending():
 
 
 @router.get("/chart", response_model=ChartOut)
-def get_chart(ticker: str, range: Literal["1Y"] = "1Y"):
+def get_chart(ticker: str, range: ChartRange = "1Y"):
     points = get_chart_data(ticker, range)
     return ChartOut(points=points)

@@ -74,4 +74,15 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText(/no tickers to chart/i)).toBeInTheDocument());
   });
+
+  it('positions the Dashboard tab ahead of the Portfolios tab', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByText(/no portfolios yet/i)).toBeInTheDocument());
+
+    const tabLabels = screen.getAllByRole('button').map((button) => button.textContent);
+    expect(tabLabels.indexOf('Dashboard')).toBeGreaterThanOrEqual(0);
+    expect(tabLabels.indexOf('Dashboard')).toBeLessThan(tabLabels.indexOf('Portfolios'));
+  });
 });

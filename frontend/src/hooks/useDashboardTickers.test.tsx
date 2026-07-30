@@ -64,4 +64,15 @@ describe('useDashboardTickers', () => {
     expect(result.current.tickers).toEqual([]);
     expect(listHoldingsSpy).not.toHaveBeenCalled();
   });
+
+  it('surfaces an error instead of a silently-empty ticker list when listHoldings fails', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([portfolioA]);
+    vi.spyOn(client, 'listHoldings').mockRejectedValue(new Error('network down'));
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([]);
+
+    const { result } = renderHook(() => useDashboardTickers());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.error).toBe('network down');
+  });
 });

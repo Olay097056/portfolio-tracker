@@ -134,6 +134,29 @@ def test_fetch_from_provider_maps_yfinance_rows_to_time_and_close(monkeypatch):
     ]
 
 
+def test_fetch_from_provider_requests_one_year_of_daily_bars(monkeypatch):
+    import pandas as pd
+
+    history = pd.DataFrame({"Close": [100.0]}, index=pd.to_datetime(["2026-01-02"]))
+    calls = []
+
+    class FakeTicker:
+        def __init__(self, ticker):
+            pass
+
+        def history(self, period, interval):
+            calls.append((period, interval))
+            return history
+
+    import yfinance as yf
+
+    monkeypatch.setattr(yf, "Ticker", FakeTicker)
+
+    chart_service._fetch_from_provider("VTI", "1Y")
+
+    assert calls == [("1y", "1d")]
+
+
 def test_fetch_from_provider_returns_none_for_an_empty_history(monkeypatch):
     import pandas as pd
 

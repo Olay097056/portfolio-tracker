@@ -38,6 +38,14 @@ def test_payment_frequency_is_zero_for_no_payments():
     assert result == 0
 
 
+def test_payment_frequency_excludes_future_dated_payments():
+    dates = [AS_OF - timedelta(days=30), AS_OF + timedelta(days=10)]
+
+    result = payment_frequency(dates, AS_OF)
+
+    assert result == 1
+
+
 def test_dividend_growth_pct_computes_growth_between_two_trailing_years():
     payments = [
         (AS_OF - timedelta(days=30), 1.1),
@@ -92,3 +100,11 @@ def test_gross_yield_pct_is_zero_for_a_ticker_with_no_payments():
     result = gross_yield_pct([], 100.0, AS_OF)
 
     assert result == pytest.approx(0.0)
+
+
+def test_gross_yield_pct_excludes_future_dated_payments():
+    payments = [(AS_OF - timedelta(days=30), 1.0), (AS_OF + timedelta(days=10), 5.0)]
+
+    result = gross_yield_pct(payments, 100.0, AS_OF)
+
+    assert result == pytest.approx(1.0)

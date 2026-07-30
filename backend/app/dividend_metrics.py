@@ -6,13 +6,15 @@ TRAILING_WINDOW = timedelta(days=365)
 
 def payment_frequency(payment_dates: list[date], as_of: date) -> int:
     cutoff = as_of - TRAILING_WINDOW
-    return sum(1 for d in payment_dates if d > cutoff)
+    # Upper-bounded at as_of too — a future-dated ex-date in the raw payment history (yfinance
+    # can return one) must not inflate a trailing count that is supposed to describe the past.
+    return sum(1 for d in payment_dates if cutoff < d <= as_of)
 
 
 def dividend_growth_pct(payments: list[tuple[date, float]], as_of: date) -> float | None:
     recent_cutoff = as_of - TRAILING_WINDOW
     prior_cutoff = as_of - (TRAILING_WINDOW * 2)
-    recent = sum(amount for payment_date, amount in payments if payment_date > recent_cutoff)
+    recent = sum(amount for payment_date, amount in payments if recent_cutoff < payment_date <= as_of)
     prior = sum(amount for payment_date, amount in payments if prior_cutoff < payment_date <= recent_cutoff)
     if prior <= 0:
         return None
@@ -23,5 +25,5 @@ def gross_yield_pct(payments: list[tuple[date, float]], price: float | None, as_
     if price is None or price <= 0:
         return None
     cutoff = as_of - TRAILING_WINDOW
-    trailing_sum = sum(amount for payment_date, amount in payments if payment_date > cutoff)
+    trailing_sum = sum(amount for payment_date, amount in payments if cutoff < payment_date <= as_of)
     return trailing_sum / price * 100

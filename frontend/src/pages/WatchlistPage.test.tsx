@@ -159,4 +159,38 @@ describe('WatchlistPage', () => {
 
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Dividend Ranking' })).toBeInTheDocument());
   });
+
+  it('keeps Dividend Ranking results and the entered tax rate after switching away and back, with no re-scan', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([
+      { id: 1, ticker: 'JEPQ', category: null, created_at: '2026-01-01T00:00:00Z' },
+    ]);
+    vi.spyOn(client, 'getDividendSignal').mockResolvedValue({
+      ticker: 'JEPQ',
+      price: 58.51,
+      gross_yield_pct: 10.0,
+      payment_frequency: 12,
+      dividend_growth_pct: 3.2,
+    });
+
+    render(<WatchlistPage />);
+    await waitFor(() => expect(screen.getByText('JEPQ')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dividend Ranking' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /^scan$/i })).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText(/tax rate/i), { target: { value: '30' } });
+    fireEvent.click(screen.getByRole('button', { name: /^scan$/i }));
+    await waitFor(() => expect(screen.getByText('7.00%')).toBeInTheDocument()); // 10 * (1 - 30/100)
+    expect(client.getDividendSignal).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Manage Watchlist' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Dividend Ranking' }));
+
+    // Unlike MomentumScanner/PreSqueezeScanner (which own a fresh useWatchlist instance and pass
+    // through a loading state on every remount), DividendRanking's scan state and tax rate are
+    // both owned by WatchlistPage, so nothing here should reset.
+    await waitFor(() => expect(screen.getByLabelText(/tax rate/i)).toHaveValue(30));
+    expect(screen.getByText('7.00%')).toBeInTheDocument();
+    expect(client.getDividendSignal).toHaveBeenCalledTimes(1);
+  });
 });

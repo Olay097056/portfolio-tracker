@@ -1,8 +1,16 @@
 // frontend/src/components/DividendRanking.test.tsx
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as client from '../api/client';
+import { useDividendScan } from '../hooks/useDividendScan';
 import { DividendRanking } from './DividendRanking';
+
+function Wrapper() {
+  const scanState = useDividendScan();
+  const [taxRatePct, setTaxRatePct] = useState('15');
+  return <DividendRanking scanState={scanState} taxRatePct={taxRatePct} onTaxRatePctChange={setTaxRatePct} />;
+}
 
 describe('DividendRanking', () => {
   afterEach(() => {
@@ -12,7 +20,7 @@ describe('DividendRanking', () => {
   it('shows an empty-watchlist message and no Scan button when the watchlist has no tickers', async () => {
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([]);
 
-    render(<DividendRanking />);
+    render(<Wrapper />);
 
     await waitFor(() => expect(screen.getByText(/watchlist is empty/i)).toBeInTheDocument());
     expect(screen.queryByRole('button', { name: /^scan$/i })).not.toBeInTheDocument();
@@ -28,7 +36,7 @@ describe('DividendRanking', () => {
       dividend_growth_pct: 3.2,
     });
 
-    render(<DividendRanking />);
+    render(<Wrapper />);
     await waitFor(() => expect(screen.getByRole('button', { name: /^scan$/i })).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('button', { name: /^scan$/i }));
@@ -51,7 +59,7 @@ describe('DividendRanking', () => {
       dividend_growth_pct: 3.2,
     });
 
-    render(<DividendRanking />);
+    render(<Wrapper />);
     await waitFor(() => expect(screen.getByRole('button', { name: /^scan$/i })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /^scan$/i }));
     await waitFor(() => expect(screen.getByText('8.50%')).toBeInTheDocument()); // 10 * (1 - 15/100)
@@ -60,6 +68,31 @@ describe('DividendRanking', () => {
 
     expect(screen.getByText('8.00%')).toBeInTheDocument(); // 10 * (1 - 20/100)
     expect(client.getDividendSignal).toHaveBeenCalledTimes(1);
+  });
+
+  it('clamps a negative or over-100 tax rate so net yield never exceeds gross yield or goes negative', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'JEPQ', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+    vi.spyOn(client, 'getDividendSignal').mockResolvedValue({
+      ticker: 'JEPQ',
+      price: 58.51,
+      gross_yield_pct: 10.0,
+      payment_frequency: 12,
+      dividend_growth_pct: 3.2,
+    });
+
+    render(<Wrapper />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /^scan$/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /^scan$/i }));
+    await waitFor(() => expect(screen.getByText('JEPQ')).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText(/tax rate/i), { target: { value: '-25' } });
+    // Clamped to 0% tax, so net == gross — both cells render the same '10.00%' text.
+    expect(screen.getAllByText('10.00%')).toHaveLength(2);
+
+    fireEvent.change(screen.getByLabelText(/tax rate/i), { target: { value: '150' } });
+    // Clamped to 100% tax, so net == 0 while gross is unchanged — only the net cell is '0.00%'.
+    expect(screen.getByText('10.00%')).toBeInTheDocument();
+    expect(screen.getByText('0.00%')).toBeInTheDocument();
   });
 
   it('shows a ticker that never paid as zero yield and zero frequency, not unavailable', async () => {
@@ -72,7 +105,7 @@ describe('DividendRanking', () => {
       dividend_growth_pct: null,
     });
 
-    render(<DividendRanking />);
+    render(<Wrapper />);
     await waitFor(() => expect(screen.getByRole('button', { name: /^scan$/i })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /^scan$/i }));
 
@@ -87,11 +120,78 @@ describe('DividendRanking', () => {
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'BADTICKER', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getDividendSignal').mockRejectedValue(new client.ApiError(502, 'upstream error'));
 
-    render(<DividendRanking />);
+    render(<Wrapper />);
     await waitFor(() => expect(screen.getByRole('button', { name: /^scan$/i })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /^scan$/i }));
 
     await waitFor(() => expect(screen.getByText('BADTICKER')).toBeInTheDocument());
     expect(screen.getAllByText(/unavailable/i).length).toBeGreaterThan(0);
+  });
+
+  it('sorts rows by the clicked column and reports the active sort via aria-sort', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([
+      { id: 1, ticker: 'LOW', category: null, created_at: '2026-01-01T00:00:00Z' },
+      { id: 2, ticker: 'HIGH', category: null, created_at: '2026-01-01T00:00:00Z' },
+    ]);
+    vi.spyOn(client, 'getDividendSignal').mockImplementation(async (ticker) => ({
+      ticker,
+      price: 100,
+      gross_yield_pct: ticker === 'HIGH' ? 9.0 : 1.0,
+      payment_frequency: 4,
+      dividend_growth_pct: 1,
+    }));
+
+    render(<Wrapper />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /^scan$/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /^scan$/i }));
+    await waitFor(() => expect(screen.getByText('LOW')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /^gross yield$/i }));
+
+    let tickerCells = screen.getAllByRole('row').slice(1).map((row) => row.querySelectorAll('td')[0].textContent);
+    expect(tickerCells).toEqual(['HIGH', 'LOW']);
+    expect(screen.getByRole('columnheader', { name: /gross yield/i })).toHaveAttribute('aria-sort', 'descending');
+
+    fireEvent.click(screen.getByRole('button', { name: /^gross yield$/i }));
+
+    tickerCells = screen.getAllByRole('row').slice(1).map((row) => row.querySelectorAll('td')[0].textContent);
+    expect(tickerCells).toEqual(['LOW', 'HIGH']);
+    expect(screen.getByRole('columnheader', { name: /gross yield/i })).toHaveAttribute('aria-sort', 'ascending');
+  });
+
+  it('defaults to sorting by net yield, and keeps the displayed net-yield cells correct after the tax rate changes without a rescan', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([
+      { id: 1, ticker: 'A', category: null, created_at: '2026-01-01T00:00:00Z' },
+      { id: 2, ticker: 'B', category: null, created_at: '2026-01-01T00:00:00Z' },
+    ]);
+    vi.spyOn(client, 'getDividendSignal').mockImplementation(async (ticker) => ({
+      ticker,
+      price: 100,
+      gross_yield_pct: ticker === 'A' ? 5.0 : 4.0,
+      payment_frequency: 4,
+      dividend_growth_pct: 1,
+    }));
+
+    render(<Wrapper />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /^scan$/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /^scan$/i }));
+    await waitFor(() => expect(screen.getByText('A')).toBeInTheDocument());
+
+    // Default sort is net yield, descending — A (5.0% gross) ranks above B (4.0% gross) since a
+    // uniform tax rate scales both proportionally and can never invert their relative order.
+    let tickerCells = screen.getAllByRole('row').slice(1).map((row) => row.querySelectorAll('td')[0].textContent);
+    expect(tickerCells).toEqual(['A', 'B']);
+    expect(screen.getByRole('columnheader', { name: /net yield/i })).toHaveAttribute('aria-sort', 'descending');
+
+    fireEvent.change(screen.getByLabelText(/tax rate/i), { target: { value: '50' } });
+
+    // Order is unchanged (as expected — uniform scaling), but the displayed net-yield values
+    // must reflect the new rate, proving the sort re-derives from live data on every render
+    // rather than reusing a value computed at an earlier tax rate.
+    tickerCells = screen.getAllByRole('row').slice(1).map((row) => row.querySelectorAll('td')[0].textContent);
+    expect(tickerCells).toEqual(['A', 'B']);
+    expect(screen.getByText('2.50%')).toBeInTheDocument(); // A: 5.0 * (1 - 50/100)
+    expect(screen.getByText('2.00%')).toBeInTheDocument(); // B: 4.0 * (1 - 50/100)
+    expect(client.getDividendSignal).toHaveBeenCalledTimes(2);
   });
 });

@@ -36,3 +36,5 @@ export function useDividendScan() {
 
   return { results, scanning, progress, scan };
 }
+
+export type DividendScanState = ReturnType<typeof useDividendScan>;

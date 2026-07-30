@@ -75,6 +75,6 @@ class WatchlistItem(Base):
     __tablename__ = "watchlist_items"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    ticker: Mapped[str] = mapped_column(String, nullable=False)
+    ticker: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     category: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=_utcnow)

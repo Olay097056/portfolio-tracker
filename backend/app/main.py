@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.database import Base, engine
 from app.routers import fx, holdings, market, market_data, portfolios, prices, watchlist
@@ -10,6 +11,13 @@ from app.routers import fx, holdings, market, market_data, portfolios, prices, w
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    # `unique=True` on WatchlistItem.ticker (models.py) only reaches databases created fresh
+    # by create_all above. Existing on-disk databases already have the watchlist_items table
+    # without that constraint, and create_all never alters existing tables — so backfill it
+    # explicitly here for upgrades from before this constraint existed.
+    with engine.connect() as conn:
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ux_watchlist_items_ticker ON watchlist_items (ticker)"))
+        conn.commit()
     yield
 
 

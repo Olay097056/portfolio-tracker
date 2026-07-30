@@ -2,7 +2,7 @@
 from datetime import date
 from typing import Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -29,7 +29,13 @@ router = APIRouter(prefix="/watchlist", tags=["watchlist"])
 
 @router.post("", response_model=WatchlistItemOut, status_code=201)
 def create_watchlist_item(payload: WatchlistItemCreate, db: Session = Depends(get_db)):
-    item = WatchlistItem(**payload.model_dump())
+    ticker = payload.ticker.strip().upper()
+    if not ticker:
+        raise HTTPException(status_code=400, detail="Ticker cannot be blank")
+    existing = db.execute(select(WatchlistItem).where(WatchlistItem.ticker == ticker)).scalar_one_or_none()
+    if existing is not None:
+        raise HTTPException(status_code=400, detail=f"{ticker} is already on the Watchlist")
+    item = WatchlistItem(ticker=ticker, category=payload.category)
     db.add(item)
     db.commit()
     db.refresh(item)

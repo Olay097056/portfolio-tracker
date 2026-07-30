@@ -1,6 +1,14 @@
 # backend/app/trending_service.py
 import os
+import time
 from typing import TypedDict
+
+# Matches history_service.py's TTL. FMP's free tier caps at 250 requests/day and each
+# refresh costs 3 requests (gainers, losers, actives), so an uncached tab could burn through
+# it in well under 100 clicks.
+CACHE_TTL_SECONDS = 900.0
+
+_cache: dict[str, tuple[list["TrendingRow"], float]] = {}
 
 
 class TrendingRow(TypedDict):
@@ -8,6 +16,24 @@ class TrendingRow(TypedDict):
     name: str
     price: float | None
     change_pct: float | None
+
+
+def clear_cache() -> None:
+    _cache.clear()
+
+
+def _get_cached(endpoint: str) -> list["TrendingRow"] | None:
+    entry = _cache.get(endpoint)
+    if entry is None:
+        return None
+    rows, fetched_at = entry
+    if time.monotonic() - fetched_at > CACHE_TTL_SECONDS:
+        return None
+    return rows
+
+
+def _set_cached(endpoint: str, rows: list["TrendingRow"]) -> None:
+    _cache[endpoint] = (rows, time.monotonic())
 
 
 def _as_float(value: object) -> float | None:
@@ -19,7 +45,7 @@ def _as_float(value: object) -> float | None:
         return None
 
 
-def _fetch_list(endpoint: str) -> list[TrendingRow] | None:
+def _fetch_from_provider(endpoint: str) -> list[TrendingRow] | None:
     import httpx
 
     api_key = os.environ.get("FMP_API_KEY")
@@ -53,6 +79,18 @@ def _fetch_list(endpoint: str) -> list[TrendingRow] | None:
         return rows
     except Exception:
         return None
+
+
+def _fetch_list(endpoint: str) -> list[TrendingRow] | None:
+    cached = _get_cached(endpoint)
+    if cached is not None:
+        return cached
+
+    rows = _fetch_from_provider(endpoint)
+    if rows is not None:
+        _set_cached(endpoint, rows)
+
+    return rows
 
 
 def get_gainers() -> list[TrendingRow] | None:

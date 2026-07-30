@@ -18,7 +18,9 @@ function TrendingList({ title, rows, watchedTickers, onAdd }: TrendingListProps)
   return (
     <div>
       <h4>{title}</h4>
-      {rows === null || rows.length === 0 ? (
+      {rows === null ? (
+        <p>This list could not be fetched — try refreshing again shortly.</p>
+      ) : rows.length === 0 ? (
         <p>No data.</p>
       ) : (
         <table>
@@ -57,12 +59,22 @@ function TrendingList({ title, rows, watchedTickers, onAdd }: TrendingListProps)
 }
 
 export function TrendingStocksToday({ scanState }: TrendingStocksTodayProps) {
-  const { items, create } = useWatchlist();
+  const { items, loading: watchlistLoading, error: watchlistError, create } = useWatchlist();
   const { data, loading, error, refresh } = scanState;
+
+  if (watchlistLoading) {
+    return <div>Loading watchlist…</div>;
+  }
+
   const watchedTickers = new Set(items.map((item) => item.ticker));
 
   async function handleAdd(ticker: string) {
-    await create({ ticker });
+    try {
+      await create({ ticker });
+    } catch {
+      // Already surfaced via watchlistError below; swallow here so a rejected click doesn't
+      // become an unhandled promise rejection.
+    }
   }
 
   return (
@@ -74,6 +86,7 @@ export function TrendingStocksToday({ scanState }: TrendingStocksTodayProps) {
       </button>
 
       {error && <div role="alert">{error}</div>}
+      {watchlistError && <div role="alert">{watchlistError}</div>}
 
       {data && !data.api_key_configured && (
         <p>Set the FMP_API_KEY environment variable to enable Trending Stocks Today.</p>

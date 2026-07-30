@@ -226,7 +226,10 @@ describe('WatchlistPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Manage Watchlist' }));
     fireEvent.click(screen.getByRole('button', { name: 'Trending Stocks Today' }));
 
-    expect(screen.getByText('AAPL')).toBeInTheDocument();
+    // TrendingStocksToday remounts on tab switch (its own useWatchlist instance re-fetches, and
+    // gates rendering on that load to avoid a stale-watched-state race — see its own tests), so
+    // it passes through a brief loading state before the persisted trending data reappears.
+    await waitFor(() => expect(screen.getByText('AAPL')).toBeInTheDocument());
     expect(client.getTrending).toHaveBeenCalledTimes(1);
   });
 });

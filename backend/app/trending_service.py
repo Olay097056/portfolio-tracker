@@ -10,6 +10,15 @@ class TrendingRow(TypedDict):
     change_pct: float | None
 
 
+def _as_float(value: object) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+
+
 def _fetch_list(endpoint: str) -> list[TrendingRow] | None:
     import httpx
 
@@ -26,10 +35,14 @@ def _fetch_list(endpoint: str) -> list[TrendingRow] | None:
         data = response.json()
         return [
             {
-                "ticker": item.get("symbol", ""),
-                "name": item.get("name", ""),
-                "price": item.get("price"),
-                "change_pct": item.get("changesPercentage"),
+                # `or ""` (not just .get(key, "")) guards against a key present with an
+                # explicit null value, not only a missing key — either way the response
+                # schema requires a str, and a raw None there would 500 at serialization,
+                # outside this function's own try/except.
+                "ticker": item.get("symbol") or "",
+                "name": item.get("name") or "",
+                "price": _as_float(item.get("price")),
+                "change_pct": _as_float(item.get("changesPercentage")),
             }
             for item in data[:10]
         ]

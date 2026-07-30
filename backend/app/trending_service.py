@@ -33,19 +33,24 @@ def _fetch_list(endpoint: str) -> list[TrendingRow] | None:
         )
         response.raise_for_status()
         data = response.json()
-        return [
-            {
-                # `or ""` (not just .get(key, "")) guards against a key present with an
-                # explicit null value, not only a missing key — either way the response
-                # schema requires a str, and a raw None there would 500 at serialization,
-                # outside this function's own try/except.
-                "ticker": item.get("symbol") or "",
-                "name": item.get("name") or "",
-                "price": _as_float(item.get("price")),
-                "change_pct": _as_float(item.get("changesPercentage")),
-            }
-            for item in data[:10]
-        ]
+        rows: list[TrendingRow] = []
+        for item in data:
+            # A row with no real ticker has no usable identity — skip it rather than coercing
+            # to "", which would otherwise reach the frontend as an addable, junk watchlist entry.
+            ticker = item.get("symbol")
+            if not ticker:
+                continue
+            rows.append(
+                {
+                    "ticker": ticker,
+                    "name": item.get("name") or "",
+                    "price": _as_float(item.get("price")),
+                    "change_pct": _as_float(item.get("changesPercentage")),
+                }
+            )
+            if len(rows) == 10:
+                break
+        return rows
     except Exception:
         return None
 

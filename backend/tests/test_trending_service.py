@@ -114,7 +114,7 @@ def test_fetch_list_returns_none_when_the_request_fails(monkeypatch):
     assert result is None
 
 
-def test_fetch_list_coerces_a_present_but_null_name_or_symbol_to_empty_string(monkeypatch):
+def test_fetch_list_skips_a_row_with_no_symbol_rather_than_coercing_to_an_addable_empty_ticker(monkeypatch):
     monkeypatch.setenv("FMP_API_KEY", "test-key")
 
     class FakeResponse:
@@ -122,7 +122,11 @@ def test_fetch_list_coerces_a_present_but_null_name_or_symbol_to_empty_string(mo
             pass
 
         def json(self):
-            return [{"symbol": None, "name": None, "price": 195.5, "changesPercentage": 4.2}]
+            return [
+                {"symbol": None, "name": "Nameless", "price": 195.5, "changesPercentage": 4.2},
+                {"symbol": "", "name": "Also Nameless", "price": 10.0, "changesPercentage": 1.0},
+                {"symbol": "AAPL", "name": "Apple Inc.", "price": 195.5, "changesPercentage": 4.2},
+            ]
 
     import httpx
 
@@ -130,7 +134,26 @@ def test_fetch_list_coerces_a_present_but_null_name_or_symbol_to_empty_string(mo
 
     result = trending_service._fetch_list("gainers")
 
-    assert result == [{"ticker": "", "name": "", "price": 195.5, "change_pct": 4.2}]
+    assert result == [{"ticker": "AAPL", "name": "Apple Inc.", "price": 195.5, "change_pct": 4.2}]
+
+
+def test_fetch_list_coerces_a_present_but_null_name_to_empty_string(monkeypatch):
+    monkeypatch.setenv("FMP_API_KEY", "test-key")
+
+    class FakeResponse:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return [{"symbol": "AAPL", "name": None, "price": 195.5, "changesPercentage": 4.2}]
+
+    import httpx
+
+    monkeypatch.setattr(httpx, "get", lambda *args, **kwargs: FakeResponse())
+
+    result = trending_service._fetch_list("gainers")
+
+    assert result == [{"ticker": "AAPL", "name": "", "price": 195.5, "change_pct": 4.2}]
 
 
 def test_fetch_list_falls_back_to_none_for_a_price_that_cannot_be_parsed_as_a_number(monkeypatch):

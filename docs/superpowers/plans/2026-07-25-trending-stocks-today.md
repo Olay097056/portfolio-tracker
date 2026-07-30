@@ -641,7 +641,10 @@ describe('TrendingStocksToday', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /add to watchlist/i }));
 
-    await waitFor(() => expect(client.createWatchlistItem).toHaveBeenCalledWith({ ticker: 'AAPL', category: null }));
+    // useWatchlist.create() spreads its input straight into createWatchlistItem (only overriding
+    // ticker's casing) — since this component's onAdd calls create({ ticker }) with no category
+    // key at all, the resulting call has no category key either, not category: null.
+    await waitFor(() => expect(client.createWatchlistItem).toHaveBeenCalledWith({ ticker: 'AAPL' }));
   });
 
   it('shows an already-watched row as such instead of an Add button', async () => {
@@ -663,8 +666,6 @@ describe('TrendingStocksToday', () => {
   });
 });
 ```
-
-Note: the second `createWatchlistItem` category argument is `null` (not omitted), matching `useWatchlist.create`'s existing `WatchlistItemCreateInput` shape (`category` is optional on the type, but the "Add to Watchlist" call site passes `{ ticker, category: null }` explicitly, since there is no category to offer from a trending row) — confirm this against how `useWatchlist.create` is actually invoked with a bare `{ ticker }` object elsewhere before writing Step 12; if a caller can omit `category` entirely and still type-check, omit it here too for consistency rather than pass `category: null` gratuitously.
 
 - [ ] **Step 11: Run the tests to verify they fail**
 
@@ -845,6 +846,6 @@ git commit -m "feat: add Trending Stocks Today tab via Financial Modeling Prep"
 
 **1. Spec coverage:** Ticket 7's acceptance criteria map to: FMP as a new dependency behind `FMP_API_KEY` (Task 1 Step 3, matching the `TWELVE_DATA_API_KEY` convention), a single private fetcher (`_fetch_list`, Task 1 Step 3), 3 lists capped at 10 rows (Task 1 Steps 3/6), only-FMP-fields with no per-ticker enrichment (Task 1 Step 3's mapping, no yfinance/history_service import anywhere in this plan), explicit missing-key signal never placeholder data (Task 1 Step 8's `api_key_configured` branch, Task 2 Step 12's distinct message), Add-to-Watchlist button reusing existing mutation (Task 2 Step 12's `create({ ticker })`), already-watched row state (Task 2 Step 12's `watchedTickers` check), endpoint not reading the Watchlist (Task 1's router has no `db: Session` parameter at all, confirmed by contrast with `watchlist.py`'s CRUD routes).
 
-**2. Placeholder scan:** No TBD/TODO markers. All code blocks are complete file contents or complete appended functions. The one explicit judgment call left to the implementer (Step 10's note about `category: null` vs. omitted) is a real, bounded decision with a clear resolution rule, not an open placeholder.
+**2. Placeholder scan:** No TBD/TODO markers. All code blocks are complete file contents or complete appended functions.
 
 **3. Type consistency:** `TrendingOut`/`TrendingRowOut` (Task 1 Step 5) match `TrendingData`/`TrendingRow` (Task 2 Step 1) field-for-field. `useTrendingData`'s returned shape (`data`, `loading`, `error`, `refresh`) is declared once (Task 2 Step 8) and consumed by `TrendingStocksTodayProps` (Task 2 Step 12) via the exported `TrendingDataState` type — same pattern as `PriceSignalsScanState`/`DividendScanState`, not redeclared. `WatchlistTab`'s final 5-member union (Task 2 Step 16) and `TABS`'s order are written to match `docs/specs/2026-07-25-watchlist-and-scanners.md`'s explicit stated order exactly, closing the drift Ticket 6's final review had to fix after the fact.

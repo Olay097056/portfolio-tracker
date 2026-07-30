@@ -194,4 +194,40 @@ describe('DividendRanking', () => {
     expect(screen.getByText('2.00%')).toBeInTheDocument(); // B: 4.0 * (1 - 50/100)
     expect(client.getDividendSignal).toHaveBeenCalledTimes(2);
   });
+
+  it('re-derives the net-yield sort key from the live tax rate rather than a stale computed value', async () => {
+    // Watchlist order is [B, A] with B the lower gross yield, so at any tax rate below 100% the
+    // net-yield sort (A above B) genuinely differs from watchlist/insertion order. At 100% tax
+    // every net yield collapses to exactly 0, all rows tie, and a stable sort falls back to
+    // insertion order — [B, A]. If the sort key were still using the value computed at the prior
+    // tax rate (stale), order would incorrectly stay [A, B]; only a live re-derivation produces
+    // the [B, A] this test asserts.
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([
+      { id: 1, ticker: 'B', category: null, created_at: '2026-01-01T00:00:00Z' },
+      { id: 2, ticker: 'A', category: null, created_at: '2026-01-01T00:00:00Z' },
+    ]);
+    vi.spyOn(client, 'getDividendSignal').mockImplementation(async (ticker) => ({
+      ticker,
+      price: 100,
+      gross_yield_pct: ticker === 'A' ? 5.0 : 4.0,
+      payment_frequency: 4,
+      dividend_growth_pct: 1,
+    }));
+
+    render(<Wrapper />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /^scan$/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /^scan$/i }));
+    await waitFor(() => expect(screen.getByText('B')).toBeInTheDocument());
+
+    // Default tax 15%, sorted by net yield descending — A's higher yield ranks first, differing
+    // from the [B, A] watchlist order.
+    let tickerCells = screen.getAllByRole('row').slice(1).map((row) => row.querySelectorAll('td')[0].textContent);
+    expect(tickerCells).toEqual(['A', 'B']);
+
+    fireEvent.change(screen.getByLabelText(/tax rate/i), { target: { value: '100' } });
+
+    tickerCells = screen.getAllByRole('row').slice(1).map((row) => row.querySelectorAll('td')[0].textContent);
+    expect(tickerCells).toEqual(['B', 'A']);
+    expect(client.getDividendSignal).toHaveBeenCalledTimes(2);
+  });
 });

@@ -71,6 +71,18 @@ def test_dividend_growth_pct_returns_none_when_prior_year_had_no_payments():
     assert result is None
 
 
+def test_dividend_growth_pct_excludes_future_dated_payments_from_the_recent_window():
+    payments = [
+        (AS_OF - timedelta(days=30), 1.0),
+        (AS_OF + timedelta(days=10), 5.0),
+        (AS_OF - timedelta(days=390), 1.0),
+    ]
+
+    result = dividend_growth_pct(payments, AS_OF)
+
+    assert result == pytest.approx(0.0)
+
+
 def test_gross_yield_pct_computes_trailing_year_sum_over_price():
     payments = [
         (AS_OF - timedelta(days=30), 1.1),

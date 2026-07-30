@@ -2,9 +2,9 @@
 import { useState } from 'react';
 import type { SortDirection } from '../utils/sortRows';
 
-export function useSortableColumn<C extends string>(initialColumn: C) {
+export function useSortableColumn<C extends string>(initialColumn: C, initialDirection: SortDirection = 'desc') {
   const [sortColumn, setSortColumn] = useState<C>(initialColumn);
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [sortDirection, setSortDirection] = useState<SortDirection>(initialDirection);
 
   function toggleSort(column: C) {
     if (column === sortColumn) {

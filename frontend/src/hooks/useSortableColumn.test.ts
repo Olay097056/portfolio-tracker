@@ -6,13 +6,20 @@ import { useSortableColumn } from './useSortableColumn';
 type Column = 'a' | 'b';
 
 describe('useSortableColumn', () => {
-  it('starts on the given column, descending', () => {
+  it('starts on the given column, descending by default', () => {
     const { result } = renderHook(() => useSortableColumn<Column>('a'));
 
     expect(result.current.sortColumn).toBe('a');
     expect(result.current.sortDirection).toBe('desc');
     expect(result.current.ariaSortFor('a')).toBe('descending');
     expect(result.current.ariaSortFor('b')).toBeUndefined();
+  });
+
+  it('starts ascending when an initial direction is given', () => {
+    const { result } = renderHook(() => useSortableColumn<Column>('a', 'asc'));
+
+    expect(result.current.sortDirection).toBe('asc');
+    expect(result.current.ariaSortFor('a')).toBe('ascending');
   });
 
   it('toggles direction when the same column is clicked again', () => {

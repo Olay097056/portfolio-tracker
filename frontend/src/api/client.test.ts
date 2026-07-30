@@ -17,6 +17,7 @@ import {
   getPriceSignal,
   getDividendSignal,
   getTrending,
+  getChartData,
 } from './client';
 
 function mockFetchOnce(body: unknown, init: { status?: number } = {}) {
@@ -274,5 +275,14 @@ describe('api client', () => {
 
     expect(fetch).toHaveBeenCalledWith('http://localhost:8000/market/trending', expect.objectContaining({ method: undefined }));
     expect(result.api_key_configured).toBe(true);
+  });
+
+  it('getChartData calls GET /market/chart with ticker and range', async () => {
+    mockFetchOnce({ points: [{ time: '2026-01-02', close: 100 }] });
+
+    const result = await getChartData('VTI', '1Y');
+
+    expect(fetch).toHaveBeenCalledWith('http://localhost:8000/market/chart?ticker=VTI&range=1Y', expect.objectContaining({ method: undefined }));
+    expect(result).toEqual({ points: [{ time: '2026-01-02', close: 100 }] });
   });
 });

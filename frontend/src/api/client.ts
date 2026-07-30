@@ -1,5 +1,7 @@
 // frontend/src/api/client.ts
 import type {
+  ChartData,
+  ChartRange,
   DividendSignalRow,
   Holding,
   HoldingCreateInput,
@@ -15,6 +17,8 @@ import type {
   WatchlistItem,
   WatchlistItemCreateInput,
 } from './types';
+
+export type { ChartData };
 
 const BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
 
@@ -128,4 +132,8 @@ export function getDividendSignal(ticker: string): Promise<DividendSignalRow> {
 
 export function getTrending(): Promise<TrendingData> {
   return request<TrendingData>('/market/trending');
+}
+
+export function getChartData(ticker: string, range: ChartRange): Promise<ChartData> {
+  return request<ChartData>(`/market/chart?ticker=${encodeURIComponent(ticker)}&range=${range}`);
 }

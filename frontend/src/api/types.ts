@@ -124,3 +124,14 @@ export interface TrendingData {
   most_active: TrendingRow[] | null;
   api_key_configured: boolean;
 }
+
+export type ChartRange = '1Y';
+
+export interface ChartPoint {
+  time: string;
+  close: number;
+}
+
+export interface ChartData {
+  points: ChartPoint[] | null;
+}

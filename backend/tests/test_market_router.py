@@ -47,3 +47,28 @@ def test_get_trending_reports_a_list_as_unavailable_when_its_own_fetch_fails(cli
     assert body["api_key_configured"] is True
     assert body["gainers"] is None
     assert body["losers"] == rows
+
+
+def test_get_chart_returns_points_for_a_ticker(client):
+    points = [{"time": "2026-01-02", "close": 100.0}, {"time": "2026-01-05", "close": 101.5}]
+
+    with patch("app.routers.market.get_chart_data", return_value=points):
+        response = client.get("/market/chart?ticker=VTI&range=1Y")
+
+    assert response.status_code == 200
+    assert response.json() == {"points": points}
+
+
+def test_get_chart_reports_unavailable_when_fetch_fails(client):
+    with patch("app.routers.market.get_chart_data", return_value=None):
+        response = client.get("/market/chart?ticker=BADTICKER&range=1Y")
+
+    assert response.status_code == 200
+    assert response.json() == {"points": None}
+
+
+def test_get_chart_passes_ticker_and_range_through(client):
+    with patch("app.routers.market.get_chart_data", return_value=[]) as mock_get_chart_data:
+        client.get("/market/chart?ticker=VTI&range=1Y")
+
+    mock_get_chart_data.assert_called_once_with("VTI", "1Y")

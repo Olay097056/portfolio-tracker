@@ -123,3 +123,12 @@ class TrendingOut(BaseModel):
     losers: list[TrendingRowOut] | None
     most_active: list[TrendingRowOut] | None
     api_key_configured: bool
+
+
+class ChartPointOut(BaseModel):
+    time: str
+    close: float
+
+
+class ChartOut(BaseModel):
+    points: list[ChartPointOut] | None

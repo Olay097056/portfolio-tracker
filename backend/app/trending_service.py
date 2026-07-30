@@ -2,12 +2,6 @@
 import os
 from typing import TypedDict
 
-FMP_ENDPOINTS = {
-    "gainers": "gainers",
-    "losers": "losers",
-    "actives": "actives",
-}
-
 
 class TrendingRow(TypedDict):
     ticker: str

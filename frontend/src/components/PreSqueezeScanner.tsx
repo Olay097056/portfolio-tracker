@@ -1,21 +1,23 @@
 // frontend/src/components/PreSqueezeScanner.tsx
-import { useState } from 'react';
 import type { PriceSignalRow } from '../api/types';
 import type { PriceSignalsScanState } from '../hooks/usePriceSignalsScan';
+import { useSortableColumn } from '../hooks/useSortableColumn';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { formatNumber, formatSignedPercent } from '../utils/signalFormatting';
+import { sortByNullableNumber } from '../utils/sortRows';
 
 interface PreSqueezeScannerProps {
   scanState: PriceSignalsScanState;
 }
 
 type SortColumn = 'bb_width_pct' | 'bb_width_percentile' | 'atr_pct' | 'volume_ratio';
-type SortDirection = 'asc' | 'desc';
 
 export function PreSqueezeScanner({ scanState }: PreSqueezeScannerProps) {
   const { items, loading } = useWatchlist();
-  const [sortColumn, setSortColumn] = useState<SortColumn>('bb_width_percentile');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const { sortColumn, sortDirection, toggleSort, ariaSortFor } = useSortableColumn<SortColumn>(
+    'bb_width_percentile',
+    'asc',
+  );
   const { results, scanning, progress, scan } = scanState;
 
   if (loading) {
@@ -35,28 +37,7 @@ export function PreSqueezeScanner({ scanState }: PreSqueezeScannerProps) {
     .map((item) => results[item.ticker])
     .filter((row): row is PriceSignalRow => row !== undefined);
 
-  const sortedRows = [...rows].sort((a, b) => {
-    const aValue = a[sortColumn];
-    const bValue = b[sortColumn];
-    if (aValue == null && bValue == null) return 0;
-    if (aValue == null) return 1;
-    if (bValue == null) return -1;
-    return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
-  });
-
-  function toggleSort(column: SortColumn) {
-    if (column === sortColumn) {
-      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortColumn(column);
-      setSortDirection('desc');
-    }
-  }
-
-  function ariaSortFor(column: SortColumn): 'ascending' | 'descending' | undefined {
-    if (sortColumn !== column) return undefined;
-    return sortDirection === 'asc' ? 'ascending' : 'descending';
-  }
+  const sortedRows = sortByNullableNumber(rows, (row) => row[sortColumn], sortDirection);
 
   async function handleScan() {
     // No period argument — Pre-Squeeze has no period selector and never displays

@@ -1,16 +1,17 @@
 // frontend/src/components/MomentumScanner.tsx
 import { useState } from 'react';
 import type { PriceSignalRow, ScanPeriod } from '../api/types';
+import { useSortableColumn } from '../hooks/useSortableColumn';
 import { DEFAULT_PERIOD, type PriceSignalsScanState } from '../hooks/usePriceSignalsScan';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { formatNumber, formatSignedPercent } from '../utils/signalFormatting';
+import { sortByNullableNumber } from '../utils/sortRows';
 
 interface MomentumScannerProps {
   scanState: PriceSignalsScanState;
 }
 
 type SortColumn = 'percent_change_pct' | 'rsi_14' | 'volume_ratio' | 'distance_from_sma50_pct';
-type SortDirection = 'asc' | 'desc';
 
 export function MomentumScanner({ scanState }: MomentumScannerProps) {
   const { items, loading } = useWatchlist();
@@ -19,8 +20,7 @@ export function MomentumScanner({ scanState }: MomentumScannerProps) {
   // exact constant, so the two only need to agree on the untouched-default case, not in general
   // (scannedPeriod itself, not this selector, is always what the heading reads).
   const [period, setPeriod] = useState<ScanPeriod>(DEFAULT_PERIOD);
-  const [sortColumn, setSortColumn] = useState<SortColumn>('percent_change_pct');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const { sortColumn, sortDirection, toggleSort, ariaSortFor } = useSortableColumn<SortColumn>('percent_change_pct');
   const { results, scannedPeriod, scanning, progress, scan } = scanState;
 
   if (loading) {
@@ -40,23 +40,7 @@ export function MomentumScanner({ scanState }: MomentumScannerProps) {
     .map((item) => results[item.ticker])
     .filter((row): row is PriceSignalRow => row !== undefined);
 
-  const sortedRows = [...rows].sort((a, b) => {
-    const aValue = a[sortColumn];
-    const bValue = b[sortColumn];
-    if (aValue == null && bValue == null) return 0;
-    if (aValue == null) return 1;
-    if (bValue == null) return -1;
-    return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
-  });
-
-  function toggleSort(column: SortColumn) {
-    if (column === sortColumn) {
-      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortColumn(column);
-      setSortDirection('desc');
-    }
-  }
+  const sortedRows = sortByNullableNumber(rows, (row) => row[sortColumn], sortDirection);
 
   async function handleScan() {
     await scan(
@@ -70,11 +54,6 @@ export function MomentumScanner({ scanState }: MomentumScannerProps) {
   // a remount while the selector resets, so either would let the heading state a period the
   // numbers weren't computed with.
   const headingPeriod = scannedPeriod ?? period;
-
-  function ariaSortFor(column: SortColumn): 'ascending' | 'descending' | undefined {
-    if (sortColumn !== column) return undefined;
-    return sortDirection === 'asc' ? 'ascending' : 'descending';
-  }
 
   return (
     <div>

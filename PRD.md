@@ -177,14 +177,24 @@ Panel ต่อ holding ที่ตอบคำถาม "ถ้าราคา
 
 ### จาก stockvision-app merge (2026-07-24) — ยังไม่ grill รายละเอียด เก็บเป็น ticket ไว้ก่อน
 
-แท็บ/ฟีเจอร์เหล่านี้อยู่ใน draft stockvision-app แต่ทั้งหมดใช้ preset/mock data คงที่ (ไม่ใช่การ scan ตลาดจริง) — ต้องมี market-data source ใหม่ที่ยังไม่เลือก ก่อนจะ specify ได้:
+4 แท็บ (Dividend Ranking, Momentum Scanner, Pre-Squeeze Scanner, Trending Stocks Today) ที่เคยอยู่ในดราฟท์ stockvision-app แบบ preset/mock data — grill แล้ว (spec: `docs/specs/2026-07-25-watchlist-and-scanners.md`), build เสร็จและ merge เข้า master ทั้งหมดแล้ว (2026-07-25) ดูรายละเอียด residual ที่เหลือจากงานนี้ในหัวข้อถัดไป
 
-- **Dividend Ranking** — จัดกลุ่ม ETF/หุ้นปันผลตาม filter (รายเดือน/yield สูง/เหมาะ DCA/passive) — `src/screenerEngine.js` ในดราฟท์
-- **Momentum Scanner** ("หุ้นมีแนวโน้มจะพุ่ง") — ให้คะแนนจาก Volume/RSI/MA/Sentiment สมมติ
-- **Pre-Squeeze Scanner** — ให้คะแนนจาก market cap/earnings proximity/Bollinger squeeze/volume/RSI/liquidity สมมติ
-- **Trending Stocks Today** — ranking gainers/losers/volume สูงสุด
-- **AI News Summary** — สรุปข่าวหุ้น + AI (ซ้ำกับ "แถบข่าว/สรุปภาพรวมตลาด" ที่ deferred อยู่แล้วด้านบน)
-- **AI Stock Analysis** — สร้าง AI analysis report ต่อหุ้น (ในดราฟท์ใช้ prompt/logic ที่ระบุว่า "exact" มาจาก doohoon.net ตรงๆ — ถ้าทำจริงต้องคิด prompt ใหม่เอง ไม่ใช้ของ doohoon.net ตามหลักเดียวกับที่ห้ามใช้เนื้อหา AI ของ wethaiinvest.com)
+ที่ยังเหลือ ยังไม่ grill:
+
+- **AI News Summary** — สรุปข่าวหุ้น + AI (ซ้ำกับ "แถบข่าว/สรุปภาพรวมตลาด" ที่ deferred อยู่แล้วด้านบน) — ต้องเลือก news API ใหม่ก่อน
+- **AI Stock Analysis** — สร้าง AI analysis report ต่อหุ้น (ในดราฟท์ใช้ prompt/logic ที่ระบุว่า "exact" มาจาก doohoon.net ตรงๆ — ถ้าทำจริงต้องคิด prompt ใหม่เอง ไม่ใช้ของ doohoon.net ตามหลักเดียวกับที่ห้ามใช้เนื้อหา AI ของ wethaiinvest.com) — ต้องเลือก LLM API ใหม่ก่อน ความเสี่ยงเรื่อง copyright/provenance สูงสุดในบรรดา 6 แท็บเดิม
 - **ETF Comparison — fundamentals ลึก** (dividend yield, P/E, forward P/E, beta, MA score จาก yfinance `.info` จริง) — v1 ของ ETF Comparison ใช้แค่ราคา/P&L จาก `price_service` เดิม ส่วนนี้ค่อยขยายทีหลัง
+
+### จาก Watchlist and Scanners effort (2026-07-25) — build เสร็จแล้ว, residual ที่เหลือ
+
+ticket 1-7 ทั้งหมด merge เข้า master แล้ว (Extract shared tab nav → Watchlist area → Momentum Scanner walking skeleton → Momentum Scanner remaining signals → Pre-Squeeze Scanner → Dividend Ranking → Trending Stocks Today) ทุก final review ผ่าน READY TO MERGE: Yes สิ่งที่เหลือค้างเป็น residual ที่รู้ตัวแล้วแต่จงใจเลื่อนออกไปนอก scope ของ 7 ticket นี้:
+
+- **ไม่มี unique constraint บน `watchlist_items.ticker` และไม่มี `min_length` validation** — ตอนนี้กันซ้ำ/กันช่องว่างได้แค่ระดับ UI เท่านั้น ควรมี DB constraint + validation จริงเพื่อปิดช่องโหว่ถาวร
+- **Cross-provider ticker symbology ไม่ได้ validate** — ticker ที่เพิ่มจาก FMP (แท็บ Trending) ไม่รับประกันว่า yfinance จะ resolve ได้ อาจกลายเป็น "Unavailable" ทุกคอลัมน์เมื่อไป scan ในแท็บอื่น
+- **FMP v3 `stock_market` endpoints อาจเป็น legacy API path** — FMP มี `/stable/biggest-gainers` เป็นเวอร์ชันใหม่กว่าแล้ว ยังไม่เคยทดสอบกับ real API key ใน session นี้เลย **แนะนำให้ smoke test ด้วย real `FMP_API_KEY` เป็นอันดับแรกหลัง merge** พร้อมยืนยันว่า `change_pct` ไม่ได้เป็น null ทั้งหมด (เผื่อ field type เปลี่ยนไปในเวอร์ชันใหม่)
+- **ไม่มี README/`.env.example` ที่ document `FMP_API_KEY` หรือ `TWELVE_DATA_API_KEY`**
+- **ไม่มี caching/TTL บน Trending response** — ต่างจาก provider อื่นทุกตัวในโปรเจกต์นี้ที่มี TTL cache หมด กด Refresh ทีนึงคือยิง FMP 3 requests เต็มๆ (free tier 250/วัน)
+- **Sort-utility ที่ extract ไว้ตอน Ticket 6 (`useSortableColumn`/`sortByNullableNumber`) ถูกใช้แค่ใน Dividend Ranking** — Momentum Scanner กับ Pre-Squeeze Scanner ยังคง sort logic แบบ hand-roll ซ้ำกันอยู่ 2 ที่ ยังไม่ retrofit
+- **ข้อความ empty-watchlist ใน 3 แท็บ scanner ไม่ได้พูดถึงแท็บ Trending Stocks Today** ทั้งที่ตอนนี้เป็นวิธีเติม watchlist แบบคลิกเดียวที่เร็วที่สุด
 - **`_fetch_dividend_yield_pct` scaling ยังไม่ยืนยัน 100% ว่าถูกกับ yfinance 0.2.51 ที่ pin ไว้** — ตอนนี้ใช้ heuristic (>1 = ถือว่าเป็น % อยู่แล้ว, ≤1 = คูณ 100) ที่ครอบคลุมกรณีหลัก (ETF yield สูงอย่าง JEPQ) ถูกต้อง แต่ยังมีความเสี่ยงที่หุ้น yield ต่ำกว่า 1% (เช่น AAPL ~0.44%) อาจถูกคูณผิด 100 เท่า ถ้า yfinance เวอร์ชันนี้คืนค่าเป็น % อยู่แล้วจริงๆ — ยืนยันไม่ได้เพราะ yfinance โดน rate-limit (429) ตลอด session นี้ ต้องลองเรียกจริงตอน rate limit หายแล้วเพื่อ confirm รูปแบบ แล้วปรับ/ลบ heuristic ถ้าจำเป็น
 - **Portfolio Builder wizard ไม่ rollback เมื่อสร้าง holding ล้มเหลวกลางทาง** — ถ้า `createPortfolio` สำเร็จแต่ `createHolding` ตัวใดตัวหนึ่งล้มเหลว ระบบกัน duplicate portfolio จากการกด retry ซ้ำได้แล้ว (ต้อง preview ใหม่ก่อนถึงจะสร้างซ้ำได้) แต่ portfolio ที่สร้างไปแล้วบางส่วน (พร้อม holdings ที่ทันสร้างก่อนพัง) ยังค้างอยู่ใน backend ไม่มีการลบทิ้งอัตโนมัติ — ผู้ใช้ต้องไปลบเองถ้าเจอ

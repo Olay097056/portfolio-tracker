@@ -21,16 +21,16 @@ Work the **frontier**: any ticket whose blockers are all done. After "Watchlist 
 
 **Blocked by:** Extract the shared tab navigation
 
-- [ ] A Watchlist entry appears in the top-level navigation and opens the Watchlist area
-- [ ] The area uses the shared tab component, with Watchlist management as its first sub-tab
-- [ ] Submitting a ticker adds it and it appears in the list
-- [ ] A ticker can be added with a category and without one
-- [ ] Tickers are stored upper-cased, so casing differences cannot create duplicate entries
-- [ ] Each listed entry shows its ticker and its category
-- [ ] An entry can be removed and disappears from the list
-- [ ] An empty Watchlist shows a message inviting a first ticker rather than a blank area
-- [ ] A failed add surfaces an error message and does not clear the form silently
-- [ ] Existing backend endpoints are unchanged
+- [x] A Watchlist entry appears in the top-level navigation and opens the Watchlist area
+- [x] The area uses the shared tab component, with Watchlist management as its first sub-tab
+- [x] Submitting a ticker adds it and it appears in the list
+- [x] A ticker can be added with a category and without one
+- [x] Tickers are stored upper-cased, so casing differences cannot create duplicate entries
+- [x] Each listed entry shows its ticker and its category
+- [x] An entry can be removed and disappears from the list
+- [x] An empty Watchlist shows a message inviting a first ticker rather than a blank area
+- [x] A failed add surfaces an error message and does not clear the form silently
+- [x] Existing backend endpoints are unchanged
 
 ## Momentum Scanner walking skeleton
 
@@ -38,18 +38,18 @@ Work the **frontier**: any ticket whose blockers are all done. After "Watchlist 
 
 **Blocked by:** Watchlist area
 
-- [ ] A history service fetches one year of daily history per ticker behind a single private provider function, caching per ticker in memory with a fifteen-minute TTL and exposing a cache-clearing entry point for tests, following the existing price and FX services
-- [ ] A failed fetch is not cached
-- [ ] The price-signals endpoint returns one row per Watchlist ticker, including tickers whose fetch failed, with unavailable values carried as null
-- [ ] Tickers are fetched sequentially, and one ticker's failure does not abandon the rest of the scan
-- [ ] The tab shows an empty table and a Scan button on open, and issues no request until Scan is pressed
-- [ ] Pressing Scan reports per-ticker progress while running and disables the button until the scan completes
-- [ ] Results remain on screen after the scan finishes and until Scan is pressed again
-- [ ] A ticker whose data could not be fetched appears as a row marked unavailable, not omitted
-- [ ] The user can select the percent-change period from one day, one week, and one month
-- [ ] The percent-change column is sortable and its heading states the period measured
-- [ ] An empty Watchlist shows a message saying there is nothing to scan, distinct from a scan that found nothing
-- [ ] A second scan within the TTL is served from cache without refetching
+- [x] A history service fetches one year of daily history per ticker behind a single private provider function, caching per ticker in memory with a fifteen-minute TTL and exposing a cache-clearing entry point for tests, following the existing price and FX services
+- [x] A failed fetch is not cached
+- [x] The price-signals endpoint returns one row per Watchlist ticker, including tickers whose fetch failed, with unavailable values carried as null
+- [x] Tickers are fetched sequentially, and one ticker's failure does not abandon the rest of the scan
+- [x] The tab shows an empty table and a Scan button on open, and issues no request until Scan is pressed
+- [x] Pressing Scan reports per-ticker progress while running and disables the button until the scan completes
+- [x] Results remain on screen after the scan finishes and until Scan is pressed again
+- [x] A ticker whose data could not be fetched appears as a row marked unavailable, not omitted
+- [x] The user can select the percent-change period from one day, one week, and one month
+- [x] The percent-change column is sortable and its heading states the period measured
+- [x] An empty Watchlist shows a message saying there is nothing to scan, distinct from a scan that found nothing
+- [x] A second scan within the TTL is served from cache without refetching
 
 ## Momentum Scanner remaining signals
 
@@ -57,13 +57,13 @@ Work the **frontier**: any ticket whose blockers are all done. After "Watchlist 
 
 **Blocked by:** Momentum Scanner walking skeleton
 
-- [ ] Signal maths lives in pure functions taking a series of closes, highs, lows, and volumes, performing no I/O and taking no ticker
-- [ ] 14-period RSI, volume-to-20-period-average ratio, and percent distance from the 50-period simple moving average each appear as their own sortable column
-- [ ] Every column heading states its measurement and its period, so a number can be reconciled against a chart elsewhere
-- [ ] A signal whose window exceeds the available history reports unavailable rather than being computed on a short window
-- [ ] A ticker with partial history still shows the signals that could be computed
-- [ ] There is no composite score and no social-sentiment column anywhere
-- [ ] Each signal has direct pure-function tests with hand-computed expected values, including an insufficient-history case
+- [x] Signal maths lives in pure functions taking a series of closes, highs, lows, and volumes, performing no I/O and taking no ticker
+- [x] 14-period RSI, volume-to-20-period-average ratio, and percent distance from the 50-period simple moving average each appear as their own sortable column
+- [x] Every column heading states its measurement and its period, so a number can be reconciled against a chart elsewhere
+- [x] A signal whose window exceeds the available history reports unavailable rather than being computed on a short window
+- [x] A ticker with partial history still shows the signals that could be computed
+- [x] There is no composite score and no social-sentiment column anywhere
+- [x] Each signal has direct pure-function tests with hand-computed expected values, including an insufficient-history case
 
 ## Pre-Squeeze Scanner
 
@@ -71,13 +71,13 @@ Work the **frontier**: any ticket whose blockers are all done. After "Watchlist 
 
 **Blocked by:** Momentum Scanner remaining signals
 
-- [ ] Band width, own-history band-width percentile, ATR percent, and volume ratio each appear as their own sortable column
-- [ ] The percentile is computed against the same ticker's trailing six months, never against other tickers
-- [ ] Column headings state the Bollinger parameters and the ATR period
-- [ ] The signals come from the same cached history as Momentum — a scan in one tab populates the other, and switching tabs issues no second request
-- [ ] A ticker with insufficient history reports the affected signals as unavailable while still showing the rest
-- [ ] There is no composite score, no days-until-earnings column, and no market-capitalisation column
-- [ ] New signal maths has direct pure-function tests with hand-computed expected values, including insufficient-history cases
+- [x] Band width, own-history band-width percentile, ATR percent, and volume ratio each appear as their own sortable column
+- [x] The percentile is computed against the same ticker's trailing six months, never against other tickers
+- [x] Column headings state the Bollinger parameters and the ATR period
+- [x] The signals come from the same cached history as Momentum — a scan in one tab populates the other, and switching tabs issues no second request
+- [x] A ticker with insufficient history reports the affected signals as unavailable while still showing the rest
+- [x] There is no composite score, no days-until-earnings column, and no market-capitalisation column
+- [x] New signal maths has direct pure-function tests with hand-computed expected values, including insufficient-history cases
 
 ## Dividend Ranking
 
@@ -85,18 +85,18 @@ Work the **frontier**: any ticket whose blockers are all done. After "Watchlist 
 
 **Blocked by:** Watchlist area
 
-- [ ] A dividend scan endpoint takes the tax rate as a query parameter and returns price, gross yield, net yield, observed payment frequency, and dividend growth per Watchlist ticker
-- [ ] Dividend data is cached separately from price history with a twenty-four-hour TTL, matching the existing FX service, with a cache-clearing entry point for tests
-- [ ] One row is returned per Watchlist ticker, including tickers whose fetch failed, with unavailable values as null
-- [ ] The tab follows the same scan discipline as the other Scanners: empty on open, Scan button, progress, disabled while running, results persist
-- [ ] A single tax-rate field defaults to fifteen percent and behaves as it does in the existing DCA Projection and Passive Income calculators
-- [ ] Net yield is derived from gross yield and the tax rate using the same formula the existing calculators use
-- [ ] Editing the tax rate updates the net column from data already on screen, issuing no second request
-- [ ] Payment frequency is counted from observed payment dates in the trailing twelve months
-- [ ] Dividend growth compares the trailing twelve months of payouts against the twelve months before it
-- [ ] A ticker that paid nothing shows a zero or unavailable payout rather than being hidden from the table
-- [ ] Every column is sortable and there are no "suitable for" tags anywhere
-- [ ] Frequency, growth, and net-yield maths have direct pure-function tests with hand-computed expected values
+- [x] A dividend scan endpoint returns price, gross yield, observed payment frequency, and dividend growth per Watchlist ticker (**amended in delivery**: no `tax_rate_pct` query param, and no `net_yield` field — net yield is computed entirely client-side from gross yield and the tax rate, per the very next checkbox and the "no second request" checkbox two below; a backend tax-rate param would have contradicted both. See final review round 1, finding M6.)
+- [x] Dividend data is cached separately from price history with a twenty-four-hour TTL, matching the existing FX service, with a cache-clearing entry point for tests
+- [x] One row is returned per Watchlist ticker, including tickers whose fetch failed, with unavailable values as null
+- [x] The tab follows the same scan discipline as the other Scanners: empty on open, Scan button, progress, disabled while running, results persist
+- [x] A single tax-rate field defaults to fifteen percent and behaves as it does in the existing DCA Projection and Passive Income calculators
+- [x] Net yield is derived from gross yield and the tax rate using the same formula the existing calculators use
+- [x] Editing the tax rate updates the net column from data already on screen, issuing no second request
+- [x] Payment frequency is counted from observed payment dates in the trailing twelve months
+- [x] Dividend growth compares the trailing twelve months of payouts against the twelve months before it
+- [x] A ticker that paid nothing shows a zero or unavailable payout rather than being hidden from the table
+- [x] Every column is sortable and there are no "suitable for" tags anywhere
+- [x] Frequency, growth, and net-yield maths have direct pure-function tests with hand-computed expected values
 
 ## Trending Stocks Today
 
@@ -104,12 +104,12 @@ Work the **frontier**: any ticket whose blockers are all done. After "Watchlist 
 
 **Blocked by:** Watchlist area
 
-- [ ] A market-breadth provider is added as a backend dependency, with its key read from an environment variable following the existing provider-key convention
-- [ ] The provider call sits behind a single private fetcher function so it can be replaced in tests
-- [ ] A market-trending endpoint returns the gainers, losers, and most-active lists, capped at ten rows each
-- [ ] Each row carries ticker, company name, price, and percent change, taken only from what the provider returned — no per-ticker enrichment from the other provider
-- [ ] The endpoint reports the missing-key condition explicitly and never returns placeholder data
-- [ ] When the key is absent the tab explains what needs configuring, rather than showing an empty or broken-looking page
-- [ ] Each row has a button that adds that ticker to the Watchlist
-- [ ] A ticker already on the Watchlist is shown as already watched instead of offering to add it again
-- [ ] The endpoint does not read the Watchlist
+- [x] A market-breadth provider is added as a backend dependency, with its key read from an environment variable following the existing provider-key convention
+- [x] The provider call sits behind a single private fetcher function so it can be replaced in tests
+- [x] A market-trending endpoint returns the gainers, losers, and most-active lists, capped at ten rows each
+- [x] Each row carries ticker, company name, price, and percent change, taken only from what the provider returned — no per-ticker enrichment from the other provider
+- [x] The endpoint reports the missing-key condition explicitly and never returns placeholder data
+- [x] When the key is absent the tab explains what needs configuring, rather than showing an empty or broken-looking page
+- [x] Each row has a button that adds that ticker to the Watchlist
+- [x] A ticker already on the Watchlist is shown as already watched instead of offering to add it again
+- [x] The endpoint does not read the Watchlist

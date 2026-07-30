@@ -187,14 +187,19 @@ Panel ต่อ holding ที่ตอบคำถาม "ถ้าราคา
 
 ### จาก Watchlist and Scanners effort (2026-07-25) — build เสร็จแล้ว, residual ที่เหลือ
 
-ticket 1-7 ทั้งหมด merge เข้า master แล้ว (Extract shared tab nav → Watchlist area → Momentum Scanner walking skeleton → Momentum Scanner remaining signals → Pre-Squeeze Scanner → Dividend Ranking → Trending Stocks Today) ทุก final review ผ่าน READY TO MERGE: Yes สิ่งที่เหลือค้างเป็น residual ที่รู้ตัวแล้วแต่จงใจเลื่อนออกไปนอก scope ของ 7 ticket นี้:
+ticket 1-7 ทั้งหมด merge เข้า master แล้ว (Extract shared tab nav → Watchlist area → Momentum Scanner walking skeleton → Momentum Scanner remaining signals → Pre-Squeeze Scanner → Dividend Ranking → Trending Stocks Today) ทุก final review ผ่าน READY TO MERGE: Yes
 
-- **ไม่มี unique constraint บน `watchlist_items.ticker` และไม่มี `min_length` validation** — ตอนนี้กันซ้ำ/กันช่องว่างได้แค่ระดับ UI เท่านั้น ควรมี DB constraint + validation จริงเพื่อปิดช่องโหว่ถาวร
-- **Cross-provider ticker symbology ไม่ได้ validate** — ticker ที่เพิ่มจาก FMP (แท็บ Trending) ไม่รับประกันว่า yfinance จะ resolve ได้ อาจกลายเป็น "Unavailable" ทุกคอลัมน์เมื่อไป scan ในแท็บอื่น
-- **FMP v3 `stock_market` endpoints อาจเป็น legacy API path** — FMP มี `/stable/biggest-gainers` เป็นเวอร์ชันใหม่กว่าแล้ว ยังไม่เคยทดสอบกับ real API key ใน session นี้เลย **แนะนำให้ smoke test ด้วย real `FMP_API_KEY` เป็นอันดับแรกหลัง merge** พร้อมยืนยันว่า `change_pct` ไม่ได้เป็น null ทั้งหมด (เผื่อ field type เปลี่ยนไปในเวอร์ชันใหม่)
-- **ไม่มี README/`.env.example` ที่ document `FMP_API_KEY` หรือ `TWELVE_DATA_API_KEY`**
-- **ไม่มี caching/TTL บน Trending response** — ต่างจาก provider อื่นทุกตัวในโปรเจกต์นี้ที่มี TTL cache หมด กด Refresh ทีนึงคือยิง FMP 3 requests เต็มๆ (free tier 250/วัน)
-- **Sort-utility ที่ extract ไว้ตอน Ticket 6 (`useSortableColumn`/`sortByNullableNumber`) ถูกใช้แค่ใน Dividend Ranking** — Momentum Scanner กับ Pre-Squeeze Scanner ยังคง sort logic แบบ hand-roll ซ้ำกันอยู่ 2 ที่ ยังไม่ retrofit
-- **ข้อความ empty-watchlist ใน 3 แท็บ scanner ไม่ได้พูดถึงแท็บ Trending Stocks Today** ทั้งที่ตอนนี้เป็นวิธีเติม watchlist แบบคลิกเดียวที่เร็วที่สุด
+Residual ที่แก้ไปแล้ว (2026-07-30):
+
+- ~~ไม่มี unique constraint บน `watchlist_items.ticker`~~ — เพิ่ม DB unique index (backfill บน DB เดิมด้วย เพราะ `create_all` ไม่ alter table ที่มีอยู่แล้ว) + 400 ที่ endpoint สำหรับ ticker ว่างหรือซ้ำ (case-insensitive, normalize เป็นตัวพิมพ์ใหญ่ก่อนเทียบ)
+- ~~ไม่มี README/`.env.example`~~ — เพิ่ม `backend/README.md` + `backend/.env.example` document ทั้ง `FMP_API_KEY` และ `TWELVE_DATA_API_KEY`
+- ~~ไม่มี caching/TTL บน Trending response~~ — เพิ่ม TTL cache 15 นาที (ตาม `history_service.py`) แยก cache ต่อ endpoint (gainers/losers/actives)
+- ~~Sort-utility ไม่ retrofit~~ — Momentum Scanner และ Pre-Squeeze Scanner retrofit ไปใช้ `useSortableColumn`/`sortByNullableNumber` แล้ว (pure refactor, test เดิมผ่านหมดโดยไม่แก้)
+- ~~ข้อความ empty-watchlist ไม่พูดถึง Trending Stocks Today~~ — แก้ทั้ง 3 แท็บ scanner ให้ชี้ไปที่ Trending Stocks Today แล้ว
+
+Residual ที่ยังเหลือ:
+
+- **Cross-provider ticker symbology ไม่ได้ validate** — ticker ที่เพิ่มจาก FMP (แท็บ Trending) ไม่รับประกันว่า yfinance จะ resolve ได้ อาจกลายเป็น "Unavailable" ทุกคอลัมน์เมื่อไป scan ในแท็บอื่น (ต้อง grill ก่อนว่าจะ validate ตอนไหน/ยังไง ไม่ implement เดาเอง)
+- **FMP v3 `stock_market` endpoints อาจเป็น legacy API path** — FMP มี `/stable/biggest-gainers` เป็นเวอร์ชันใหม่กว่าแล้ว ยังไม่เคยทดสอบกับ real API key เลย **แนะนำให้ smoke test ด้วย real `FMP_API_KEY` เป็นอันดับแรกที่ทำได้** พร้อมยืนยันว่า `change_pct` ไม่ได้เป็น null ทั้งหมด (เผื่อ field type เปลี่ยนไปในเวอร์ชันใหม่) — รอ user ให้ key มา (2026-07-30: ยังไม่มี key)
 - **`_fetch_dividend_yield_pct` scaling ยังไม่ยืนยัน 100% ว่าถูกกับ yfinance 0.2.51 ที่ pin ไว้** — ตอนนี้ใช้ heuristic (>1 = ถือว่าเป็น % อยู่แล้ว, ≤1 = คูณ 100) ที่ครอบคลุมกรณีหลัก (ETF yield สูงอย่าง JEPQ) ถูกต้อง แต่ยังมีความเสี่ยงที่หุ้น yield ต่ำกว่า 1% (เช่น AAPL ~0.44%) อาจถูกคูณผิด 100 เท่า ถ้า yfinance เวอร์ชันนี้คืนค่าเป็น % อยู่แล้วจริงๆ — ยืนยันไม่ได้เพราะ yfinance โดน rate-limit (429) ตลอด session นี้ ต้องลองเรียกจริงตอน rate limit หายแล้วเพื่อ confirm รูปแบบ แล้วปรับ/ลบ heuristic ถ้าจำเป็น
 - **Portfolio Builder wizard ไม่ rollback เมื่อสร้าง holding ล้มเหลวกลางทาง** — ถ้า `createPortfolio` สำเร็จแต่ `createHolding` ตัวใดตัวหนึ่งล้มเหลว ระบบกัน duplicate portfolio จากการกด retry ซ้ำได้แล้ว (ต้อง preview ใหม่ก่อนถึงจะสร้างซ้ำได้) แต่ portfolio ที่สร้างไปแล้วบางส่วน (พร้อม holdings ที่ทันสร้างก่อนพัง) ยังค้างอยู่ใน backend ไม่มีการลบทิ้งอัตโนมัติ — ผู้ใช้ต้องไปลบเองถ้าเจอ

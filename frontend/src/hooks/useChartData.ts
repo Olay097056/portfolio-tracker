@@ -16,6 +16,19 @@ export function useChartData(ticker: string | null, range: ChartRange) {
   // ticker could land after a newer one and relabel the chart with the wrong ticker's data.
   const requestId = useRef(0);
 
+  // Reset points synchronously during render (not in the effect below) the instant `ticker`
+  // changes. A parent that remounts its chart via key={ticker} renders the fresh chart instance
+  // in this very commit — if we waited for an effect to clear points, the new chart's own mount
+  // effect would run first (child effects commit before parent effects) and draw the outgoing
+  // ticker's stale points for one frame before the reset ever landed. Comparing against a ref of
+  // the previous ticker and calling setPoints during render lets React restart the render with
+  // points already null, so no commit ever pairs the new chart with the old ticker's data.
+  const prevTickerRef = useRef(ticker);
+  if (prevTickerRef.current !== ticker) {
+    prevTickerRef.current = ticker;
+    setPoints(null);
+  }
+
   useEffect(() => {
     if (ticker === null) {
       setPoints(null);

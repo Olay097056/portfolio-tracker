@@ -21,6 +21,7 @@ export function useDashboardTickers() {
     if (portfolios.length === 0) {
       setHoldingTickers([]);
       setHoldingsLoading(false);
+      setHoldingsError(null);
       return;
     }
 

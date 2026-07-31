@@ -89,4 +89,27 @@ describe('useChartData', () => {
 
     expect(result.current.points).toEqual([{ time: '2026-01-02', close: 400 }]);
   });
+
+  it('clears points immediately when the ticker changes, before the new fetch resolves', async () => {
+    let resolveSecond!: (value: { points: client.ChartData['points'] }) => void;
+    const secondPromise = new Promise<{ points: client.ChartData['points'] }>((resolve) => {
+      resolveSecond = resolve;
+    });
+    vi.spyOn(client, 'getChartData')
+      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', close: 100 }] })
+      .mockReturnValueOnce(secondPromise as Promise<client.ChartData>);
+
+    const { result, rerender } = renderHook(({ ticker }) => useChartData(ticker, '1Y'), {
+      initialProps: { ticker: 'VTI' as string | null },
+    });
+    await waitFor(() => expect(result.current.points).toEqual([{ time: '2026-01-02', close: 100 }]));
+
+    rerender({ ticker: 'SPY' });
+
+    // SPY's fetch hasn't resolved yet — VTI's stale points must not still be sitting there.
+    expect(result.current.points).toBeNull();
+
+    resolveSecond({ points: [{ time: '2026-01-02', close: 400 }] });
+    await waitFor(() => expect(result.current.points).toEqual([{ time: '2026-01-02', close: 400 }]));
+  });
 });

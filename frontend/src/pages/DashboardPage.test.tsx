@@ -105,6 +105,44 @@ describe('DashboardPage', () => {
     expect(firstRemove).toHaveBeenCalledTimes(1);
   });
 
+  it('never draws the outgoing ticker stale data onto the freshly-remounted chart when the new ticker fetch fails', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([
+      { id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' },
+      { id: 2, ticker: 'MSFT', category: null, created_at: '2026-01-01T00:00:00Z' },
+    ]);
+    vi.spyOn(client, 'getChartData')
+      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', close: 100 }] })
+      .mockRejectedValueOnce(new client.ApiError(502, 'upstream error'));
+
+    const firstSetData = vi.fn();
+    const secondSetData = vi.fn();
+    vi.mocked(createChart)
+      .mockReturnValueOnce({
+        addSeries: vi.fn(() => ({ setData: firstSetData })),
+        remove: vi.fn(),
+      } as unknown as ReturnType<typeof createChart>)
+      .mockReturnValueOnce({
+        addSeries: vi.fn(() => ({ setData: secondSetData })),
+        remove: vi.fn(),
+      } as unknown as ReturnType<typeof createChart>);
+
+    render(<DashboardPage />);
+    await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+    await waitFor(() =>
+      expect(firstSetData).toHaveBeenCalledWith([{ time: '2026-01-02', value: 100 }]),
+    );
+
+    fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'MSFT' } });
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('upstream error'));
+    // The new (second) chart instance must never have been fed AAPL's stale data — the failed
+    // MSFT fetch means it should never be called with data at all.
+    expect(secondSetData).not.toHaveBeenCalled();
+  });
+
   it('shows a message instead of a dropdown when there are no tickers anywhere', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([]);

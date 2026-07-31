@@ -2,6 +2,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as client from '../api/client';
+import * as usePortfoliosModule from './usePortfolios';
 import { useDashboardTickers } from './useDashboardTickers';
 
 const portfolioA = { id: 1, name: 'A', cash_usd: 0, target_allocation_pct: null, created_at: '2026-01-01T00:00:00Z' };
@@ -74,5 +75,35 @@ describe('useDashboardTickers', () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.error).toBe('network down');
+  });
+
+  it('clears a stale holdings error once the portfolio list becomes empty', async () => {
+    vi.spyOn(client, 'listHoldings').mockRejectedValue(new Error('network down'));
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([]);
+
+    const portfoliosSpy = vi.spyOn(usePortfoliosModule, 'usePortfolios').mockReturnValue({
+      portfolios: [portfolioA],
+      loading: false,
+      error: null,
+      create: vi.fn(),
+      update: vi.fn(),
+      remove: vi.fn(),
+    });
+
+    const { result, rerender } = renderHook(() => useDashboardTickers());
+
+    await waitFor(() => expect(result.current.error).toBe('network down'));
+
+    portfoliosSpy.mockReturnValue({
+      portfolios: [],
+      loading: false,
+      error: null,
+      create: vi.fn(),
+      update: vi.fn(),
+      remove: vi.fn(),
+    });
+    rerender();
+
+    await waitFor(() => expect(result.current.error).toBeNull());
   });
 });

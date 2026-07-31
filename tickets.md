@@ -126,16 +126,16 @@ Work the **frontier**: Ticket 1 can start immediately; Ticket 2 needs Ticket 1 d
 
 **Blocked by:** None — can start immediately.
 
-- [ ] A Dashboard tab appears in the top navigation, positioned ahead of Portfolios
-- [ ] The tab shows a ticker dropdown populated from the deduplicated union of every ticker across all Portfolios' holdings and the Watchlist
-- [ ] No ticker is selected on open, and no chart request is issued until one is picked
-- [ ] Picking a ticker fetches and renders its closing price as a line chart over a fixed one-year daily window
-- [ ] A new, independent chart-data service is added, following the existing provider-service pattern (private raw-fetch function behind a cached public function, in-memory cache, a cache-clearing test entry point, a failed fetch is never cached) — it is not a reuse or extension of the existing Scanner history service, and that service is left untouched
-- [ ] A new endpoint returns chart data for a requested ticker and range; the range parameter is accepted and threaded through from day one even though this ticket only ever sends one fixed range, so the next ticket needs no API-shape change
-- [ ] A fetch that fails returns an explicit unavailable signal, never a 500 and never a fabricated or partial series
-- [ ] The frontend shows an explicit loading state while fetching and an explicit error state on failure — never a blank chart that looks like an empty result
-- [ ] A charting library is added as a new frontend dependency and used to render the line series
-- [ ] Switching to a different ticker replaces the chart's data; an in-flight request for a since-abandoned selection cannot land after a newer one
+- [x] A Dashboard tab appears in the top navigation, positioned ahead of Portfolios
+- [x] The tab shows a ticker dropdown populated from the deduplicated union of every ticker across all Portfolios' holdings and the Watchlist
+- [x] No ticker is selected on open, and no chart request is issued until one is picked
+- [x] Picking a ticker fetches and renders its closing price as a line chart over a fixed one-year daily window
+- [x] A new, independent chart-data service is added, following the existing provider-service pattern (private raw-fetch function behind a cached public function, in-memory cache, a cache-clearing test entry point, a failed fetch is never cached) — it is not a reuse or extension of the existing Scanner history service, and that service is left untouched
+- [x] A new endpoint returns chart data for a requested ticker and range; the range parameter is accepted and threaded through from day one even though this ticket only ever sends one fixed range, so the next ticket needs no API-shape change
+- [x] A fetch that fails returns an explicit unavailable signal, never a 500 and never a fabricated or partial series
+- [x] The frontend shows an explicit loading state while fetching and an explicit error state on failure — never a blank chart that looks like an empty result
+- [x] A charting library is added as a new frontend dependency and used to render the line series
+- [x] Switching to a different ticker replaces the chart's data; an in-flight request for a since-abandoned selection cannot land after a newer one (fixed post-review: a naive `key`-based remount alone left a one-commit window where the freshly-mounted chart still received the outgoing ticker's stale data — closed via a render-phase `points` reset in `useChartData`, not just the remount)
 
 ## Dashboard range selector
 

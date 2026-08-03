@@ -272,7 +272,7 @@ describe('DashboardPage', () => {
     } as unknown as ReturnType<typeof createChart>);
     vi.spyOn(client, 'getChartData').mockResolvedValue({
       points: [{ time: '2026-01-02', close: 100 }],
-      zones: [{ price: 95, kind: 'support', strength: 3, source: 'auto' }],
+      zones: [{ id: null, price: 95, kind: 'support', strength: 3, source: 'auto' }],
     });
 
     render(<DashboardPage />);

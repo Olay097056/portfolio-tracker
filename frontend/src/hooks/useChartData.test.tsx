@@ -1,5 +1,5 @@
 // frontend/src/hooks/useChartData.test.tsx
-import { render, renderHook, waitFor } from '@testing-library/react';
+import { act, render, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as client from '../api/client';
 import type { ChartRange, Zone } from '../api/types';
@@ -191,7 +191,7 @@ describe('useChartData', () => {
 
   it('fetches and stores zones alongside points', async () => {
     const points = [{ time: '2026-01-02', close: 100 }];
-    const zones = [{ price: 95, kind: 'support' as const, strength: 3, source: 'auto' as const }];
+    const zones = [{ id: null, price: 95, kind: 'support' as const, strength: 3, source: 'auto' as const }];
     vi.spyOn(client, 'getChartData').mockResolvedValue({ points, zones });
 
     const { result } = renderHook(() => useChartData('VTI', '1Y'));
@@ -208,7 +208,7 @@ describe('useChartData', () => {
     vi.spyOn(client, 'getChartData')
       .mockResolvedValueOnce({
         points: [{ time: '2026-01-02', close: 100 }],
-        zones: [{ price: 95, kind: 'support', strength: 3, source: 'auto' }],
+        zones: [{ id: null, price: 95, kind: 'support', strength: 3, source: 'auto' }],
       })
       .mockReturnValueOnce(secondPromise);
 
@@ -249,7 +249,7 @@ describe('useChartData', () => {
     vi.spyOn(client, 'getChartData')
       .mockResolvedValueOnce({
         points: [{ time: '2026-01-02', close: 100 }],
-        zones: [{ price: 95, kind: 'support', strength: 3, source: 'auto' }],
+        zones: [{ id: null, price: 95, kind: 'support', strength: 3, source: 'auto' }],
       })
       .mockReturnValueOnce(new Promise<client.ChartData>(() => {})); // never resolves
 
@@ -261,5 +261,21 @@ describe('useChartData', () => {
 
     // The child's very first commit for the new ticker must not carry the old zones.
     expect(seenZones[0]).toEqual([]);
+  });
+
+  it('exposes a refetch function that re-fetches without waiting for ticker or range to change', async () => {
+    vi.spyOn(client, 'getChartData')
+      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', close: 100 }], zones: [] })
+      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', close: 105 }], zones: [] });
+
+    const { result } = renderHook(() => useChartData('VTI', '1Y'));
+    await waitFor(() => expect(result.current.points).toEqual([{ time: '2026-01-02', close: 100 }]));
+
+    await act(async () => {
+      result.current.refetch();
+    });
+
+    await waitFor(() => expect(result.current.points).toEqual([{ time: '2026-01-02', close: 105 }]));
+    expect(client.getChartData).toHaveBeenCalledTimes(2);
   });
 });

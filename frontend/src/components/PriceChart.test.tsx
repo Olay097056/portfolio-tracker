@@ -106,8 +106,8 @@ describe('PriceChart', () => {
         loading={false}
         error={null}
         zones={[
-          { price: 95, kind: 'support', strength: 3, source: 'auto' },
-          { price: 110, kind: 'resistance', strength: 2, source: 'auto' },
+          { id: null, price: 95, kind: 'support', strength: 3, source: 'auto' },
+          { id: null, price: 110, kind: 'resistance', strength: 2, source: 'auto' },
         ]}
       />,
     );
@@ -128,12 +128,12 @@ describe('PriceChart', () => {
     addSeries.mockReturnValue({ setData, createPriceLine, removePriceLine });
 
     const { rerender } = render(
-      <PriceChart points={null} loading={false} error={null} zones={[{ price: 95, kind: 'support', strength: 3, source: 'auto' }]} />,
+      <PriceChart points={null} loading={false} error={null} zones={[{ id: null, price: 95, kind: 'support', strength: 3, source: 'auto' }]} />,
     );
     expect(createPriceLine).toHaveBeenCalledTimes(1);
 
     rerender(
-      <PriceChart points={null} loading={false} error={null} zones={[{ price: 96, kind: 'support', strength: 4, source: 'auto' }]} />,
+      <PriceChart points={null} loading={false} error={null} zones={[{ id: null, price: 96, kind: 'support', strength: 4, source: 'auto' }]} />,
     );
 
     expect(removePriceLine).toHaveBeenCalledWith(firstLine);
@@ -147,7 +147,7 @@ describe('PriceChart', () => {
     addSeries.mockReturnValue({ setData, createPriceLine, removePriceLine });
 
     const { rerender } = render(
-      <PriceChart points={null} loading={false} error={null} zones={[{ price: 95, kind: 'support', strength: 3, source: 'auto' }]} />,
+      <PriceChart points={null} loading={false} error={null} zones={[{ id: null, price: 95, kind: 'support', strength: 3, source: 'auto' }]} />,
     );
     expect(createPriceLine).toHaveBeenCalledTimes(1);
 

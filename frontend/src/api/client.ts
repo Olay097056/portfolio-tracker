@@ -16,9 +16,11 @@ import type {
   TrendingData,
   WatchlistItem,
   WatchlistItemCreateInput,
+  Zone,
+  ZoneInput,
 } from './types';
 
-export type { ChartData };
+export type { ChartData, Zone, ZoneInput };
 
 const BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
 
@@ -136,4 +138,30 @@ export function getTrending(): Promise<TrendingData> {
 
 export function getChartData(ticker: string, range: ChartRange): Promise<ChartData> {
   return request<ChartData>(`/market/chart?ticker=${encodeURIComponent(ticker)}&range=${range}`);
+}
+
+export function freezeZones(ticker: string, range: ChartRange, zones: ZoneInput[]): Promise<Zone[]> {
+  return request<Zone[]>('/market/chart/zones/freeze', {
+    method: 'POST',
+    body: JSON.stringify({ ticker, range, zones }),
+  });
+}
+
+export function createZone(ticker: string, range: ChartRange, kind: Zone['kind'], price: number): Promise<Zone> {
+  return request<Zone>('/market/chart/zones', {
+    method: 'POST',
+    body: JSON.stringify({ ticker, range, kind, price }),
+  });
+}
+
+export function updateZone(zoneId: number, price: number): Promise<Zone> {
+  return request<Zone>(`/market/chart/zones/${zoneId}`, { method: 'PATCH', body: JSON.stringify({ price }) });
+}
+
+export function deleteZone(zoneId: number): Promise<void> {
+  return request<void>(`/market/chart/zones/${zoneId}`, { method: 'DELETE' });
+}
+
+export function deleteAllZones(ticker: string, range: ChartRange): Promise<void> {
+  return request<void>(`/market/chart/zones?ticker=${encodeURIComponent(ticker)}&range=${range}`, { method: 'DELETE' });
 }

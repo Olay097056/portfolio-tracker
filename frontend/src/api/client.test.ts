@@ -18,6 +18,11 @@ import {
   getDividendSignal,
   getTrending,
   getChartData,
+  freezeZones,
+  createZone,
+  updateZone,
+  deleteZone,
+  deleteAllZones,
 } from './client';
 
 function mockFetchOnce(body: unknown, init: { status?: number } = {}) {
@@ -303,5 +308,77 @@ describe('api client', () => {
     const result = await getChartData('VTI', '1Y');
 
     expect(result.zones).toEqual([{ price: 95, kind: 'support', strength: 3, source: 'auto' }]);
+  });
+
+  it('getChartData passes a manual zone with an id and null strength through unchanged', async () => {
+    mockFetchOnce({
+      points: [{ time: '2026-01-02', close: 100 }],
+      zones: [{ id: 7, price: 95, kind: 'freestyle', strength: null, source: 'manual' }],
+    });
+
+    const result = await getChartData('VTI', '1Y');
+
+    expect(result.zones).toEqual([{ id: 7, price: 95, kind: 'freestyle', strength: null, source: 'manual' }]);
+  });
+
+  it('freezeZones calls POST /market/chart/zones/freeze with ticker, range, and zones', async () => {
+    mockFetchOnce([{ id: 1, price: 90, kind: 'support', strength: null, source: 'manual' }]);
+
+    const result = await freezeZones('VTI', '1Y', [{ kind: 'support', price: 90 }]);
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:8000/market/chart/zones/freeze',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ ticker: 'VTI', range: '1Y', zones: [{ kind: 'support', price: 90 }] }),
+      }),
+    );
+    expect(result).toEqual([{ id: 1, price: 90, kind: 'support', strength: null, source: 'manual' }]);
+  });
+
+  it('createZone calls POST /market/chart/zones with ticker, range, kind, and price', async () => {
+    mockFetchOnce({ id: 2, price: 105, kind: 'freestyle', strength: null, source: 'manual' }, { status: 201 });
+
+    const result = await createZone('VTI', '1Y', 'freestyle', 105);
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:8000/market/chart/zones',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ ticker: 'VTI', range: '1Y', kind: 'freestyle', price: 105 }),
+      }),
+    );
+    expect(result.id).toBe(2);
+  });
+
+  it('updateZone calls PATCH /market/chart/zones/:id with the new price', async () => {
+    mockFetchOnce({ id: 2, price: 106, kind: 'freestyle', strength: null, source: 'manual' });
+
+    const result = await updateZone(2, 106);
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:8000/market/chart/zones/2',
+      expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ price: 106 }) }),
+    );
+    expect(result.price).toBe(106);
+  });
+
+  it('deleteZone calls DELETE /market/chart/zones/:id', async () => {
+    mockFetchOnce(undefined, { status: 204 });
+
+    await deleteZone(2);
+
+    expect(fetch).toHaveBeenCalledWith('http://localhost:8000/market/chart/zones/2', expect.objectContaining({ method: 'DELETE' }));
+  });
+
+  it('deleteAllZones calls DELETE /market/chart/zones with ticker and range as query params', async () => {
+    mockFetchOnce(undefined, { status: 204 });
+
+    await deleteAllZones('VTI', '1Y');
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:8000/market/chart/zones?ticker=VTI&range=1Y',
+      expect.objectContaining({ method: 'DELETE' }),
+    );
   });
 });

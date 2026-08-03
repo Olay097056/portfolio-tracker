@@ -1,5 +1,5 @@
 // frontend/src/hooks/useChartData.ts
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getChartData } from '../api/client';
 import type { ChartPoint, ChartRange, Zone } from '../api/types';
 
@@ -40,7 +40,7 @@ export function useChartData(ticker: string | null, range: ChartRange) {
     setZones([]);
   }
 
-  useEffect(() => {
+  const fetchChartData = useCallback(() => {
     if (ticker === null) {
       setPoints(null);
       setLoading(false);
@@ -76,7 +76,11 @@ export function useChartData(ticker: string | null, range: ChartRange) {
       });
   }, [ticker, range]);
 
-  return { points, loading, error, zones };
+  useEffect(() => {
+    fetchChartData();
+  }, [fetchChartData]);
+
+  return { points, loading, error, zones, refetch: fetchChartData };
 }
 
 export type ChartDataState = ReturnType<typeof useChartData>;

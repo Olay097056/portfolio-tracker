@@ -133,10 +133,16 @@ export interface ChartPoint {
 }
 
 export interface Zone {
+  id: number | null;
   price: number;
-  kind: 'support' | 'resistance';
-  strength: number;
-  source: 'auto';
+  kind: 'support' | 'resistance' | 'freestyle';
+  strength: number | null;
+  source: 'auto' | 'manual';
+}
+
+export interface ZoneInput {
+  kind: 'support' | 'resistance' | 'freestyle';
+  price: number;
 }
 
 export interface ChartData {

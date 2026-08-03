@@ -143,9 +143,11 @@ Work the **frontier**: Ticket 1 can start immediately; Ticket 2 needs Ticket 1 d
 
 **Blocked by:** Dashboard price chart walking skeleton
 
-- [ ] A range selector offers all seven ranges (1D, 5D, 1M, 6M, YTD, 1Y, 5Y)
-- [ ] The range→interval mapping table is complete for all seven ranges, each with a direct hand-computed test
-- [ ] Changing the selected range re-fetches and re-renders the chart for the current ticker
-- [ ] The chart-data cache is keyed by ticker and range together — switching between two ranges for the same ticker, then back, is served from cache within the TTL without a second fetch
-- [ ] Changing ticker or range while a fetch is in flight supersedes it — the stale response cannot land and relabel the chart with the wrong range's data
-- [ ] There is still no interval selector anywhere in the UI
+- [x] A range selector offers all seven ranges (1D, 5D, 1M, 6M, YTD, 1Y, 5Y)
+- [x] The range→interval mapping table is complete for all seven ranges, each with a direct hand-computed test
+- [x] Changing the selected range re-fetches and re-renders the chart for the current ticker
+- [x] The chart-data cache is keyed by ticker and range together — switching between two ranges for the same ticker, then back, is served from cache within the TTL without a second fetch
+- [x] Changing ticker or range while a fetch is in flight supersedes it — the stale response cannot land and relabel the chart with the wrong range's data (widened the Ticket 1 fix from ticker-only to a shared `chartIdentityKey(ticker, range)` used by both the `PriceChart` remount key and `useChartData`'s render-phase reset — verified by hand-trace across two independent reviews)
+- [x] There is still no interval selector anywhere in the UI
+
+**Also fixed post-review (not in the original acceptance criteria):** intraday ranges (1D, 5D) needed UNIX-timestamp time-encoding instead of date strings, since multiple points share a calendar day — `ChartPoint.time` widened to `str | int` end-to-end (backend `Literal["date","timestamp"]` per-range encoding, frontend `UTCTimestamp` cast in `PriceChart`). A stale-`error` variant of the Ticket 1 stale-chart-data bug was also found and fixed (render-phase reset now clears `error` alongside `points`).

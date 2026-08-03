@@ -58,6 +58,21 @@ export function useZoneEditing(ticker: string | null, range: ChartRange, zones: 
       await deleteZone(zoneId);
     });
 
+  const dragZonePrice = (zone: Zone, price: number): Promise<void> => {
+    if (ticker === null) return Promise.resolve();
+    return runMutation(async () => {
+      if (zone.source === 'manual' && zone.id !== null) {
+        await updateZone(zone.id, price);
+      } else {
+        const updated: ZoneInput[] = zones.map((z) => ({
+          kind: z.kind,
+          price: z === zone ? price : z.price,
+        }));
+        await freezeZones(ticker, range, updated);
+      }
+    });
+  };
+
   const recomputeDefaults = (): Promise<void> => {
     if (ticker === null) return Promise.resolve();
     return runMutation(async () => {
@@ -65,5 +80,5 @@ export function useZoneEditing(ticker: string | null, range: ChartRange, zones: 
     });
   };
 
-  return { error, isManual, busy, addZone, editZonePrice, removeZone, recomputeDefaults };
+  return { error, isManual, busy, addZone, editZonePrice, removeZone, dragZonePrice, recomputeDefaults };
 }

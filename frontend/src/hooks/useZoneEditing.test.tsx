@@ -185,4 +185,65 @@ describe('useZoneEditing', () => {
     expect(deleteSpy).toHaveBeenCalledTimes(1);
     expect(onZonesChanged).toHaveBeenCalledTimes(1);
   });
+
+  it('dragZonePrice calls updateZone directly when the dragged zone is already manual', async () => {
+    vi.spyOn(client, 'updateZone').mockResolvedValue({ ...manualZone, price: 99 });
+    const onZonesChanged = vi.fn();
+
+    const { result } = renderHook(() => useZoneEditing('VTI', '1Y', [manualZone], onZonesChanged));
+
+    await act(async () => {
+      await result.current.dragZonePrice(manualZone, 99);
+    });
+
+    expect(client.updateZone).toHaveBeenCalledWith(5, 99);
+    expect(onZonesChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it("dragZonePrice freezes the whole zone set, replacing only the dragged zone's price, when dragging an auto zone for the first time", async () => {
+    const otherAutoZone = { id: null, price: 110, kind: 'resistance' as const, strength: 2, source: 'auto' as const };
+    const freezeSpy = vi.spyOn(client, 'freezeZones').mockResolvedValue([]);
+    const onZonesChanged = vi.fn();
+
+    const { result } = renderHook(() => useZoneEditing('VTI', '1Y', [autoZone, otherAutoZone], onZonesChanged));
+
+    await act(async () => {
+      await result.current.dragZonePrice(autoZone, 93);
+    });
+
+    expect(freezeSpy).toHaveBeenCalledWith('VTI', '1Y', [
+      { kind: 'support', price: 93 },
+      { kind: 'resistance', price: 110 },
+    ]);
+    expect(onZonesChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it('dragZonePrice is ignored while another mutation is already in flight', async () => {
+    let resolveUpdate: (zone: client.Zone) => void;
+    const updateSpy = vi.spyOn(client, 'updateZone').mockReturnValue(
+      new Promise((resolve) => {
+        resolveUpdate = resolve;
+      }),
+    );
+    const onZonesChanged = vi.fn();
+
+    const { result } = renderHook(() => useZoneEditing('VTI', '1Y', [manualZone], onZonesChanged));
+
+    let firstPromise: Promise<void>;
+    let secondPromise: Promise<void>;
+    act(() => {
+      firstPromise = result.current.dragZonePrice(manualZone, 96);
+      secondPromise = result.current.dragZonePrice(manualZone, 97);
+    });
+
+    await waitFor(() => expect(result.current.busy).toBe(true));
+    expect(updateSpy).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveUpdate!({ ...manualZone, price: 96 });
+      await Promise.all([firstPromise, secondPromise]);
+    });
+
+    expect(updateSpy).toHaveBeenCalledTimes(1);
+  });
 });

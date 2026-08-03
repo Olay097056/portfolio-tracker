@@ -1,5 +1,5 @@
 // frontend/src/components/PriceChart.test.tsx
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { createChart } from 'lightweight-charts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PriceChart } from './PriceChart';
@@ -229,5 +229,133 @@ describe('PriceChart', () => {
     render(<PriceChart points={null} loading={false} error={null} zones={[]} />);
 
     expect(createPriceLine).not.toHaveBeenCalled();
+  });
+
+  describe('drag interaction', () => {
+    it("starts a drag on mousedown within tolerance of a zone's line, and repositions that zone's price line live via applyOptions on mousemove", () => {
+      const priceLine = { applyOptions: vi.fn() };
+      const createPriceLine = vi.fn(() => priceLine);
+      const priceToCoordinate = vi.fn((price: number) => (price === 95 ? 50 : null));
+      const coordinateToPrice = vi.fn((y: number) => 200 - y);
+      addSeries.mockReturnValue({ setData, createPriceLine, removePriceLine: vi.fn(), priceToCoordinate, coordinateToPrice });
+
+      render(
+        <PriceChart
+          points={null}
+          loading={false}
+          error={null}
+          zones={[{ id: null, price: 95, kind: 'support', strength: 3, source: 'auto' }]}
+        />,
+      );
+
+      fireEvent.mouseDown(screen.getByTestId('price-chart'), { clientY: 50 });
+      fireEvent.mouseMove(window, { clientY: 40 });
+
+      expect(priceLine.applyOptions).toHaveBeenCalledWith({ price: 160 });
+    });
+
+    it('ignores a mousedown that is not within tolerance of any zone line', () => {
+      const priceLine = { applyOptions: vi.fn() };
+      const createPriceLine = vi.fn(() => priceLine);
+      const priceToCoordinate = vi.fn(() => 50);
+      const coordinateToPrice = vi.fn(() => 999);
+      addSeries.mockReturnValue({ setData, createPriceLine, removePriceLine: vi.fn(), priceToCoordinate, coordinateToPrice });
+
+      render(
+        <PriceChart
+          points={null}
+          loading={false}
+          error={null}
+          zones={[{ id: null, price: 95, kind: 'support', strength: 3, source: 'auto' }]}
+        />,
+      );
+
+      fireEvent.mouseDown(screen.getByTestId('price-chart'), { clientY: 200 });
+      fireEvent.mouseMove(window, { clientY: 190 });
+
+      expect(priceLine.applyOptions).not.toHaveBeenCalled();
+    });
+
+    it('commits the final price via onZoneDragEnd exactly once on mouseup', () => {
+      const priceLine = { applyOptions: vi.fn() };
+      const createPriceLine = vi.fn(() => priceLine);
+      const priceToCoordinate = vi.fn((price: number) => (price === 95 ? 50 : null));
+      const coordinateToPrice = vi.fn((y: number) => 200 - y);
+      addSeries.mockReturnValue({ setData, createPriceLine, removePriceLine: vi.fn(), priceToCoordinate, coordinateToPrice });
+      const onZoneDragEnd = vi.fn();
+      const zone = { id: null, price: 95, kind: 'support' as const, strength: 3, source: 'auto' as const };
+
+      render(<PriceChart points={null} loading={false} error={null} zones={[zone]} onZoneDragEnd={onZoneDragEnd} />);
+
+      fireEvent.mouseDown(screen.getByTestId('price-chart'), { clientY: 50 });
+      fireEvent.mouseMove(window, { clientY: 40 });
+      fireEvent.mouseUp(window, { clientY: 30 });
+
+      expect(onZoneDragEnd).toHaveBeenCalledTimes(1);
+      expect(onZoneDragEnd).toHaveBeenCalledWith(zone, 170);
+    });
+
+    it('calls onZoneDragMove on every mousemove while dragging, with the live price', () => {
+      const priceLine = { applyOptions: vi.fn() };
+      const createPriceLine = vi.fn(() => priceLine);
+      const priceToCoordinate = vi.fn((price: number) => (price === 95 ? 50 : null));
+      const coordinateToPrice = vi.fn((y: number) => 200 - y);
+      addSeries.mockReturnValue({ setData, createPriceLine, removePriceLine: vi.fn(), priceToCoordinate, coordinateToPrice });
+      const onZoneDragMove = vi.fn();
+      const zone = { id: null, price: 95, kind: 'support' as const, strength: 3, source: 'auto' as const };
+
+      render(<PriceChart points={null} loading={false} error={null} zones={[zone]} onZoneDragMove={onZoneDragMove} />);
+
+      fireEvent.mouseDown(screen.getByTestId('price-chart'), { clientY: 50 });
+      fireEvent.mouseMove(window, { clientY: 40 });
+      fireEvent.mouseMove(window, { clientY: 35 });
+
+      expect(onZoneDragMove).toHaveBeenNthCalledWith(1, zone, 160);
+      expect(onZoneDragMove).toHaveBeenNthCalledWith(2, zone, 165);
+    });
+
+    it('does not start a drag when disabled is true', () => {
+      const priceLine = { applyOptions: vi.fn() };
+      const createPriceLine = vi.fn(() => priceLine);
+      const priceToCoordinate = vi.fn((price: number) => (price === 95 ? 50 : null));
+      const coordinateToPrice = vi.fn((y: number) => 200 - y);
+      addSeries.mockReturnValue({ setData, createPriceLine, removePriceLine: vi.fn(), priceToCoordinate, coordinateToPrice });
+      const onZoneDragEnd = vi.fn();
+
+      render(
+        <PriceChart
+          points={null}
+          loading={false}
+          error={null}
+          zones={[{ id: null, price: 95, kind: 'support', strength: 3, source: 'auto' }]}
+          onZoneDragEnd={onZoneDragEnd}
+          disabled
+        />,
+      );
+
+      fireEvent.mouseDown(screen.getByTestId('price-chart'), { clientY: 50 });
+      fireEvent.mouseMove(window, { clientY: 40 });
+      fireEvent.mouseUp(window, { clientY: 40 });
+
+      expect(priceLine.applyOptions).not.toHaveBeenCalled();
+      expect(onZoneDragEnd).not.toHaveBeenCalled();
+    });
+
+    it('removes its window mouse listeners on unmount', () => {
+      const priceLine = { applyOptions: vi.fn() };
+      const createPriceLine = vi.fn(() => priceLine);
+      const priceToCoordinate = vi.fn((price: number) => (price === 95 ? 50 : null));
+      const coordinateToPrice = vi.fn((y: number) => 200 - y);
+      addSeries.mockReturnValue({ setData, createPriceLine, removePriceLine: vi.fn(), priceToCoordinate, coordinateToPrice });
+      const zone = { id: null, price: 95, kind: 'support' as const, strength: 3, source: 'auto' as const };
+
+      const { unmount } = render(<PriceChart points={null} loading={false} error={null} zones={[zone]} />);
+      fireEvent.mouseDown(screen.getByTestId('price-chart'), { clientY: 50 });
+
+      unmount();
+      fireEvent.mouseMove(window, { clientY: 30 });
+
+      expect(priceLine.applyOptions).not.toHaveBeenCalled();
+    });
   });
 });

@@ -26,17 +26,23 @@ function zoneTitle(zone: Zone): string {
   return zone.strength === null ? prefix : `${prefix} (${zone.strength})`;
 }
 
+const HIT_TOLERANCE_PX = 6; // pixels of vertical slack around a zone's line for a mousedown to "grab" it
+
 interface PriceChartProps {
   points: ChartPoint[] | null;
   loading: boolean;
   error: string | null;
   zones: Zone[];
+  onZoneDragMove?: (zone: Zone, price: number) => void;
+  onZoneDragEnd?: (zone: Zone, price: number) => void;
+  disabled?: boolean;
 }
 
-export function PriceChart({ points, loading, error, zones }: PriceChartProps) {
+export function PriceChart({ points, loading, error, zones, onZoneDragMove, onZoneDragEnd, disabled = false }: PriceChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const seriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const priceLinesRef = useRef<IPriceLine[]>([]);
+  const draggingRef = useRef<{ zone: Zone; priceLine: IPriceLine } | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -75,11 +81,70 @@ export function PriceChart({ points, loading, error, zones }: PriceChartProps) {
     );
   }, [zones]);
 
+  useEffect(() => {
+    const container = containerRef.current;
+    if (container === null) return;
+
+    function findHit(y: number): { zone: Zone; priceLine: IPriceLine } | null {
+      const series = seriesRef.current;
+      if (series === null) return null;
+      for (let i = 0; i < zones.length; i++) {
+        const lineY = series.priceToCoordinate(zones[i].price);
+        if (lineY !== null && Math.abs(lineY - y) <= HIT_TOLERANCE_PX) {
+          const priceLine = priceLinesRef.current[i];
+          if (priceLine !== undefined) return { zone: zones[i], priceLine };
+        }
+      }
+      return null;
+    }
+
+    function priceAt(y: number): number | null {
+      return seriesRef.current === null ? null : seriesRef.current.coordinateToPrice(y);
+    }
+
+    function handleMouseDown(event: MouseEvent) {
+      if (disabled) return;
+      const rect = container!.getBoundingClientRect();
+      const hit = findHit(event.clientY - rect.top);
+      if (hit === null) return;
+      draggingRef.current = hit;
+    }
+
+    function handleMouseMove(event: MouseEvent) {
+      const dragging = draggingRef.current;
+      if (dragging === null) return;
+      const rect = container!.getBoundingClientRect();
+      const price = priceAt(event.clientY - rect.top);
+      if (price === null) return;
+      dragging.priceLine.applyOptions({ price });
+      onZoneDragMove?.(dragging.zone, price);
+    }
+
+    function handleMouseUp(event: MouseEvent) {
+      const dragging = draggingRef.current;
+      draggingRef.current = null;
+      if (dragging === null) return;
+      const rect = container!.getBoundingClientRect();
+      const price = priceAt(event.clientY - rect.top);
+      if (price === null) return;
+      onZoneDragEnd?.(dragging.zone, price);
+    }
+
+    container.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      container.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [zones, disabled, onZoneDragMove, onZoneDragEnd]);
+
   return (
     <div>
       {loading && <div role="status">Loading chart…</div>}
       {error && <div role="alert">{error}</div>}
-      <div ref={containerRef} />
+      <div ref={containerRef} data-testid="price-chart" />
     </div>
   );
 }

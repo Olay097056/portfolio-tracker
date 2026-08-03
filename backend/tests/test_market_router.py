@@ -72,3 +72,17 @@ def test_get_chart_passes_ticker_and_range_through(client):
         client.get("/market/chart?ticker=VTI&range=1Y")
 
     mock_get_chart_data.assert_called_once_with("VTI", "1Y")
+
+
+def test_get_chart_accepts_all_seven_ranges(client):
+    for range_ in ["1D", "5D", "1M", "6M", "YTD", "1Y", "5Y"]:
+        with patch("app.routers.market.get_chart_data", return_value=[]) as mock_get_chart_data:
+            response = client.get(f"/market/chart?ticker=VTI&range={range_}")
+        assert response.status_code == 200, f"range={range_} failed: {response.json()}"
+        mock_get_chart_data.assert_called_once_with("VTI", range_)
+
+
+def test_get_chart_rejects_an_invalid_range(client):
+    response = client.get("/market/chart?ticker=VTI&range=3Y")
+
+    assert response.status_code == 422

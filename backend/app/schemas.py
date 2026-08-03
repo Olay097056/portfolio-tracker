@@ -126,7 +126,7 @@ class TrendingOut(BaseModel):
 
 
 class ChartPointOut(BaseModel):
-    time: str
+    time: str | int
     close: float
 
 

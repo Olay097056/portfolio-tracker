@@ -90,6 +90,23 @@ def test_get_chart_data_caches_different_tickers_separately(monkeypatch):
     assert calls == ["VTI", "SPY"]
 
 
+def test_get_chart_data_caches_different_ranges_separately_for_the_same_ticker(monkeypatch):
+    calls = []
+
+    def fake_fetch(ticker, range_):
+        calls.append(range_)
+        return SAMPLE_POINTS
+
+    monkeypatch.setattr(chart_service, "_fetch_from_provider", fake_fetch)
+
+    chart_service.get_chart_data("VTI", "1Y")
+    chart_service.get_chart_data("VTI", "5Y")
+    chart_service.get_chart_data("VTI", "1Y")
+    chart_service.get_chart_data("VTI", "5Y")
+
+    assert calls == ["1Y", "5Y"]
+
+
 def test_a_failed_fetch_is_not_cached(monkeypatch):
     monkeypatch.setattr(chart_service, "_fetch_from_provider", lambda ticker, range_: None)
 
@@ -134,7 +151,21 @@ def test_fetch_from_provider_maps_yfinance_rows_to_time_and_close(monkeypatch):
     ]
 
 
-def test_fetch_from_provider_requests_one_year_of_daily_bars(monkeypatch):
+@pytest.mark.parametrize(
+    "range_,expected_period,expected_interval",
+    [
+        ("1D", "1d", "5m"),
+        ("5D", "5d", "30m"),
+        ("1M", "1mo", "1d"),
+        ("6M", "6mo", "1d"),
+        ("YTD", "ytd", "1d"),
+        ("1Y", "1y", "1d"),
+        ("5Y", "5y", "1wk"),
+    ],
+)
+def test_fetch_from_provider_requests_the_correct_period_and_interval_for_each_range(
+    monkeypatch, range_, expected_period, expected_interval
+):
     import pandas as pd
 
     history = pd.DataFrame({"Close": [100.0]}, index=pd.to_datetime(["2026-01-02"]))
@@ -152,9 +183,9 @@ def test_fetch_from_provider_requests_one_year_of_daily_bars(monkeypatch):
 
     monkeypatch.setattr(yf, "Ticker", FakeTicker)
 
-    chart_service._fetch_from_provider("VTI", "1Y")
+    chart_service._fetch_from_provider("VTI", range_)
 
-    assert calls == [("1y", "1d")]
+    assert calls == [(expected_period, expected_interval)]
 
 
 def test_fetch_from_provider_returns_none_for_an_empty_history(monkeypatch):
@@ -191,3 +222,54 @@ def test_fetch_from_provider_returns_none_when_yfinance_raises(monkeypatch):
     result = chart_service._fetch_from_provider("VTI", "1Y")
 
     assert result is None
+
+
+def test_fetch_from_provider_uses_unix_timestamps_for_intraday_ranges(monkeypatch):
+    import pandas as pd
+
+    index = pd.to_datetime(["2026-01-02 09:30:00", "2026-01-02 09:35:00"], utc=True)
+    history = pd.DataFrame({"Close": [100.0, 100.5]}, index=index)
+
+    class FakeTicker:
+        def __init__(self, ticker):
+            pass
+
+        def history(self, period, interval):
+            return history
+
+    import yfinance as yf
+
+    monkeypatch.setattr(yf, "Ticker", FakeTicker)
+
+    result = chart_service._fetch_from_provider("VTI", "1D")
+
+    assert result == [
+        {"time": int(index[0].timestamp()), "close": 100.0},
+        {"time": int(index[1].timestamp()), "close": 100.5},
+    ]
+    assert all(isinstance(point["time"], int) for point in result)
+
+
+def test_fetch_from_provider_uses_date_strings_for_the_weekly_range(monkeypatch):
+    import pandas as pd
+
+    index = pd.to_datetime(["2026-01-02", "2026-01-09"])
+    history = pd.DataFrame({"Close": [100.0, 105.0]}, index=index)
+
+    class FakeTicker:
+        def __init__(self, ticker):
+            pass
+
+        def history(self, period, interval):
+            return history
+
+    import yfinance as yf
+
+    monkeypatch.setattr(yf, "Ticker", FakeTicker)
+
+    result = chart_service._fetch_from_provider("VTI", "5Y")
+
+    assert result == [
+        {"time": "2026-01-02", "close": 100.0},
+        {"time": "2026-01-09", "close": 105.0},
+    ]

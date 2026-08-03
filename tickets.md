@@ -151,3 +151,20 @@ Work the **frontier**: Ticket 1 can start immediately; Ticket 2 needs Ticket 1 d
 - [x] There is still no interval selector anywhere in the UI
 
 **Also fixed post-review (not in the original acceptance criteria):** intraday ranges (1D, 5D) needed UNIX-timestamp time-encoding instead of date strings, since multiple points share a calendar day — `ChartPoint.time` widened to `str | int` end-to-end (backend `Literal["date","timestamp"]` per-range encoding, frontend `UTCTimestamp` cast in `PriceChart`). A stale-`error` variant of the Ticket 1 stale-chart-data bug was also found and fixed (render-phase reset now clears `error` alongside `points`).
+
+## Dashboard auto support/resistance zones
+
+**What to build:** The price chart draws support and resistance zones automatically, computed from the same bar series already being charted for the selected ticker and range. Zones come from swing high/low pivot detection, clustered by price proximity, ranked by how many times price has touched each zone, and classified as support or resistance by their position relative to the ticker's current price rather than by which kind of pivot originally formed them — so a broken resistance level correctly becomes support once price has closed above it. At most 3 support and 3 resistance zones are drawn at once, in colors visually distinct from each other and from this app's existing rebalance-severity palette. Changing range recomputes zones for that range's own history, the same way it already reflows the chart line. There is no manual editing in this ticket — every zone is machine-computed, and every zone carries a `source: "auto"` marker so a later ticket can introduce manually-drawn zones without changing the response shape again.
+
+**Blocked by:** Dashboard range selector
+
+- [ ] The chart-data fetch captures each bar's high and low alongside its existing close, from the same provider call already being made — no new network request
+- [ ] A new, independent pure-function module detects swing high/low pivots (5-bar window on each side), clusters pivots within 1.5% of each other's price into zones, and ranks each zone by pivot count — no I/O, no ticker, direct hand-computed tests with fixture bar series, mirroring `signals.py`'s and `dividend_metrics.py`'s existing convention
+- [ ] A zone is classified support or resistance by comparing its price to the current price at classification time, not by the kind of pivot it originally formed from — a zone whose pivot was originally a high, but that price has since closed above, is classified support
+- [ ] Support zones and resistance zones are each capped at 3, keeping only the strongest (highest pivot count) when there are more candidates than the cap
+- [ ] A bar series too short to produce any pivot returns an empty zone list — a valid result, not an error and not a fabricated zone
+- [ ] Support/resistance zones are returned from the existing chart endpoint alongside the existing price points — not a separate endpoint — computed from the same cached bar series and expiring on the same TTL, with no new cache dimension
+- [ ] Each returned zone carries a price, a support/resistance kind, a strength (touch count), and a `source` field fixed to `"auto"`
+- [ ] The chart draws each zone as a horizontal price line at its level, not as a second plotted series
+- [ ] Support zones and resistance zones render in visually distinct colors from each other, and both are visually distinct from this app's existing rebalance-severity green/yellow/red colors
+- [ ] Changing the selected range recomputes and redraws zones for that range's own bar series, replacing the previous range's zones with no stale line left behind (same remount/render-phase discipline already established for the chart line itself)

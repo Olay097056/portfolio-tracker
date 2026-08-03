@@ -1,5 +1,6 @@
 # backend/app/schemas.py
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -130,5 +131,13 @@ class ChartPointOut(BaseModel):
     close: float
 
 
+class ZoneOut(BaseModel):
+    price: float
+    kind: Literal["support", "resistance"]
+    strength: int
+    source: Literal["auto"]
+
+
 class ChartOut(BaseModel):
     points: list[ChartPointOut] | None
+    zones: list[ZoneOut]

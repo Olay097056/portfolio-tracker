@@ -15,14 +15,15 @@ SAMPLE_POINTS = [
     {"time": "2026-01-02", "close": 100.0},
     {"time": "2026-01-05", "close": 101.5},
 ]
+SAMPLE_RESULT = {"points": SAMPLE_POINTS, "zones": []}
 
 
-def test_get_chart_data_returns_fetched_points(monkeypatch):
-    monkeypatch.setattr(chart_service, "_fetch_from_provider", lambda ticker, range_: SAMPLE_POINTS)
+def test_get_chart_data_returns_fetched_result(monkeypatch):
+    monkeypatch.setattr(chart_service, "_fetch_from_provider", lambda ticker, range_: SAMPLE_RESULT)
 
     result = chart_service.get_chart_data("VTI", "1Y")
 
-    assert result == SAMPLE_POINTS
+    assert result == SAMPLE_RESULT
 
 
 def test_get_chart_data_returns_none_when_fetch_fails(monkeypatch):
@@ -38,20 +39,20 @@ def test_get_chart_data_caches_and_does_not_refetch_within_ttl(monkeypatch):
 
     def fake_fetch(ticker, range_):
         call_count["n"] += 1
-        return SAMPLE_POINTS
+        return SAMPLE_RESULT
 
     monkeypatch.setattr(chart_service, "_fetch_from_provider", fake_fetch)
 
     first = chart_service.get_chart_data("VTI", "1Y")
     second = chart_service.get_chart_data("VTI", "1Y")
 
-    assert first == SAMPLE_POINTS
-    assert second == SAMPLE_POINTS
+    assert first == SAMPLE_RESULT
+    assert second == SAMPLE_RESULT
     assert call_count["n"] == 1
 
 
 def test_get_chart_data_refetches_after_ttl_expires(monkeypatch):
-    monkeypatch.setattr(chart_service, "_fetch_from_provider", lambda ticker, range_: SAMPLE_POINTS)
+    monkeypatch.setattr(chart_service, "_fetch_from_provider", lambda ticker, range_: SAMPLE_RESULT)
 
     fake_time = {"t": 1000.0}
     monkeypatch.setattr(chart_service.time, "monotonic", lambda: fake_time["t"])
@@ -64,7 +65,7 @@ def test_get_chart_data_refetches_after_ttl_expires(monkeypatch):
 
     def fake_fetch_second(ticker, range_):
         call_count["n"] += 1
-        return SAMPLE_POINTS
+        return SAMPLE_RESULT
 
     monkeypatch.setattr(chart_service, "_fetch_from_provider", fake_fetch_second)
 
@@ -78,7 +79,7 @@ def test_get_chart_data_caches_different_tickers_separately(monkeypatch):
 
     def fake_fetch(ticker, range_):
         calls.append(ticker)
-        return SAMPLE_POINTS
+        return SAMPLE_RESULT
 
     monkeypatch.setattr(chart_service, "_fetch_from_provider", fake_fetch)
 
@@ -95,7 +96,7 @@ def test_get_chart_data_caches_different_ranges_separately_for_the_same_ticker(m
 
     def fake_fetch(ticker, range_):
         calls.append(range_)
-        return SAMPLE_POINTS
+        return SAMPLE_RESULT
 
     monkeypatch.setattr(chart_service, "_fetch_from_provider", fake_fetch)
 
@@ -116,13 +117,13 @@ def test_a_failed_fetch_is_not_cached(monkeypatch):
 
     def fake_fetch(ticker, range_):
         call_count["n"] += 1
-        return SAMPLE_POINTS
+        return SAMPLE_RESULT
 
     monkeypatch.setattr(chart_service, "_fetch_from_provider", fake_fetch)
 
     result = chart_service.get_chart_data("BADTICKER", "1Y")
 
-    assert result == SAMPLE_POINTS
+    assert result == SAMPLE_RESULT
     assert call_count["n"] == 1
 
 
@@ -130,7 +131,9 @@ def test_fetch_from_provider_maps_yfinance_rows_to_time_and_close(monkeypatch):
     import pandas as pd
 
     index = pd.to_datetime(["2026-01-02", "2026-01-05"])
-    history = pd.DataFrame({"Close": [100.0, 101.5]}, index=index)
+    history = pd.DataFrame(
+        {"Close": [100.0, 101.5], "High": [100.0, 101.5], "Low": [100.0, 101.5]}, index=index
+    )
 
     class FakeTicker:
         def __init__(self, ticker):
@@ -145,7 +148,7 @@ def test_fetch_from_provider_maps_yfinance_rows_to_time_and_close(monkeypatch):
 
     result = chart_service._fetch_from_provider("VTI", "1Y")
 
-    assert result == [
+    assert result["points"] == [
         {"time": "2026-01-02", "close": 100.0},
         {"time": "2026-01-05", "close": 101.5},
     ]
@@ -168,7 +171,9 @@ def test_fetch_from_provider_requests_the_correct_period_and_interval_for_each_r
 ):
     import pandas as pd
 
-    history = pd.DataFrame({"Close": [100.0]}, index=pd.to_datetime(["2026-01-02"]))
+    history = pd.DataFrame(
+        {"Close": [100.0], "High": [100.0], "Low": [100.0]}, index=pd.to_datetime(["2026-01-02"])
+    )
     calls = []
 
     class FakeTicker:
@@ -228,7 +233,9 @@ def test_fetch_from_provider_uses_unix_timestamps_for_intraday_ranges(monkeypatc
     import pandas as pd
 
     index = pd.to_datetime(["2026-01-02 09:30:00", "2026-01-02 09:35:00"], utc=True)
-    history = pd.DataFrame({"Close": [100.0, 100.5]}, index=index)
+    history = pd.DataFrame(
+        {"Close": [100.0, 100.5], "High": [100.0, 100.5], "Low": [100.0, 100.5]}, index=index
+    )
 
     class FakeTicker:
         def __init__(self, ticker):
@@ -243,11 +250,11 @@ def test_fetch_from_provider_uses_unix_timestamps_for_intraday_ranges(monkeypatc
 
     result = chart_service._fetch_from_provider("VTI", "1D")
 
-    assert result == [
+    assert result["points"] == [
         {"time": int(index[0].timestamp()), "close": 100.0},
         {"time": int(index[1].timestamp()), "close": 100.5},
     ]
-    assert all(isinstance(point["time"], int) for point in result)
+    assert all(isinstance(point["time"], int) for point in result["points"])
 
 
 def test_every_chart_range_has_a_mapping_row():
@@ -260,7 +267,9 @@ def test_fetch_from_provider_uses_date_strings_for_the_weekly_range(monkeypatch)
     import pandas as pd
 
     index = pd.to_datetime(["2026-01-02", "2026-01-09"])
-    history = pd.DataFrame({"Close": [100.0, 105.0]}, index=index)
+    history = pd.DataFrame(
+        {"Close": [100.0, 105.0], "High": [100.0, 105.0], "Low": [100.0, 105.0]}, index=index
+    )
 
     class FakeTicker:
         def __init__(self, ticker):
@@ -275,7 +284,7 @@ def test_fetch_from_provider_uses_date_strings_for_the_weekly_range(monkeypatch)
 
     result = chart_service._fetch_from_provider("VTI", "5Y")
 
-    assert result == [
+    assert result["points"] == [
         {"time": "2026-01-02", "close": 100.0},
         {"time": "2026-01-09", "close": 105.0},
     ]

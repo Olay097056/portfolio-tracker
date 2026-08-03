@@ -49,14 +49,15 @@ def test_get_trending_reports_a_list_as_unavailable_when_its_own_fetch_fails(cli
     assert body["losers"] == rows
 
 
-def test_get_chart_returns_points_for_a_ticker(client):
+def test_get_chart_returns_points_and_zones_for_a_ticker(client):
     points = [{"time": "2026-01-02", "close": 100.0}, {"time": "2026-01-05", "close": 101.5}]
+    zones = [{"price": 95.0, "kind": "support", "strength": 3, "source": "auto"}]
 
-    with patch("app.routers.market.get_chart_data", return_value=points):
+    with patch("app.routers.market.get_chart_data", return_value={"points": points, "zones": zones}):
         response = client.get("/market/chart?ticker=VTI&range=1Y")
 
     assert response.status_code == 200
-    assert response.json() == {"points": points}
+    assert response.json() == {"points": points, "zones": zones}
 
 
 def test_get_chart_reports_unavailable_when_fetch_fails(client):
@@ -64,11 +65,13 @@ def test_get_chart_reports_unavailable_when_fetch_fails(client):
         response = client.get("/market/chart?ticker=BADTICKER&range=1Y")
 
     assert response.status_code == 200
-    assert response.json() == {"points": None}
+    assert response.json() == {"points": None, "zones": []}
 
 
 def test_get_chart_passes_ticker_and_range_through(client):
-    with patch("app.routers.market.get_chart_data", return_value=[]) as mock_get_chart_data:
+    with patch(
+        "app.routers.market.get_chart_data", return_value={"points": [], "zones": []}
+    ) as mock_get_chart_data:
         client.get("/market/chart?ticker=VTI&range=1Y")
 
     mock_get_chart_data.assert_called_once_with("VTI", "1Y")
@@ -76,7 +79,9 @@ def test_get_chart_passes_ticker_and_range_through(client):
 
 def test_get_chart_accepts_all_seven_ranges(client):
     for range_ in ["1D", "5D", "1M", "6M", "YTD", "1Y", "5Y"]:
-        with patch("app.routers.market.get_chart_data", return_value=[]) as mock_get_chart_data:
+        with patch(
+            "app.routers.market.get_chart_data", return_value={"points": [], "zones": []}
+        ) as mock_get_chart_data:
             response = client.get(f"/market/chart?ticker=VTI&range={range_}")
         assert response.status_code == 200, f"range={range_} failed: {response.json()}"
         mock_get_chart_data.assert_called_once_with("VTI", range_)
@@ -85,7 +90,7 @@ def test_get_chart_accepts_all_seven_ranges(client):
 def test_get_chart_preserves_integer_time_for_intraday_points(client):
     points = [{"time": 1735808400, "close": 100.0}]
 
-    with patch("app.routers.market.get_chart_data", return_value=points):
+    with patch("app.routers.market.get_chart_data", return_value={"points": points, "zones": []}):
         response = client.get("/market/chart?ticker=VTI&range=1D")
 
     assert response.status_code == 200

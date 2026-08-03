@@ -24,5 +24,7 @@ def get_trending():
 
 @router.get("/chart", response_model=ChartOut)
 def get_chart(ticker: str, range: ChartRange = "1Y"):
-    points = get_chart_data(ticker, range)
-    return ChartOut(points=points)
+    result = get_chart_data(ticker, range)
+    if result is None:
+        return ChartOut(points=None, zones=[])
+    return ChartOut(points=result["points"], zones=result["zones"])

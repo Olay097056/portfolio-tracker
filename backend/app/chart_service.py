@@ -2,6 +2,8 @@
 import time
 from typing import Literal, TypedDict
 
+from app.support_resistance import Zone, find_support_resistance_zones
+
 # Matches history_service.py's TTL. This is a separate, independent cache from
 # history_service.py's — this file exists specifically so a range-driven chart fetch never has
 # to be taught into history_service.py's fixed 1-year-daily shape (see the spec's Implementation
@@ -30,28 +32,33 @@ class ChartPoint(TypedDict):
     close: float
 
 
-_cache: dict[tuple[str, str], tuple[list[ChartPoint], float]] = {}
+class ChartFetchResult(TypedDict):
+    points: list[ChartPoint]
+    zones: list[Zone]
+
+
+_cache: dict[tuple[str, str], tuple[ChartFetchResult, float]] = {}
 
 
 def clear_cache() -> None:
     _cache.clear()
 
 
-def _get_cached(ticker: str, range_: str) -> list[ChartPoint] | None:
+def _get_cached(ticker: str, range_: str) -> ChartFetchResult | None:
     entry = _cache.get((ticker, range_))
     if entry is None:
         return None
-    points, fetched_at = entry
+    result, fetched_at = entry
     if time.monotonic() - fetched_at > CACHE_TTL_SECONDS:
         return None
-    return points
+    return result
 
 
-def _set_cached(ticker: str, range_: str, points: list[ChartPoint]) -> None:
-    _cache[(ticker, range_)] = (points, time.monotonic())
+def _set_cached(ticker: str, range_: str, result: ChartFetchResult) -> None:
+    _cache[(ticker, range_)] = (result, time.monotonic())
 
 
-def _fetch_from_provider(ticker: str, range_: str) -> list[ChartPoint] | None:
+def _fetch_from_provider(ticker: str, range_: str) -> ChartFetchResult | None:
     import yfinance as yf
 
     period, interval, encoding = RANGE_TO_YFINANCE[range_]
@@ -59,26 +66,35 @@ def _fetch_from_provider(ticker: str, range_: str) -> list[ChartPoint] | None:
         history = yf.Ticker(ticker).history(period=period, interval=interval)
         if history.empty:
             return None
+
+        highs = [float(row.High) for row in history.itertuples()]
+        lows = [float(row.Low) for row in history.itertuples()]
+        closes = [float(row.Close) for row in history.itertuples()]
+
         if encoding == "timestamp":
-            return [
+            points: list[ChartPoint] = [
                 {"time": int(row.Index.timestamp()), "close": float(row.Close)}
                 for row in history.itertuples()
             ]
-        return [
-            {"time": row.Index.strftime("%Y-%m-%d"), "close": float(row.Close)}
-            for row in history.itertuples()
-        ]
+        else:
+            points = [
+                {"time": row.Index.strftime("%Y-%m-%d"), "close": float(row.Close)}
+                for row in history.itertuples()
+            ]
+
+        zones = find_support_resistance_zones(highs, lows, closes)
+        return {"points": points, "zones": zones}
     except Exception:
         return None
 
 
-def get_chart_data(ticker: str, range_: ChartRange) -> list[ChartPoint] | None:
+def get_chart_data(ticker: str, range_: ChartRange) -> ChartFetchResult | None:
     cached = _get_cached(ticker, range_)
     if cached is not None:
         return cached
 
-    points = _fetch_from_provider(ticker, range_)
-    if points is not None:
-        _set_cached(ticker, range_, points)
+    result = _fetch_from_provider(ticker, range_)
+    if result is not None:
+        _set_cached(ticker, range_, result)
 
-    return points
+    return result

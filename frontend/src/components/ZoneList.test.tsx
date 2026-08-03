@@ -57,4 +57,18 @@ describe('ZoneList', () => {
 
     expect(onDelete).toHaveBeenCalledWith(5);
   });
+
+  it('disables the price input and delete button when disabled is true', () => {
+    render(<ZoneList zones={[manualZone]} onEditPrice={vi.fn()} onDelete={vi.fn()} disabled={true} />);
+
+    expect(screen.getByLabelText(/freestyle zone price/i)).toBeDisabled();
+    expect(screen.getByRole('button', { name: /delete/i })).toBeDisabled();
+  });
+
+  it('does not disable controls when disabled is omitted', () => {
+    render(<ZoneList zones={[manualZone]} onEditPrice={vi.fn()} onDelete={vi.fn()} />);
+
+    expect(screen.getByLabelText(/freestyle zone price/i)).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: /delete/i })).not.toBeDisabled();
+  });
 });

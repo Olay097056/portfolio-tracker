@@ -75,20 +75,25 @@ export function DashboardPage() {
 
               {zoneEditing.error && <div role="alert">{zoneEditing.error}</div>}
 
-              <button type="button" onClick={() => handleAddZone('support')}>
+              <button type="button" onClick={() => handleAddZone('support')} disabled={zoneEditing.busy}>
                 S
               </button>
-              <button type="button" onClick={() => handleAddZone('resistance')}>
+              <button type="button" onClick={() => handleAddZone('resistance')} disabled={zoneEditing.busy}>
                 R
               </button>
-              <button type="button" onClick={() => handleAddZone('freestyle')}>
+              <button type="button" onClick={() => handleAddZone('freestyle')} disabled={zoneEditing.busy}>
                 Freestyle
               </button>
-              <button type="button" onClick={handleRecomputeDefaults}>
+              <button type="button" onClick={handleRecomputeDefaults} disabled={zoneEditing.busy}>
                 Recompute defaults
               </button>
 
-              <ZoneList zones={zones} onEditPrice={zoneEditing.editZonePrice} onDelete={zoneEditing.removeZone} />
+              <ZoneList
+                zones={zones}
+                onEditPrice={zoneEditing.editZonePrice}
+                onDelete={zoneEditing.removeZone}
+                disabled={zoneEditing.busy}
+              />
             </>
           )}
         </>

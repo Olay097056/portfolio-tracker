@@ -13,6 +13,18 @@ import type { ChartPoint, Zone } from '../api/types';
 
 const SUPPORT_COLOR = '#14b8a6'; // teal — visually distinct from this app's rebalance-severity green/yellow/red
 const RESISTANCE_COLOR = '#f59e0b'; // amber — visually distinct from this app's rebalance-severity green/yellow/red
+const FREESTYLE_COLOR = '#8b5cf6'; // violet — visually distinct from support/resistance and from this app's rebalance-severity green/yellow/red
+
+const ZONE_STYLE: Record<Zone['kind'], { color: string; prefix: string }> = {
+  support: { color: SUPPORT_COLOR, prefix: 'S' },
+  resistance: { color: RESISTANCE_COLOR, prefix: 'R' },
+  freestyle: { color: FREESTYLE_COLOR, prefix: 'F' },
+};
+
+function zoneTitle(zone: Zone): string {
+  const { prefix } = ZONE_STYLE[zone.kind];
+  return zone.strength === null ? prefix : `${prefix} (${zone.strength})`;
+}
 
 interface PriceChartProps {
   points: ChartPoint[] | null;
@@ -57,8 +69,8 @@ export function PriceChart({ points, loading, error, zones }: PriceChartProps) {
     priceLinesRef.current = zones.map((zone) =>
       seriesRef.current!.createPriceLine({
         price: zone.price,
-        color: zone.kind === 'support' ? SUPPORT_COLOR : RESISTANCE_COLOR,
-        title: `${zone.kind === 'support' ? 'S' : 'R'} (${zone.strength})`,
+        color: ZONE_STYLE[zone.kind].color,
+        title: zoneTitle(zone),
       }),
     );
   }, [zones]);

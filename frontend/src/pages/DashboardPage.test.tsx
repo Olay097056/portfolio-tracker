@@ -1,5 +1,5 @@
 // frontend/src/pages/DashboardPage.test.tsx
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createChart } from 'lightweight-charts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as client from '../api/client';
@@ -343,6 +343,66 @@ describe('DashboardPage', () => {
     vi.spyOn(window, 'confirm').mockReturnValueOnce(true);
     fireEvent.click(screen.getByRole('button', { name: /recompute defaults/i }));
     await waitFor(() => expect(deleteAllSpy).toHaveBeenCalledWith('AAPL', '1Y'));
+  });
+
+  it('disables the S/R/Freestyle/Recompute buttons while a zone mutation is in flight, then re-enables them', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }], zones: [] });
+    let resolveFreeze: (value: client.Zone[]) => void;
+    vi.spyOn(client, 'freezeZones').mockReturnValue(
+      new Promise((resolve) => {
+        resolveFreeze = resolve;
+      }),
+    );
+
+    render(<DashboardPage />);
+    await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+    await waitFor(() => expect(screen.getByRole('button', { name: /^s$/i })).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /^s$/i }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /^s$/i })).toBeDisabled());
+    expect(screen.getByRole('button', { name: /^r$/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /freestyle/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /recompute defaults/i })).toBeDisabled();
+
+    resolveFreeze!([{ id: 1, price: 100, kind: 'support', strength: null, source: 'manual' }]);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /^s$/i })).not.toBeDisabled());
+    expect(screen.getByRole('button', { name: /^r$/i })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: /freestyle/i })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: /recompute defaults/i })).not.toBeDisabled();
+  });
+
+  it('a second click on S while the first is still in flight does not fire a second freeze call', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }], zones: [] });
+    let resolveFreeze: (value: client.Zone[]) => void;
+    const freezeSpy = vi.spyOn(client, 'freezeZones').mockReturnValue(
+      new Promise((resolve) => {
+        resolveFreeze = resolve;
+      }),
+    );
+
+    render(<DashboardPage />);
+    await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+    await waitFor(() => expect(screen.getByRole('button', { name: /^s$/i })).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /^s$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^s$/i }));
+
+    await waitFor(() => expect(freezeSpy).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      resolveFreeze!([{ id: 1, price: 100, kind: 'support', strength: null, source: 'manual' }]);
+      await Promise.resolve();
+    });
+
+    expect(freezeSpy).toHaveBeenCalledTimes(1);
   });
 
   it('deleting a zone from the list calls deleteZone and refetches', async () => {

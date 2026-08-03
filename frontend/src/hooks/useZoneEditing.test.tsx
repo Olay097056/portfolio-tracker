@@ -98,23 +98,91 @@ describe('useZoneEditing', () => {
     expect(onZonesChanged).toHaveBeenCalledTimes(1);
   });
 
-  it('sets an error and re-throws when a mutation fails', async () => {
+  it('sets an error and resolves (does not reject) when a mutation fails', async () => {
     vi.spyOn(client, 'deleteZone').mockRejectedValue(new client.ApiError(404, 'Manual zone not found'));
     const onZonesChanged = vi.fn();
 
     const { result } = renderHook(() => useZoneEditing('VTI', '1Y', [manualZone], onZonesChanged));
 
-    let thrown: unknown;
+    // A rejecting promise here would surface as an unhandled rejection in real usage, since
+    // callers invoke these methods as `void hook.method(...)`. Awaiting it directly proves the
+    // promise resolves rather than throws.
     await act(async () => {
-      try {
-        await result.current.removeZone(5);
-      } catch (err) {
-        thrown = err;
-      }
+      await expect(result.current.removeZone(5)).resolves.toBeUndefined();
     });
 
-    expect(thrown).toBeInstanceOf(Error);
     await waitFor(() => expect(result.current.error).toBe('Manual zone not found'));
     expect(onZonesChanged).not.toHaveBeenCalled();
+  });
+
+  it('sets busy while a mutation is in flight and clears it on success', async () => {
+    let resolveDelete: () => void;
+    vi.spyOn(client, 'deleteZone').mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveDelete = resolve;
+      }),
+    );
+    const onZonesChanged = vi.fn();
+
+    const { result } = renderHook(() => useZoneEditing('VTI', '1Y', [manualZone], onZonesChanged));
+    expect(result.current.busy).toBe(false);
+
+    let removePromise: Promise<void>;
+    act(() => {
+      removePromise = result.current.removeZone(5);
+    });
+
+    await waitFor(() => expect(result.current.busy).toBe(true));
+
+    await act(async () => {
+      resolveDelete();
+      await removePromise;
+    });
+
+    expect(result.current.busy).toBe(false);
+  });
+
+  it('clears busy after a failed mutation too', async () => {
+    vi.spyOn(client, 'deleteZone').mockRejectedValue(new client.ApiError(500, 'boom'));
+    const onZonesChanged = vi.fn();
+
+    const { result } = renderHook(() => useZoneEditing('VTI', '1Y', [manualZone], onZonesChanged));
+
+    await act(async () => {
+      await result.current.removeZone(5);
+    });
+
+    expect(result.current.busy).toBe(false);
+    await waitFor(() => expect(result.current.error).toBe('boom'));
+  });
+
+  it('ignores a second mutation call while one is already in flight', async () => {
+    let resolveDelete: () => void;
+    const deleteSpy = vi.spyOn(client, 'deleteZone').mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveDelete = resolve;
+      }),
+    );
+    const onZonesChanged = vi.fn();
+
+    const { result } = renderHook(() => useZoneEditing('VTI', '1Y', [manualZone], onZonesChanged));
+
+    let firstPromise: Promise<void>;
+    let secondPromise: Promise<void>;
+    act(() => {
+      firstPromise = result.current.removeZone(5);
+      secondPromise = result.current.removeZone(5);
+    });
+
+    await waitFor(() => expect(result.current.busy).toBe(true));
+    expect(deleteSpy).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveDelete();
+      await Promise.all([firstPromise, secondPromise]);
+    });
+
+    expect(deleteSpy).toHaveBeenCalledTimes(1);
+    expect(onZonesChanged).toHaveBeenCalledTimes(1);
   });
 });

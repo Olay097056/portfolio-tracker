@@ -121,6 +121,71 @@ describe('PriceChart', () => {
     );
   });
 
+  it('renders a freestyle zone in a color distinct from support and resistance, prefixed F', () => {
+    const createPriceLine = vi.fn((_args: { color: string; title: string }) => ({}));
+    addSeries.mockReturnValue({ setData, createPriceLine, removePriceLine: vi.fn() });
+
+    render(
+      <PriceChart
+        points={null}
+        loading={false}
+        error={null}
+        zones={[{ id: 7, price: 102, kind: 'freestyle', strength: null, source: 'manual' }]}
+      />,
+    );
+
+    expect(createPriceLine).toHaveBeenCalledTimes(1);
+    const call = createPriceLine.mock.calls[0][0];
+    expect(call.color).not.toBe('#14b8a6');
+    expect(call.color).not.toBe('#f59e0b');
+    expect(call.title).toBe('F');
+  });
+
+  it('omits the (n) suffix entirely for a zone with null strength, never rendering "(null)"', () => {
+    const createPriceLine = vi.fn((_args: { title: string }) => ({}));
+    addSeries.mockReturnValue({ setData, createPriceLine, removePriceLine: vi.fn() });
+
+    render(
+      <PriceChart
+        points={null}
+        loading={false}
+        error={null}
+        zones={[
+          { id: 1, price: 95, kind: 'support', strength: null, source: 'manual' },
+          { id: 2, price: 110, kind: 'resistance', strength: null, source: 'manual' },
+          { id: 3, price: 102, kind: 'freestyle', strength: null, source: 'manual' },
+        ]}
+      />,
+    );
+
+    const titles = createPriceLine.mock.calls.map((call) => call[0].title);
+    for (const title of titles) {
+      expect(title).not.toContain('(null)');
+      expect(title).not.toContain('(');
+    }
+    expect(titles).toEqual(['S', 'R', 'F']);
+  });
+
+  it('still formats "S (n)" / "R (n)" for zones with a numeric strength (regression)', () => {
+    const createPriceLine = vi.fn(() => ({}));
+    addSeries.mockReturnValue({ setData, createPriceLine, removePriceLine: vi.fn() });
+
+    render(
+      <PriceChart
+        points={null}
+        loading={false}
+        error={null}
+        zones={[
+          { id: null, price: 95, kind: 'support', strength: 3, source: 'auto' },
+          { id: null, price: 110, kind: 'resistance', strength: 2, source: 'auto' },
+        ]}
+      />,
+    );
+
+    expect(createPriceLine).toHaveBeenCalledWith(expect.objectContaining({ price: 95, title: 'S (3)' }));
+    expect(createPriceLine).toHaveBeenCalledWith(expect.objectContaining({ price: 110, title: 'R (2)' }));
+  });
+
   it('removes stale price lines before drawing new ones when zones change', () => {
     const removePriceLine = vi.fn();
     const firstLine = { id: 'first' };

@@ -6,9 +6,10 @@ interface ZoneListProps {
   zones: Zone[];
   onEditPrice: (zoneId: number, price: number) => void;
   onDelete: (zoneId: number) => void;
+  disabled?: boolean;
 }
 
-export function ZoneList({ zones, onEditPrice, onDelete }: ZoneListProps) {
+export function ZoneList({ zones, onEditPrice, onDelete, disabled = false }: ZoneListProps) {
   if (zones.length === 0) {
     return <p>No support/resistance zones yet.</p>;
   }
@@ -31,6 +32,7 @@ export function ZoneList({ zones, onEditPrice, onDelete }: ZoneListProps) {
                   type="number"
                   aria-label={`${zone.kind} zone price`}
                   defaultValue={zone.price}
+                  disabled={disabled}
                   onBlur={(e) => {
                     const value = Number(e.target.value);
                     if (!Number.isNaN(value) && value !== zone.price) {
@@ -50,7 +52,7 @@ export function ZoneList({ zones, onEditPrice, onDelete }: ZoneListProps) {
             <td>{zone.kind}</td>
             <td>
               {zone.source === 'manual' && zone.id !== null && (
-                <button type="button" onClick={() => onDelete(zone.id as number)}>
+                <button type="button" onClick={() => onDelete(zone.id as number)} disabled={disabled}>
                   Delete
                 </button>
               )}

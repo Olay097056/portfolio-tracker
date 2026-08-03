@@ -113,8 +113,12 @@ describe('PriceChart', () => {
     );
 
     expect(createPriceLine).toHaveBeenCalledTimes(2);
-    expect(createPriceLine).toHaveBeenCalledWith(expect.objectContaining({ price: 95, color: '#14b8a6' }));
-    expect(createPriceLine).toHaveBeenCalledWith(expect.objectContaining({ price: 110, color: '#f59e0b' }));
+    expect(createPriceLine).toHaveBeenCalledWith(
+      expect.objectContaining({ price: 95, color: '#14b8a6', title: 'S (3)' }),
+    );
+    expect(createPriceLine).toHaveBeenCalledWith(
+      expect.objectContaining({ price: 110, color: '#f59e0b', title: 'R (2)' }),
+    );
   });
 
   it('removes stale price lines before drawing new ones when zones change', () => {
@@ -134,6 +138,23 @@ describe('PriceChart', () => {
 
     expect(removePriceLine).toHaveBeenCalledWith(firstLine);
     expect(createPriceLine).toHaveBeenCalledTimes(2);
+  });
+
+  it('removes existing price lines and creates no new ones when zones goes from non-empty to empty', () => {
+    const removePriceLine = vi.fn();
+    const firstLine = { id: 'first' };
+    const createPriceLine = vi.fn().mockReturnValueOnce(firstLine);
+    addSeries.mockReturnValue({ setData, createPriceLine, removePriceLine });
+
+    const { rerender } = render(
+      <PriceChart points={null} loading={false} error={null} zones={[{ price: 95, kind: 'support', strength: 3, source: 'auto' }]} />,
+    );
+    expect(createPriceLine).toHaveBeenCalledTimes(1);
+
+    rerender(<PriceChart points={null} loading={false} error={null} zones={[]} />);
+
+    expect(removePriceLine).toHaveBeenCalledWith(firstLine);
+    expect(createPriceLine).toHaveBeenCalledTimes(1);
   });
 
   it('does not create any price lines when zones is empty', () => {

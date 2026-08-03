@@ -34,6 +34,7 @@ export function PriceChart({ points, loading, error, zones }: PriceChartProps) {
     return () => {
       chart.remove();
       seriesRef.current = null;
+      priceLinesRef.current = [];
     };
     // Created once on mount; PriceChart is remounted by its parent when that's needed (matches
     // this codebase's existing pattern of remount-over-manual-teardown for provider-backed UI).

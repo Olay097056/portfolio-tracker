@@ -2,7 +2,7 @@
 import { render, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as client from '../api/client';
-import type { ChartRange } from '../api/types';
+import type { ChartRange, Zone } from '../api/types';
 import { useChartData } from './useChartData';
 
 describe('useChartData', () => {
@@ -179,6 +179,16 @@ describe('useChartData', () => {
     await waitFor(() => expect(result.current.points).toEqual([{ time: '2026-01-02', close: 400 }]));
   });
 
+  it('defaults zones to an empty array when the response omits it', async () => {
+    const points = [{ time: '2026-01-02', close: 100 }];
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points } as unknown as client.ChartData);
+
+    const { result } = renderHook(() => useChartData('VTI', '1Y'));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.zones).toEqual([]);
+  });
+
   it('fetches and stores zones alongside points', async () => {
     const points = [{ time: '2026-01-02', close: 100 }];
     const zones = [{ price: 95, kind: 'support' as const, strength: 3, source: 'auto' as const }];
@@ -213,5 +223,43 @@ describe('useChartData', () => {
 
     resolveSecond({ points: [], zones: [] });
     await waitFor(() => expect(result.current.loading).toBe(false));
+  });
+
+  it('never commits a render for the new ticker that still carries the outgoing ticker zones', async () => {
+    // Same rationale as the ErrorProbe test above: `expect(result.current.zones).toEqual([])`
+    // right after rerender() can't distinguish a render-phase reset from an effect-based one,
+    // because act() flushes effects synchronously before that assertion ever runs. What actually
+    // distinguishes them is what a REAL CHILD COMPONENT sees at its first commit — if the reset
+    // runs during render, React discards and retries the parent's function body before any child
+    // renders, so a child never sees the stale zones. Without the render-phase reset, the parent's
+    // body runs once with the stale `zones` still in state, and that stale value is what a child
+    // sees at its one and only commit.
+    const seenZones: Zone[][] = [];
+
+    function ZonesProbe({ zones }: { zones: Zone[] }) {
+      seenZones.push(zones);
+      return null;
+    }
+
+    function Harness({ ticker }: { ticker: string | null }) {
+      const { zones } = useChartData(ticker, '1Y');
+      return <ZonesProbe zones={zones} />;
+    }
+
+    vi.spyOn(client, 'getChartData')
+      .mockResolvedValueOnce({
+        points: [{ time: '2026-01-02', close: 100 }],
+        zones: [{ price: 95, kind: 'support', strength: 3, source: 'auto' }],
+      })
+      .mockReturnValueOnce(new Promise<client.ChartData>(() => {})); // never resolves
+
+    const { rerender } = render(<Harness ticker="VTI" />);
+    await waitFor(() => expect(seenZones.some((z) => z.length === 1)).toBe(true));
+
+    seenZones.length = 0;
+    rerender(<Harness ticker="SPY" />);
+
+    // The child's very first commit for the new ticker must not carry the old zones.
+    expect(seenZones[0]).toEqual([]);
   });
 });

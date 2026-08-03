@@ -63,7 +63,7 @@ export function useChartData(ticker: string | null, range: ChartRange) {
         } else {
           setPoints(data.points);
         }
-        setZones(data.zones);
+        setZones(data.zones ?? []);
       })
       .catch((err) => {
         if (requestId.current !== thisRequestId) return;

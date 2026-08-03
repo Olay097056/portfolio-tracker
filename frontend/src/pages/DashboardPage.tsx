@@ -1,9 +1,11 @@
 // frontend/src/pages/DashboardPage.tsx
 import { useState } from 'react';
+import type { ChartRange } from '../api/types';
 import { PriceChart } from '../components/PriceChart';
+import { ZoneList } from '../components/ZoneList';
 import { chartIdentityKey, useChartData } from '../hooks/useChartData';
 import { useDashboardTickers } from '../hooks/useDashboardTickers';
-import type { ChartRange } from '../api/types';
+import { useZoneEditing } from '../hooks/useZoneEditing';
 
 const RANGES: { value: ChartRange; label: string }[] = [
   { value: '1D', label: '1 day' },
@@ -19,7 +21,22 @@ export function DashboardPage() {
   const { tickers, loading: tickersLoading, error: tickersError } = useDashboardTickers();
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
   const [range, setRange] = useState<ChartRange>('1Y');
-  const { points, loading, error, zones } = useChartData(selectedTicker, range);
+  const { points, loading, error, zones, refetch } = useChartData(selectedTicker, range);
+  const zoneEditing = useZoneEditing(selectedTicker, range, zones, refetch);
+
+  const currentPrice = points !== null && points.length > 0 ? points[points.length - 1].close : null;
+
+  function handleAddZone(kind: 'support' | 'resistance' | 'freestyle') {
+    if (currentPrice === null) return;
+    void zoneEditing.addZone(kind, currentPrice);
+  }
+
+  function handleRecomputeDefaults() {
+    if (!window.confirm('This will discard every zone you have placed for this ticker and range. Continue?')) {
+      return;
+    }
+    void zoneEditing.recomputeDefaults();
+  }
 
   return (
     <div>
@@ -55,6 +72,23 @@ export function DashboardPage() {
               </select>
 
               <PriceChart key={chartIdentityKey(selectedTicker, range)} points={points} loading={loading} error={error} zones={zones} />
+
+              {zoneEditing.error && <div role="alert">{zoneEditing.error}</div>}
+
+              <button type="button" onClick={() => handleAddZone('support')}>
+                S
+              </button>
+              <button type="button" onClick={() => handleAddZone('resistance')}>
+                R
+              </button>
+              <button type="button" onClick={() => handleAddZone('freestyle')}>
+                Freestyle
+              </button>
+              <button type="button" onClick={handleRecomputeDefaults}>
+                Recompute defaults
+              </button>
+
+              <ZoneList zones={zones} onEditPrice={zoneEditing.editZonePrice} onDelete={zoneEditing.removeZone} />
             </>
           )}
         </>

@@ -175,18 +175,18 @@ Work the **frontier**: Ticket 1 can start immediately; Ticket 2 needs Ticket 1 d
 
 **Blocked by:** Dashboard auto support/resistance zones
 
-- [ ] A new database table persists manual/freestyle zones (ticker, range, price, kind) — no migration tool needed, this is a brand-new table under `Base.metadata.create_all`
-- [ ] The chart endpoint returns manual zones (`source: "manual"`) for a ticker+range that has any, and falls back to the existing auto-computed zones (`source: "auto"`) when it doesn't — `points` is unaffected either way
-- [ ] Zone kind widens to include `"freestyle"` alongside `"support"`/`"resistance"`, rendered in a third color distinct from support, resistance, and this app's existing rebalance-severity palette
-- [ ] `strength` is nullable and is always null on a manual or freestyle zone — never a carried-over or fabricated touch count
-- [ ] Clicking S, R, or Freestyle adds a new zone at the ticker's current price
-- [ ] The first edit (an add, in this ticket) to a ticker+range pair that's still on auto zones preserves every other auto zone currently shown, unchanged, alongside the new one — nothing else present on the chart disappears
-- [ ] Once a ticker+range pair has any manual zones, auto-recompute never overwrites them again until explicitly reset
-- [ ] A side list shows every current zone's exact price and kind; auto zones are read-only in this list; manual/freestyle zones have a delete button and an editable price input
-- [ ] Editing a manual zone's price in the list commits on blur or Enter and updates the chart's rendered line
-- [ ] Deleting a manual zone in the list removes it from the chart and from storage
-- [ ] "Recompute defaults" asks for confirmation, then removes every manual zone for the current ticker+range in one action, reverting that pair to auto-computed zones
-- [ ] Switching ticker or range shows that pair's own zone set (auto if untouched, manual if previously edited) — edits to one ticker+range never appear on another
+- [x] A new database table persists manual/freestyle zones (ticker, range, price, kind) — no migration tool needed, this is a brand-new table under `Base.metadata.create_all`
+- [x] The chart endpoint returns manual zones (`source: "manual"`) for a ticker+range that has any, and falls back to the existing auto-computed zones (`source: "auto"`) when it doesn't — `points` is unaffected either way
+- [x] Zone kind widens to include `"freestyle"` alongside `"support"`/`"resistance"`, rendered in a third color distinct from support, resistance, and this app's existing rebalance-severity palette (violet `#8b5cf6`; caught missing in the first pass by the final whole-branch review since `PriceChart.tsx` sat outside all 3 tasks' file lists — fixed post-review)
+- [x] `strength` is nullable and is always null on a manual or freestyle zone — never a carried-over or fabricated touch count (structurally enforced: `ManualZone` has no `strength` column)
+- [x] Clicking S, R, or Freestyle adds a new zone at the ticker's current price
+- [x] The first edit (an add, in this ticket) to a ticker+range pair that's still on auto zones preserves every other auto zone currently shown, unchanged, alongside the new one — nothing else present on the chart disappears
+- [x] Once a ticker+range pair has any manual zones, auto-recompute never overwrites them again until explicitly reset
+- [x] A side list shows every current zone's exact price and kind; auto zones are read-only in this list; manual/freestyle zones have a delete button and an editable price input
+- [x] Editing a manual zone's price in the list commits on blur or Enter and updates the chart's rendered line
+- [x] Deleting a manual zone in the list removes it from the chart and from storage
+- [x] "Recompute defaults" asks for confirmation, then removes every manual zone for the current ticker+range in one action, reverting that pair to auto-computed zones
+- [x] Switching ticker or range shows that pair's own zone set (auto if untouched, manual if previously edited) — edits to one ticker+range never appear on another
 
 ## Drag support/resistance zones directly on the chart
 

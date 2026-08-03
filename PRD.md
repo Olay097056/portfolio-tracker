@@ -230,3 +230,20 @@ Residual ที่เหลือ (Minor, ไม่บล็อก merge, บั
 - bar series ที่ราคาแบนสนิททุกแท่ง (high=low ทุกบาร์ เช่น ticker ที่ถูกระงับซื้อขาย) จะทำให้ทุก bar กลายเป็นทั้ง pivot high และ pivot low พร้อมกัน สุดท้ายรวมเป็น 1 โซนที่ราคาปัจจุบันพอดี พร้อม `strength` เท่ากับจำนวน bar ทั้งหมด — ไม่ error แต่ตัวเลข strength ไม่มีความหมายจริงในกรณีนี้ ควรระวังก่อน phase 3 ใช้ `strength` ไปทำอะไรที่ user เห็นตรงๆ
 - `_fetch_from_provider` วน `history.itertuples()` 4 รอบแยกกัน (highs/lows/closes/points) แทนที่จะวนรอบเดียว — ตรงกับโค้ดที่ plan กำหนดไว้ ไม่ใช่ของที่ implementer เลือกเอง แนะนำให้รวมเป็นรอบเดียวก่อนเริ่ม phase 3 (จะเพิ่ม field มากขึ้นอีก ยิ่งวนหลายรอบยิ่งซิงค์ยาก)
 - test coverage ของ zones ไม่สมมาตร: มี `ZonesProbe` test กันเฉพาะกรณี ticker เปลี่ยน ส่วนกรณี range เปลี่ยนไม่มี test คู่ (แต่ safe เพราะทั้งสองมิติใช้ `chartIdentityKey` เดียวกัน — เป็นช่องว่างด้าน test redundancy ไม่ใช่ความเสี่ยงจริง)
+
+### จาก Dashboard manual S/R zones effort (2026-08-03) — Add/edit/delete manual zones (no drag) merge แล้ว
+
+Ticket "Add, edit, and delete manual support/resistance zones (no drag)" merge เข้า master แล้ว หลัง final review 2 รอบ (รอบ 1 เจอ **Critical 1 เรื่อง** — `PriceChart.tsx` ไม่ได้อยู่ใน scope ของทั้ง 3 tasks เลย เลยไม่ได้ถูกแก้ให้รู้จัก `freestyle` kind หรือ `strength: null` ทำให้ freestyle zone ไม่มีสีแยก (ไปทับกับสี resistance) และ zone ที่ manual ทุกอันขึ้นข้อความ `"S (null)"`/`"R (null)"` บนกราฟจริง — เป็น presentation bug ไม่ใช่การ fabricate `strength` (invariant `strength: null` ยังถูกต้องทุกที่) แต่ user เห็นตั้งแต่ zone แรกที่เพิ่ม, และ Important 2 เรื่อง — double-click race ที่ทำให้ zone หายได้เพราะ `isManual` อ่านจาก state เก่าก่อน refetch เสร็จ, unhandled promise rejection ทุกครั้งที่ mutation fail; รอบ 2 ยืนยันทั้ง 3 เรื่องแก้ถูกจริง (violet `#8b5cf6` แยกจาก teal/amber ชัดเจน, title logic ใช้ `=== null` ไม่ใช่ falsy check เลยไม่พลาดกรณี `strength: 0`, busy-guard reset ใน `finally` ไม่มีทาง stuck — **Ready to merge: Yes**)
+
+Residual ที่เหลือ (ไม่บล็อก merge):
+- **(Important, follow-up)** `runMutation` เรียก `onZonesChanged()` (=`refetch()`) โดยไม่ await — `busy` reset ก่อน refetch (live yfinance round trip ~1s+) จะเสร็จจริง ถ้า user กด S ซ้ำในช่วงนั้น `zones` state ยังเป็นค่าเก่า เลยยังเข้า freeze branch ซ้ำได้ (residual ของ race เดิมที่ Important 2 แก้ไปแล้วบางส่วน ไม่ใช่ bug เดิมกลับมา) — แก้โดยให้ `fetchChartData`/`refetch` คืน promise แล้ว await ใน `runMutation`
+- `has_manual_zones` (`manual_zones_service.py`) มี implementation + test แต่ไม่มีใครเรียกใช้จริง (router เช็ค `list_manual_zones(...)` truthiness แทน) — dead code ที่มี coverage, ลบหรือเอามาใช้แทน
+- `list_manual_zones` ไม่มี `ORDER BY` — ลำดับ zone ใน side list/price line ไม่ guarantee คงที่ข้าม refetch (SQLite row order เป็น incidental)
+- `useZoneEditing`'s `error` ไม่ clear เมื่อ `ticker`/`range` เปลี่ยน — error จาก pair หนึ่งค้างอยู่บนจอหลังสลับไปดู pair อื่นจนกว่าจะมี mutation สำเร็จครั้งถัดไป
+- `ZoneList` price input เป็น uncontrolled (`defaultValue`) keyed แค่ `zone.id` — ถ้า server price ต่างจากที่ user พิมพ์ (edit ถูก reject, หรือ rounding) input จะยังโชว์ค่าเก่าค้างแม้ refetch สำเร็จแล้ว
+- `handleAddZone` no-op เงียบๆเมื่อ `currentPrice === null` (กราฟยังโหลดหรือ error) — ปุ่มไม่มี feedback ใดๆว่าทำไมกดแล้วไม่เกิดอะไร
+- guarded-out mutation call (ตอน `busy`) ถูก drop เงียบๆ — ถ้า disable input ระหว่างโฟกัสอยู่จะ trigger blur เอง เลยมีโอกาสที่ edit-then-delete sequence ทำ delete หาย
+- ticker ไม่ถูก case-normalize ก่อนเก็บ/match กับ `manual_zones` — ตอนนี้ ticker มาจาก dropdown fixed เลยไม่มีความเสี่ยงจริง แต่ถ้าในอนาคตเพิ่ม free-text ticker entry จะทำให้ zone ของ pair เดียวกันแยกกันไปตามตัวพิมพ์ได้
+- ไม่มี test สำหรับ `strength: 0` (แค่ `null` กับเลขบวก) — เป็น edge case ของ title-formatting logic ที่ไม่มี test ปักไว้
+- ไม่มี frontend test สำหรับ AC "สลับ ticker แสดง zone set ของ pair ตัวเองไม่ปนกัน" (backend มี test ครอบคลุมมิติ range แต่ไม่มี GET-level test สำหรับสอง ticker ต่างกัน)
+- real backend + real yfinance smoke test ของทั้ง ticket นี้ยังไม่เคยทำจริง — ทุก task ตรวจผ่าน mock ทั้งหมด

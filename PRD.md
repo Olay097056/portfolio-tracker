@@ -215,3 +215,18 @@ Ticket "Dashboard price chart walking skeleton" merge เข้า master แล
 ### จาก Dashboard price chart effort (2026-08-03) — Ticket 2/2 (range selector) merge แล้ว
 
 Ticket "Dashboard range selector" merge เข้า master แล้ว หลัง final review 2 รอบ (รอบ 1 เจอ Important 2 เรื่อง — ทั้งคู่เป็น coverage gap ที่ยืนยันแล้วว่าไม่ใช่ live bug จริง ไม่ใช่ production defect — และ Minor 3 เรื่อง ทั้งหมดแก้แล้ว, รอบ 2 ยืนยันทุก fix ถูกต้องจริง โดย reviewer reproduce false-positive/false-negative ของ test design ทางเลือกอื่นด้วยตัวเองก่อนยืนยัน — **Ready to merge: Yes**) ไม่มี residual ค้างจาก ticket นี้ นอกจาก `useRef`-vs-`useState` item ด้านบนที่ยกมาจาก Ticket 1
+
+### จาก Dashboard price chart effort (2026-08-03) — Auto support/resistance zones (phase 2/3) merge แล้ว
+
+Ticket "Dashboard auto support/resistance zones" merge เข้า master แล้ว หลัง final review รอบเดียว (**Ready to merge: Yes** ไม่มี Critical/Important เลย) — Task 3 (frontend) มี fix-and-re-review ย่อยระหว่างทางหนึ่งรอบ: test แรกที่เขียนไว้กัน stale-zone-across-remount ใช้ `result.current.zones` เช็คตรงๆ ซึ่งพิสูจน์แล้วว่าแยกไม่ออกระหว่าง render-phase reset กับ effect-based reset (จุดอ่อนเดียวกับที่ `ErrorProbe` ถูกสร้างมาแก้ให้ `error` อยู่แล้ว) แก้โดยเพิ่ม `ZonesProbe` test แบบเดียวกับ `ErrorProbe` แทน
+
+แก้ไปแล้วหลัง final review (2 จาก 6 Minor findings):
+- ~~cap 3 โซนต่อฝั่งไม่มี test ยืนยันว่า cap แยกกันจริง (ไม่ใช่ cap รวม 3)~~ — เพิ่ม `test_select_zones_caps_each_side_independently` แล้ว
+- ~~comment เหนือ render-phase reset block ใน `useChartData.ts` พูดถึงแค่ `points` ทั้งที่ตอนนี้ reset 3 field (`points`/`error`/`zones`)~~ — แก้ comment ให้ครอบคลุมทั้ง 3 field แล้ว
+
+Residual ที่เหลือ (Minor, ไม่บล็อก merge, บันทึกไว้เฉยๆ):
+- `_cluster_pivots` หารด้วย `cluster_avg` โดยไม่มี guard กัน division-by-zero — ไม่ reachable จริงสำหรับหุ้น/ETF (ราคา 0 แทบเป็นไปไม่ได้) แต่ยังไม่มี guard
+- `find_support_resistance_zones` guard แค่ `highs`/`closes` ไม่ guard `lows` — ถ้า `lows` สั้นกว่า `highs` จะ `IndexError` แต่ตอนนี้ไม่ reachable เพราะ `_fetch_from_provider` สร้างทั้งสามจาก DataFrame เดียวกันเสมอ (และ exception ก็ถูก catch เป็น "unavailable" อยู่ดี ไม่ใช่ 500)
+- bar series ที่ราคาแบนสนิททุกแท่ง (high=low ทุกบาร์ เช่น ticker ที่ถูกระงับซื้อขาย) จะทำให้ทุก bar กลายเป็นทั้ง pivot high และ pivot low พร้อมกัน สุดท้ายรวมเป็น 1 โซนที่ราคาปัจจุบันพอดี พร้อม `strength` เท่ากับจำนวน bar ทั้งหมด — ไม่ error แต่ตัวเลข strength ไม่มีความหมายจริงในกรณีนี้ ควรระวังก่อน phase 3 ใช้ `strength` ไปทำอะไรที่ user เห็นตรงๆ
+- `_fetch_from_provider` วน `history.itertuples()` 4 รอบแยกกัน (highs/lows/closes/points) แทนที่จะวนรอบเดียว — ตรงกับโค้ดที่ plan กำหนดไว้ ไม่ใช่ของที่ implementer เลือกเอง แนะนำให้รวมเป็นรอบเดียวก่อนเริ่ม phase 3 (จะเพิ่ม field มากขึ้นอีก ยิ่งวนหลายรอบยิ่งซิงค์ยาก)
+- test coverage ของ zones ไม่สมมาตร: มี `ZonesProbe` test กันเฉพาะกรณี ticker เปลี่ยน ส่วนกรณี range เปลี่ยนไม่มี test คู่ (แต่ safe เพราะทั้งสองมิติใช้ `chartIdentityKey` เดียวกัน — เป็นช่องว่างด้าน test redundancy ไม่ใช่ความเสี่ยงจริง)

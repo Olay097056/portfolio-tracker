@@ -19,7 +19,7 @@ export function DashboardPage() {
   const { tickers, loading: tickersLoading, error: tickersError } = useDashboardTickers();
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
   const [range, setRange] = useState<ChartRange>('1Y');
-  const { points, loading, error } = useChartData(selectedTicker, range);
+  const { points, loading, error, zones } = useChartData(selectedTicker, range);
 
   return (
     <div>
@@ -54,7 +54,7 @@ export function DashboardPage() {
                 ))}
               </select>
 
-              <PriceChart key={chartIdentityKey(selectedTicker, range)} points={points} loading={loading} error={error} />
+              <PriceChart key={chartIdentityKey(selectedTicker, range)} points={points} loading={loading} error={error} zones={zones} />
             </>
           )}
         </>

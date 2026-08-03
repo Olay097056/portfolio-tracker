@@ -23,7 +23,7 @@ describe('useChartData', () => {
 
   it('fetches and stores points once a ticker is provided', async () => {
     const points = [{ time: '2026-01-02', close: 100 }];
-    vi.spyOn(client, 'getChartData').mockResolvedValue({ points });
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points, zones: [] });
 
     const { result } = renderHook(() => useChartData('VTI', '1Y'));
 
@@ -35,8 +35,8 @@ describe('useChartData', () => {
 
   it('refetches when the ticker changes', async () => {
     vi.spyOn(client, 'getChartData')
-      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', close: 100 }] })
-      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', close: 400 }] });
+      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', close: 100 }], zones: [] })
+      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', close: 400 }], zones: [] });
 
     const { result, rerender } = renderHook(({ ticker }) => useChartData(ticker, '1Y'), {
       initialProps: { ticker: 'VTI' as string | null },
@@ -50,7 +50,7 @@ describe('useChartData', () => {
   });
 
   it('sets an explicit error and null points when the API reports the ticker unavailable', async () => {
-    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: null });
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: null, zones: [] });
 
     const { result } = renderHook(() => useChartData('BADTICKER', '1Y'));
 
@@ -76,7 +76,7 @@ describe('useChartData', () => {
     });
     vi.spyOn(client, 'getChartData')
       .mockReturnValueOnce(firstPromise as Promise<client.ChartData>)
-      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', close: 400 }] });
+      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', close: 400 }], zones: [] });
 
     const { result, rerender } = renderHook(({ ticker }) => useChartData(ticker, '1Y'), {
       initialProps: { ticker: 'VTI' as string | null },
@@ -97,7 +97,7 @@ describe('useChartData', () => {
       resolveSecond = resolve;
     });
     vi.spyOn(client, 'getChartData')
-      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', close: 100 }] })
+      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', close: 100 }], zones: [] })
       .mockReturnValueOnce(secondPromise as Promise<client.ChartData>);
 
     const { result, rerender } = renderHook(({ ticker }) => useChartData(ticker, '1Y'), {
@@ -162,7 +162,7 @@ describe('useChartData', () => {
       resolveSecond = resolve;
     });
     vi.spyOn(client, 'getChartData')
-      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', close: 100 }] })
+      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', close: 100 }], zones: [] })
       .mockReturnValueOnce(secondPromise as Promise<client.ChartData>);
 
     const { result, rerender } = renderHook(({ ticker, range }) => useChartData(ticker, range), {
@@ -177,5 +177,41 @@ describe('useChartData', () => {
 
     resolveSecond({ points: [{ time: '2026-01-02', close: 400 }] });
     await waitFor(() => expect(result.current.points).toEqual([{ time: '2026-01-02', close: 400 }]));
+  });
+
+  it('fetches and stores zones alongside points', async () => {
+    const points = [{ time: '2026-01-02', close: 100 }];
+    const zones = [{ price: 95, kind: 'support' as const, strength: 3, source: 'auto' as const }];
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points, zones });
+
+    const { result } = renderHook(() => useChartData('VTI', '1Y'));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.zones).toEqual(zones);
+  });
+
+  it('clears zones immediately when the ticker changes, before the new fetch resolves', async () => {
+    let resolveSecond!: (value: client.ChartData) => void;
+    const secondPromise = new Promise<client.ChartData>((resolve) => {
+      resolveSecond = resolve;
+    });
+    vi.spyOn(client, 'getChartData')
+      .mockResolvedValueOnce({
+        points: [{ time: '2026-01-02', close: 100 }],
+        zones: [{ price: 95, kind: 'support', strength: 3, source: 'auto' }],
+      })
+      .mockReturnValueOnce(secondPromise);
+
+    const { result, rerender } = renderHook(({ ticker }) => useChartData(ticker, '1Y'), {
+      initialProps: { ticker: 'VTI' as string | null },
+    });
+    await waitFor(() => expect(result.current.zones.length).toBe(1));
+
+    rerender({ ticker: 'SPY' });
+
+    expect(result.current.zones).toEqual([]);
+
+    resolveSecond({ points: [], zones: [] });
+    await waitFor(() => expect(result.current.loading).toBe(false));
   });
 });

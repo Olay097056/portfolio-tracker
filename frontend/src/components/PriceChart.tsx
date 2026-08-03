@@ -1,17 +1,30 @@
 // frontend/src/components/PriceChart.tsx
-import { createChart, LineSeries, type IChartApi, type ISeriesApi, type Time, type UTCTimestamp } from 'lightweight-charts';
+import {
+  createChart,
+  LineSeries,
+  type IChartApi,
+  type IPriceLine,
+  type ISeriesApi,
+  type Time,
+  type UTCTimestamp,
+} from 'lightweight-charts';
 import { useEffect, useRef } from 'react';
-import type { ChartPoint } from '../api/types';
+import type { ChartPoint, Zone } from '../api/types';
+
+const SUPPORT_COLOR = '#14b8a6'; // teal — visually distinct from this app's rebalance-severity green/yellow/red
+const RESISTANCE_COLOR = '#f59e0b'; // amber — visually distinct from this app's rebalance-severity green/yellow/red
 
 interface PriceChartProps {
   points: ChartPoint[] | null;
   loading: boolean;
   error: string | null;
+  zones: Zone[];
 }
 
-export function PriceChart({ points, loading, error }: PriceChartProps) {
+export function PriceChart({ points, loading, error, zones }: PriceChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const seriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const priceLinesRef = useRef<IPriceLine[]>([]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -36,6 +49,18 @@ export function PriceChart({ points, loading, error }: PriceChartProps) {
       })),
     );
   }, [points]);
+
+  useEffect(() => {
+    if (seriesRef.current === null) return;
+    priceLinesRef.current.forEach((line) => seriesRef.current!.removePriceLine(line));
+    priceLinesRef.current = zones.map((zone) =>
+      seriesRef.current!.createPriceLine({
+        price: zone.price,
+        color: zone.kind === 'support' ? SUPPORT_COLOR : RESISTANCE_COLOR,
+        title: `${zone.kind === 'support' ? 'S' : 'R'} (${zone.strength})`,
+      }),
+    );
+  }, [zones]);
 
   return (
     <div>

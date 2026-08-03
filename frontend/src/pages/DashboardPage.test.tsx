@@ -63,7 +63,7 @@ describe('DashboardPage', () => {
   it('fetches and renders the chart for the ticker once selected', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
-    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }] });
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }], zones: [] });
 
     render(<DashboardPage />);
     await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
@@ -79,7 +79,7 @@ describe('DashboardPage', () => {
       { id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' },
       { id: 2, ticker: 'MSFT', category: null, created_at: '2026-01-01T00:00:00Z' },
     ]);
-    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }] });
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }], zones: [] });
 
     const firstRemove = vi.fn();
     const secondRemove = vi.fn();
@@ -112,7 +112,7 @@ describe('DashboardPage', () => {
       { id: 2, ticker: 'MSFT', category: null, created_at: '2026-01-01T00:00:00Z' },
     ]);
     vi.spyOn(client, 'getChartData')
-      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', close: 100 }] })
+      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', close: 100 }], zones: [] })
       .mockRejectedValueOnce(new client.ApiError(502, 'upstream error'));
 
     const firstSetData = vi.fn();
@@ -146,7 +146,7 @@ describe('DashboardPage', () => {
   it('shows a range selector once a ticker is selected, defaulting to 1 year', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
-    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }] });
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }], zones: [] });
 
     render(<DashboardPage />);
     await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
@@ -161,7 +161,7 @@ describe('DashboardPage', () => {
   it('refetches with the new range when the range selector changes', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
-    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }] });
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }], zones: [] });
 
     render(<DashboardPage />);
     await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
@@ -182,7 +182,7 @@ describe('DashboardPage', () => {
   it('remounts the chart when only the range changes for the same ticker', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
-    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }] });
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }], zones: [] });
 
     const firstRemove = vi.fn();
     const secondRemove = vi.fn();
@@ -216,7 +216,7 @@ describe('DashboardPage', () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData')
-      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', close: 100 }] })
+      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', close: 100 }], zones: [] })
       .mockRejectedValueOnce(new client.ApiError(502, 'upstream error'));
 
     const firstSetData = vi.fn();
@@ -260,5 +260,25 @@ describe('DashboardPage', () => {
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('backend is down'));
     expect(screen.queryByText(/no tickers to chart/i)).not.toBeInTheDocument();
+  });
+
+  it('passes zones from the fetch through to the chart', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+    const createPriceLine = vi.fn();
+    vi.mocked(createChart).mockReturnValue({
+      addSeries: vi.fn(() => ({ setData: vi.fn(), createPriceLine, removePriceLine: vi.fn() })),
+      remove: vi.fn(),
+    } as unknown as ReturnType<typeof createChart>);
+    vi.spyOn(client, 'getChartData').mockResolvedValue({
+      points: [{ time: '2026-01-02', close: 100 }],
+      zones: [{ price: 95, kind: 'support', strength: 3, source: 'auto' }],
+    });
+
+    render(<DashboardPage />);
+    await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+
+    await waitFor(() => expect(createPriceLine).toHaveBeenCalledWith(expect.objectContaining({ price: 95 })));
   });
 });

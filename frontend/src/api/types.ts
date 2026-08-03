@@ -132,6 +132,14 @@ export interface ChartPoint {
   close: number;
 }
 
+export interface Zone {
+  price: number;
+  kind: 'support' | 'resistance';
+  strength: number;
+  source: 'auto';
+}
+
 export interface ChartData {
   points: ChartPoint[] | null;
+  zones: Zone[];
 }

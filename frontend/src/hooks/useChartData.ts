@@ -1,7 +1,7 @@
 // frontend/src/hooks/useChartData.ts
 import { useEffect, useRef, useState } from 'react';
 import { getChartData } from '../api/client';
-import type { ChartPoint, ChartRange } from '../api/types';
+import type { ChartPoint, ChartRange, Zone } from '../api/types';
 
 function toMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
@@ -15,6 +15,7 @@ export function useChartData(ticker: string | null, range: ChartRange) {
   const [points, setPoints] = useState<ChartPoint[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [zones, setZones] = useState<Zone[]>([]);
   // Each fetch is tagged with an incrementing id. A response is only applied if it's still the
   // most recent request in flight — otherwise a slow, abandoned request for a since-replaced
   // ticker could land after a newer one and relabel the chart with the wrong ticker's data.
@@ -37,6 +38,7 @@ export function useChartData(ticker: string | null, range: ChartRange) {
     prevKeyRef.current = currentKey;
     setPoints(null);
     setError(null);
+    setZones([]);
   }
 
   useEffect(() => {
@@ -44,6 +46,7 @@ export function useChartData(ticker: string | null, range: ChartRange) {
       setPoints(null);
       setLoading(false);
       setError(null);
+      setZones([]);
       return;
     }
 
@@ -60,11 +63,13 @@ export function useChartData(ticker: string | null, range: ChartRange) {
         } else {
           setPoints(data.points);
         }
+        setZones(data.zones);
       })
       .catch((err) => {
         if (requestId.current !== thisRequestId) return;
         setPoints(null);
         setError(toMessage(err));
+        setZones([]);
       })
       .finally(() => {
         if (requestId.current !== thisRequestId) return;
@@ -72,7 +77,7 @@ export function useChartData(ticker: string | null, range: ChartRange) {
       });
   }, [ticker, range]);
 
-  return { points, loading, error };
+  return { points, loading, error, zones };
 }
 
 export type ChartDataState = ReturnType<typeof useChartData>;

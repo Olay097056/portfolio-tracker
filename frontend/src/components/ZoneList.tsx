@@ -25,7 +25,7 @@ export function ZoneList({ zones, onEditPrice, onDelete, disabled = false }: Zon
       </thead>
       <tbody>
         {zones.map((zone) => (
-          <tr key={zone.id ?? `auto-${zone.kind}-${zone.price}`}>
+          <tr key={zone.id !== null ? `${zone.id}-${zone.price}` : `auto-${zone.kind}-${zone.price}`}>
             <td>
               {zone.source === 'manual' && zone.id !== null ? (
                 <input

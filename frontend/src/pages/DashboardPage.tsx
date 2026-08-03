@@ -1,6 +1,6 @@
 // frontend/src/pages/DashboardPage.tsx
 import { useState } from 'react';
-import type { ChartRange } from '../api/types';
+import type { ChartRange, Zone } from '../api/types';
 import { PriceChart } from '../components/PriceChart';
 import { ZoneList } from '../components/ZoneList';
 import { chartIdentityKey, useChartData } from '../hooks/useChartData';
@@ -23,6 +23,8 @@ export function DashboardPage() {
   const [range, setRange] = useState<ChartRange>('1Y');
   const { points, loading, error, zones, refetch } = useChartData(selectedTicker, range);
   const zoneEditing = useZoneEditing(selectedTicker, range, zones, refetch);
+  const [dragPreview, setDragPreview] = useState<{ zone: Zone; price: number } | null>(null);
+  const displayZones = dragPreview === null ? zones : zones.map((z) => (z === dragPreview.zone ? { ...z, price: dragPreview.price } : z));
 
   const currentPrice = points !== null && points.length > 0 ? points[points.length - 1].close : null;
 
@@ -71,7 +73,19 @@ export function DashboardPage() {
                 ))}
               </select>
 
-              <PriceChart key={chartIdentityKey(selectedTicker, range)} points={points} loading={loading} error={error} zones={zones} />
+              <PriceChart
+                key={chartIdentityKey(selectedTicker, range)}
+                points={points}
+                loading={loading}
+                error={error}
+                zones={zones}
+                onZoneDragMove={(zone, price) => setDragPreview({ zone, price })}
+                onZoneDragEnd={(zone, price) => {
+                  setDragPreview(null);
+                  void zoneEditing.dragZonePrice(zone, price);
+                }}
+                disabled={zoneEditing.busy}
+              />
 
               {zoneEditing.error && <div role="alert">{zoneEditing.error}</div>}
 
@@ -89,7 +103,7 @@ export function DashboardPage() {
               </button>
 
               <ZoneList
-                zones={zones}
+                zones={displayZones}
                 onEditPrice={zoneEditing.editZonePrice}
                 onDelete={zoneEditing.removeZone}
                 disabled={zoneEditing.busy}

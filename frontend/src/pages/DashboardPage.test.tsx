@@ -423,4 +423,115 @@ describe('DashboardPage', () => {
 
     await waitFor(() => expect(deleteSpy).toHaveBeenCalledWith(1));
   });
+
+  it('dragging a zone updates the zone list price live, then commits via dragZonePrice on mouseup', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+    vi.spyOn(client, 'getChartData').mockResolvedValue({
+      points: [{ time: '2026-01-02', close: 100 }],
+      zones: [{ id: 1, price: 95, kind: 'support', strength: null, source: 'manual' }],
+    });
+    const updateSpy = vi
+      .spyOn(client, 'updateZone')
+      .mockResolvedValue({ id: 1, price: 160, kind: 'support', strength: null, source: 'manual' });
+    const priceLine = { applyOptions: vi.fn() };
+    const createPriceLine = vi.fn(() => priceLine);
+    const priceToCoordinate = vi.fn((price: number) => (price === 95 ? 50 : null));
+    const coordinateToPrice = vi.fn((y: number) => 200 - y);
+    vi.mocked(createChart).mockReturnValue({
+      addSeries: vi.fn(() => ({ setData: vi.fn(), createPriceLine, removePriceLine: vi.fn(), priceToCoordinate, coordinateToPrice })),
+      remove: vi.fn(),
+    } as unknown as ReturnType<typeof createChart>);
+
+    render(<DashboardPage />);
+    await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+    await waitFor(() => expect(screen.getByLabelText('support zone price')).toBeInTheDocument());
+    expect(screen.getByLabelText('support zone price')).toHaveValue(95);
+
+    fireEvent.mouseDown(screen.getByTestId('price-chart'), { clientY: 50 });
+    fireEvent.mouseMove(window, { clientY: 43 });
+
+    expect(screen.getByLabelText('support zone price')).toHaveValue(157);
+
+    fireEvent.mouseUp(window, { clientY: 40 });
+
+    await waitFor(() => expect(updateSpy).toHaveBeenCalledWith(1, 160));
+  });
+
+  it('disables chart dragging while a zone mutation is already in flight', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+    vi.spyOn(client, 'getChartData').mockResolvedValue({
+      points: [{ time: '2026-01-02', close: 100 }],
+      zones: [{ id: 1, price: 95, kind: 'support', strength: null, source: 'manual' }],
+    });
+    let resolveDelete: () => void;
+    vi.spyOn(client, 'deleteZone').mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveDelete = resolve;
+      }),
+    );
+    const updateSpy = vi.spyOn(client, 'updateZone');
+    const priceLine = { applyOptions: vi.fn() };
+    const createPriceLine = vi.fn(() => priceLine);
+    const priceToCoordinate = vi.fn((price: number) => (price === 95 ? 50 : null));
+    const coordinateToPrice = vi.fn((y: number) => 200 - y);
+    vi.mocked(createChart).mockReturnValue({
+      addSeries: vi.fn(() => ({ setData: vi.fn(), createPriceLine, removePriceLine: vi.fn(), priceToCoordinate, coordinateToPrice })),
+      remove: vi.fn(),
+    } as unknown as ReturnType<typeof createChart>);
+
+    render(<DashboardPage />);
+    await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+    await waitFor(() => expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /delete/i }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /^s$/i })).toBeDisabled());
+
+    fireEvent.mouseDown(screen.getByTestId('price-chart'), { clientY: 50 });
+    fireEvent.mouseUp(window, { clientY: 40 });
+
+    expect(updateSpy).not.toHaveBeenCalled();
+
+    resolveDelete!();
+  });
+
+  it('dragging an auto zone freezes the whole zone set with the dragged zone at its new price', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+    vi.spyOn(client, 'getChartData').mockResolvedValue({
+      points: [{ time: '2026-01-02', close: 100 }],
+      zones: [
+        { id: null, price: 95, kind: 'support', strength: 3, source: 'auto' },
+        { id: null, price: 110, kind: 'resistance', strength: 2, source: 'auto' },
+      ],
+    });
+    const freezeSpy = vi.spyOn(client, 'freezeZones').mockResolvedValue([]);
+    const priceLine = { applyOptions: vi.fn() };
+    const createPriceLine = vi.fn(() => priceLine);
+    const priceToCoordinate = vi.fn((price: number) => (price === 95 ? 50 : price === 110 ? 20 : null));
+    const coordinateToPrice = vi.fn((y: number) => 200 - y);
+    vi.mocked(createChart).mockReturnValue({
+      addSeries: vi.fn(() => ({ setData: vi.fn(), createPriceLine, removePriceLine: vi.fn(), priceToCoordinate, coordinateToPrice })),
+      remove: vi.fn(),
+    } as unknown as ReturnType<typeof createChart>);
+
+    render(<DashboardPage />);
+    await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+    await waitFor(() => expect(screen.getByTestId('price-chart')).toBeInTheDocument());
+    await waitFor(() => expect(createPriceLine).toHaveBeenCalledTimes(2));
+
+    fireEvent.mouseDown(screen.getByTestId('price-chart'), { clientY: 50 });
+    fireEvent.mouseUp(window, { clientY: 40 });
+
+    await waitFor(() =>
+      expect(freezeSpy).toHaveBeenCalledWith('AAPL', '1Y', [
+        { kind: 'support', price: 160 },
+        { kind: 'resistance', price: 110 },
+      ]),
+    );
+  });
 });

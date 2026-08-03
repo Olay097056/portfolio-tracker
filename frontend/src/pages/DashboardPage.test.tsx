@@ -173,6 +173,12 @@ describe('DashboardPage', () => {
     await waitFor(() => expect(client.getChartData).toHaveBeenCalledWith('AAPL', '5Y'));
   });
 
+  // Paired with the 'never draws the previous range stale data' test below — this one proves the
+  // key/remount half of the range-change fix (that changing range alone produces a fresh chart
+  // instance), that one proves the points-reset half (that the fresh instance never gets fed the
+  // outgoing range's stale data). Neither test alone proves both halves are correct: if the
+  // points-reset half regressed, this test would still pass since it only checks that remounting
+  // happens, not what data the new instance receives.
   it('remounts the chart when only the range changes for the same ticker', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
@@ -201,6 +207,11 @@ describe('DashboardPage', () => {
     expect(firstRemove).toHaveBeenCalledTimes(1);
   });
 
+  // Paired with the 'remounts the chart when only the range changes' test above — this one proves
+  // the points-reset half of the range-change fix, that one proves the key/remount half. This test
+  // would pass vacuously (with no real coverage) if only the key/remount half were reverted: a
+  // chart that never remounts also never gets a second chart instance for the
+  // `secondSetData.not.toHaveBeenCalled()` assertion below to check.
   it('never draws the previous range stale data onto the freshly-remounted chart when the new range fetch fails', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);

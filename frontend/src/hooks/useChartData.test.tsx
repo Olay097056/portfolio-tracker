@@ -1,5 +1,5 @@
 // frontend/src/hooks/useChartData.test.tsx
-import { renderHook, waitFor } from '@testing-library/react';
+import { render, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as client from '../api/client';
 import type { ChartRange } from '../api/types';
@@ -112,6 +112,48 @@ describe('useChartData', () => {
 
     resolveSecond({ points: [{ time: '2026-01-02', close: 400 }] });
     await waitFor(() => expect(result.current.points).toEqual([{ time: '2026-01-02', close: 400 }]));
+  });
+
+  it('never commits a render for the new ticker that still carries the outgoing ticker error', async () => {
+    // The effect body already clears `error` unconditionally on every ticker/range change, so
+    // reading `result.current.error` right after a plain rerender() would pass even without the
+    // render-phase reset — testing-library's act() flushes the effect synchronously too, by which
+    // point error is already cleared either way. That check can't tell the two implementations
+    // apart.
+    //
+    // What actually distinguishes them is what a REAL CHILD COMPONENT sees at its first commit.
+    // React's "call setState during render" trick (used by the render-phase reset) discards and
+    // retries the *calling* component's own function body before any child ever renders — so if
+    // the reset runs, a child never sees the stale value, full stop. Without the reset, there's no
+    // retry: the parent's function body runs exactly once with the stale `error` still in state,
+    // and that stale value is what gets baked into the child's props at the one and only commit —
+    // which is exactly the "outgoing ticker's error momentarily visible in a freshly-remounted
+    // child" bug this finding describes. So the probe below has to be a distinct child component,
+    // not just a value read out of the hook.
+    const seenErrors: (string | null)[] = [];
+
+    function ErrorProbe({ error }: { error: string | null }) {
+      seenErrors.push(error);
+      return null;
+    }
+
+    function Harness({ ticker }: { ticker: string | null }) {
+      const { error } = useChartData(ticker, '1Y');
+      return <ErrorProbe error={error} />;
+    }
+
+    vi.spyOn(client, 'getChartData')
+      .mockRejectedValueOnce(new client.ApiError(502, 'upstream error'))
+      .mockReturnValueOnce(new Promise<client.ChartData>(() => {})); // never resolves
+
+    const { rerender } = render(<Harness ticker="VTI" />);
+    await waitFor(() => expect(seenErrors).toContain('upstream error'));
+
+    seenErrors.length = 0;
+    rerender(<Harness ticker="SPY" />);
+
+    // The child's very first commit for the new ticker must not carry the old error.
+    expect(seenErrors[0]).toBeNull();
   });
 
   it('clears points immediately when the range changes for the same ticker, before the new fetch resolves', async () => {

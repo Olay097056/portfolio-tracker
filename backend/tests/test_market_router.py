@@ -82,6 +82,18 @@ def test_get_chart_accepts_all_seven_ranges(client):
         mock_get_chart_data.assert_called_once_with("VTI", range_)
 
 
+def test_get_chart_preserves_integer_time_for_intraday_points(client):
+    points = [{"time": 1735808400, "close": 100.0}]
+
+    with patch("app.routers.market.get_chart_data", return_value=points):
+        response = client.get("/market/chart?ticker=VTI&range=1D")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["points"][0]["time"] == 1735808400
+    assert isinstance(body["points"][0]["time"], int)
+
+
 def test_get_chart_rejects_an_invalid_range(client):
     response = client.get("/market/chart?ticker=VTI&range=3Y")
 

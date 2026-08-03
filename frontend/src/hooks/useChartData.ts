@@ -7,6 +7,10 @@ function toMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
+export function chartIdentityKey(ticker: string | null, range: ChartRange): string {
+  return `${ticker ?? ''}|${range}`;
+}
+
 export function useChartData(ticker: string | null, range: ChartRange) {
   const [points, setPoints] = useState<ChartPoint[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -27,11 +31,12 @@ export function useChartData(ticker: string | null, range: ChartRange) {
   // clear points just as reliably as switching ticker does, for the exact same reason (see the
   // comment above the useEffect below): a remounted PriceChart's own mount effect runs before
   // this hook's effect can clear stale data, so the reset must happen synchronously during render.
-  const prevKeyRef = useRef(`${ticker ?? ''}|${range}`);
-  const currentKey = `${ticker ?? ''}|${range}`;
+  const prevKeyRef = useRef(chartIdentityKey(ticker, range));
+  const currentKey = chartIdentityKey(ticker, range);
   if (prevKeyRef.current !== currentKey) {
     prevKeyRef.current = currentKey;
     setPoints(null);
+    setError(null);
   }
 
   useEffect(() => {

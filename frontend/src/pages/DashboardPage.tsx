@@ -1,7 +1,7 @@
 // frontend/src/pages/DashboardPage.tsx
 import { useState } from 'react';
 import { PriceChart } from '../components/PriceChart';
-import { useChartData } from '../hooks/useChartData';
+import { chartIdentityKey, useChartData } from '../hooks/useChartData';
 import { useDashboardTickers } from '../hooks/useDashboardTickers';
 import type { ChartRange } from '../api/types';
 
@@ -54,7 +54,7 @@ export function DashboardPage() {
                 ))}
               </select>
 
-              <PriceChart key={`${selectedTicker}|${range}`} points={points} loading={loading} error={error} />
+              <PriceChart key={chartIdentityKey(selectedTicker, range)} points={points} loading={loading} error={error} />
             </>
           )}
         </>

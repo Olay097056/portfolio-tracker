@@ -250,6 +250,12 @@ def test_fetch_from_provider_uses_unix_timestamps_for_intraday_ranges(monkeypatc
     assert all(isinstance(point["time"], int) for point in result)
 
 
+def test_every_chart_range_has_a_mapping_row():
+    from typing import get_args
+
+    assert set(get_args(chart_service.ChartRange)) == set(chart_service.RANGE_TO_YFINANCE)
+
+
 def test_fetch_from_provider_uses_date_strings_for_the_weekly_range(monkeypatch):
     import pandas as pd
 

@@ -194,7 +194,7 @@ Work the **frontier**: Ticket 1 can start immediately; Ticket 2 needs Ticket 1 d
 
 **Blocked by:** Add, edit, and delete manual support/resistance zones (no drag)
 
-- [ ] Clicking and holding near a rendered zone line on the chart, then moving the mouse, repositions that line's on-screen price live, with no backend call per pixel moved
-- [ ] Releasing the mouse commits the final price exactly once — a move call if the ticker+range pair is already manual, or the same freeze-and-preserve-the-rest behavior as the previous ticket if this is the first edit for that pair
-- [ ] Dragging an auto zone (first edit for that pair) preserves every other zone currently shown, the same guarantee the previous ticket's add path already has
-- [ ] The side list's price value updates live as a zone is dragged, staying in sync with what's rendered on the chart
+- [x] Clicking and holding near a rendered zone line on the chart, then moving the mouse, repositions that line's on-screen price live, with no backend call per pixel moved
+- [x] Releasing the mouse commits the final price exactly once — a move call if the ticker+range pair is already manual, or the same freeze-and-preserve-the-rest behavior as the previous ticket if this is the first edit for that pair
+- [x] Dragging an auto zone (first edit for that pair) preserves every other zone currently shown, the same guarantee the previous ticket's add path already has
+- [x] The side list's price value updates live as a zone is dragged, staying in sync with what's rendered on the chart (uncontrolled price input's `key` widened to include price so it actually re-displays)

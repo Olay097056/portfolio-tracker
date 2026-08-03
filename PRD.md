@@ -240,10 +240,24 @@ Residual ที่เหลือ (ไม่บล็อก merge):
 - `has_manual_zones` (`manual_zones_service.py`) มี implementation + test แต่ไม่มีใครเรียกใช้จริง (router เช็ค `list_manual_zones(...)` truthiness แทน) — dead code ที่มี coverage, ลบหรือเอามาใช้แทน
 - `list_manual_zones` ไม่มี `ORDER BY` — ลำดับ zone ใน side list/price line ไม่ guarantee คงที่ข้าม refetch (SQLite row order เป็น incidental)
 - `useZoneEditing`'s `error` ไม่ clear เมื่อ `ticker`/`range` เปลี่ยน — error จาก pair หนึ่งค้างอยู่บนจอหลังสลับไปดู pair อื่นจนกว่าจะมี mutation สำเร็จครั้งถัดไป
-- `ZoneList` price input เป็น uncontrolled (`defaultValue`) keyed แค่ `zone.id` — ถ้า server price ต่างจากที่ user พิมพ์ (edit ถูก reject, หรือ rounding) input จะยังโชว์ค่าเก่าค้างแม้ refetch สำเร็จแล้ว
+- ~~`ZoneList` price input เป็น uncontrolled (`defaultValue`) keyed แค่ `zone.id`~~ — **แก้แล้วใน "Drag support/resistance zones" ticket (2026-08-03)**: key ขยายเป็น `${zone.id}-${zone.price}` แล้ว ทำให้ input re-display ค่าใหม่ทั้งตอน live-drag preview และหลัง server-confirmed edit
 - `handleAddZone` no-op เงียบๆเมื่อ `currentPrice === null` (กราฟยังโหลดหรือ error) — ปุ่มไม่มี feedback ใดๆว่าทำไมกดแล้วไม่เกิดอะไร
 - guarded-out mutation call (ตอน `busy`) ถูก drop เงียบๆ — ถ้า disable input ระหว่างโฟกัสอยู่จะ trigger blur เอง เลยมีโอกาสที่ edit-then-delete sequence ทำ delete หาย
 - ticker ไม่ถูก case-normalize ก่อนเก็บ/match กับ `manual_zones` — ตอนนี้ ticker มาจาก dropdown fixed เลยไม่มีความเสี่ยงจริง แต่ถ้าในอนาคตเพิ่ม free-text ticker entry จะทำให้ zone ของ pair เดียวกันแยกกันไปตามตัวพิมพ์ได้
 - ไม่มี test สำหรับ `strength: 0` (แค่ `null` กับเลขบวก) — เป็น edge case ของ title-formatting logic ที่ไม่มี test ปักไว้
 - ไม่มี frontend test สำหรับ AC "สลับ ticker แสดง zone set ของ pair ตัวเองไม่ปนกัน" (backend มี test ครอบคลุมมิติ range แต่ไม่มี GET-level test สำหรับสอง ticker ต่างกัน)
 - real backend + real yfinance smoke test ของทั้ง ticket นี้ยังไม่เคยทำจริง — ทุก task ตรวจผ่าน mock ทั้งหมด
+
+### จาก Dashboard drag S/R zones effort (2026-08-03) — Drag support/resistance zones directly on the chart merge แล้ว
+
+Ticket "Drag support/resistance zones directly on the chart" merge เข้า master แล้ว หลัง final review 2 รอบ (รอบ 1 verdict "Ready to merge" แต่พบ **Important 2 เรื่องที่แนะนำให้แก้ก่อน**: I1/I2 — commit ที่ถูก busy-guard silently drop หรือ mutation fail ทำให้เส้นราคาบนกราฟค้างที่ราคาที่ไม่เคย persist จริง โดย list กับกราฟไม่ตรงกันแบบเงียบๆ (ไม่มี error, ไม่มี resync); I3 — การลากเส้น zone แทบจะแน่นอนว่าไป pan/scale กราฟไปด้วย เพราะ `mousedown` listener อยู่บน container แบบ bubble phase ซึ่งช้ากว่า listener ของ `lightweight-charts` เองที่ผูกกับ canvas ข้างใน; แก้ทั้ง 3 ข้อในคอมมิตเดียว (reset เส้นกลับไปที่ราคาเดิมแบบ unconditional ที่ `mouseup` ก่อนยิง commit + ย้าย listener ไป capture phase พร้อม `preventDefault`/`stopPropagation` เฉพาะตอน hit จริง ไม่ใช่ตอนคลิกพื้นที่ว่าง) — รอบ 2 ยืนยันทั้ง 3 แก้ถูกจริง โดย reviewer revert โค้ดกลับไปเช็คว่า test ที่เพิ่มมา fail จริงก่อน confirm — **Ready to merge: Yes**, 312/312 frontend + 208/208 backend)
+
+Residual ที่เหลือ (Minor, ไม่บล็อก merge):
+- **I3's fix ยังไม่เคย verify กับ `lightweight-charts` ตัวจริง** (mocked ทั้งหมดใน test suite) — แนะนำให้ทำ manual browser smoke test ก่อนถือว่า drag ผ่านการยืนยัน end-to-end จริงๆ (ยังไม่เคยทำ)
+- reference-equality invariant (`z === zone`/`z === dragPreview.zone`) ปลอดภัยตอนนี้เพราะ `zones` ถูก replace แบบ wholesale เสมอ ไม่เคย mutate in-place แต่ไม่มี defence-in-depth ถ้าในอนาคตมี auto-refresh/websocket ที่ refetch ระหว่าง drag อยู่ — แนะนำ comment บันทึก invariant ไว้หรือเปลี่ยนไป match ด้วย id แทน object identity
+- ปล่อย mouse นอกหน้าต่างเบราว์เซอร์ (lost mouseup) จะทำให้ zone ค้างติดกับ cursor ตลอดไป — ไม่มี `event.buttons === 0` check ใน `handleMouseMove`
+- ไม่มี `event.button === 0` check ตอน `mousedown` — คลิกขวา/กลางใกล้เส้น zone ก็ arm drag ได้เหมือนกัน
+- ไม่มี lower bound ของราคาที่ commit ได้ — `coordinateToPrice` คืนค่า 0 หรือติดลบได้ถ้าลาก cursor ต่ำกว่า pane และทั้ง frontend/backend (`ZoneInput.price: float`, ไม่มี `gt=0`) ไม่เช็คเลย ปัญหานี้มีอยู่แล้วตั้งแต่ ticket ก่อน (ทาง typed-entry) แต่ drag ทำให้กดโดนง่ายขึ้นมาก
+- ไม่มี affordance ว่าเส้นลากได้ (ไม่มี `cursor: ns-resize`, hover highlight, `user-select: none` ระหว่างลาก) — เรื่อง discoverability/polish ล้วนๆ สเปกไม่ได้ขอ
+- `preventDefault` ตัวใหม่ (แก้ I3) กัน input blur ไปด้วยโดยไม่ตั้งใจ — ส่วนใหญ่เป็นผลดี แต่ถ้า user พิมพ์ค่าครึ่งๆใน ZoneList แล้วไปลากกราฟพอดี ค่าที่พิมพ์ครึ่งๆอาจหายไปตอน auto-zone freeze+refetch
+- มี snap-back flicker เล็กน้อยตอน drag สำเร็จ (เส้นรีเซ็ตกลับราคาเดิมก่อน แล้วค่อยกระโดดไปราคาใหม่หลัง refetch) — ตั้งใจแลกมาเพื่อไม่ให้เส้นค้างโชว์ราคาที่ไม่จริงเลย ยอมรับได้

@@ -23,9 +23,14 @@ export function useChartData(ticker: string | null, range: ChartRange) {
   // ticker's stale points for one frame before the reset ever landed. Comparing against a ref of
   // the previous ticker and calling setPoints during render lets React restart the render with
   // points already null, so no commit ever pairs the new chart with the old ticker's data.
-  const prevTickerRef = useRef(ticker);
-  if (prevTickerRef.current !== ticker) {
-    prevTickerRef.current = ticker;
+  // Compares ticker+range together, not just ticker — switching range for the same ticker must
+  // clear points just as reliably as switching ticker does, for the exact same reason (see the
+  // comment above the useEffect below): a remounted PriceChart's own mount effect runs before
+  // this hook's effect can clear stale data, so the reset must happen synchronously during render.
+  const prevKeyRef = useRef(`${ticker ?? ''}|${range}`);
+  const currentKey = `${ticker ?? ''}|${range}`;
+  if (prevKeyRef.current !== currentKey) {
+    prevKeyRef.current = currentKey;
     setPoints(null);
   }
 

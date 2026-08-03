@@ -1,5 +1,5 @@
 // frontend/src/components/PriceChart.tsx
-import { createChart, LineSeries, type IChartApi, type ISeriesApi } from 'lightweight-charts';
+import { createChart, LineSeries, type IChartApi, type ISeriesApi, type Time, type UTCTimestamp } from 'lightweight-charts';
 import { useEffect, useRef } from 'react';
 import type { ChartPoint } from '../api/types';
 
@@ -29,7 +29,12 @@ export function PriceChart({ points, loading, error }: PriceChartProps) {
 
   useEffect(() => {
     if (seriesRef.current === null || points === null) return;
-    seriesRef.current.setData(points.map((point) => ({ time: point.time, value: point.close })));
+    seriesRef.current.setData(
+      points.map((point) => ({
+        time: (typeof point.time === 'number' ? (point.time as UTCTimestamp) : point.time) as Time,
+        value: point.close,
+      })),
+    );
   }, [points]);
 
   return (

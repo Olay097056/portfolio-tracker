@@ -285,4 +285,12 @@ describe('api client', () => {
     expect(fetch).toHaveBeenCalledWith('http://localhost:8000/market/chart?ticker=VTI&range=1Y', expect.objectContaining({ method: undefined }));
     expect(result).toEqual({ points: [{ time: '2026-01-02', close: 100 }] });
   });
+
+  it('getChartData accepts every range value', async () => {
+    mockFetchOnce({ points: [{ time: 1735808400, close: 100 }] });
+
+    await getChartData('VTI', '1D');
+
+    expect(fetch).toHaveBeenCalledWith('http://localhost:8000/market/chart?ticker=VTI&range=1D', expect.objectContaining({ method: undefined }));
+  });
 });

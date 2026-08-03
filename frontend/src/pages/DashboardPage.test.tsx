@@ -143,6 +143,94 @@ describe('DashboardPage', () => {
     expect(secondSetData).not.toHaveBeenCalled();
   });
 
+  it('shows a range selector once a ticker is selected, defaulting to 1 year', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }] });
+
+    render(<DashboardPage />);
+    await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+    expect(screen.queryByLabelText(/range/i)).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+
+    await waitFor(() => expect(screen.getByLabelText(/range/i)).toBeInTheDocument());
+    expect(screen.getByLabelText(/range/i)).toHaveValue('1Y');
+  });
+
+  it('refetches with the new range when the range selector changes', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }] });
+
+    render(<DashboardPage />);
+    await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+    await waitFor(() => expect(client.getChartData).toHaveBeenCalledWith('AAPL', '1Y'));
+
+    fireEvent.change(screen.getByLabelText(/range/i), { target: { value: '5Y' } });
+
+    await waitFor(() => expect(client.getChartData).toHaveBeenCalledWith('AAPL', '5Y'));
+  });
+
+  it('remounts the chart when only the range changes for the same ticker', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }] });
+
+    const firstRemove = vi.fn();
+    const secondRemove = vi.fn();
+    vi.mocked(createChart)
+      .mockReturnValueOnce({
+        addSeries: vi.fn(() => ({ setData: vi.fn() })),
+        remove: firstRemove,
+      } as unknown as ReturnType<typeof createChart>)
+      .mockReturnValueOnce({
+        addSeries: vi.fn(() => ({ setData: vi.fn() })),
+        remove: secondRemove,
+      } as unknown as ReturnType<typeof createChart>);
+
+    render(<DashboardPage />);
+    await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+    await waitFor(() => expect(createChart).toHaveBeenCalledTimes(1));
+
+    fireEvent.change(screen.getByLabelText(/range/i), { target: { value: '5Y' } });
+
+    await waitFor(() => expect(createChart).toHaveBeenCalledTimes(2));
+    expect(firstRemove).toHaveBeenCalledTimes(1);
+  });
+
+  it('never draws the previous range stale data onto the freshly-remounted chart when the new range fetch fails', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+    vi.spyOn(client, 'getChartData')
+      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', close: 100 }] })
+      .mockRejectedValueOnce(new client.ApiError(502, 'upstream error'));
+
+    const firstSetData = vi.fn();
+    const secondSetData = vi.fn();
+    vi.mocked(createChart)
+      .mockReturnValueOnce({
+        addSeries: vi.fn(() => ({ setData: firstSetData })),
+        remove: vi.fn(),
+      } as unknown as ReturnType<typeof createChart>)
+      .mockReturnValueOnce({
+        addSeries: vi.fn(() => ({ setData: secondSetData })),
+        remove: vi.fn(),
+      } as unknown as ReturnType<typeof createChart>);
+
+    render(<DashboardPage />);
+    await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+    await waitFor(() => expect(firstSetData).toHaveBeenCalledWith([{ time: '2026-01-02', value: 100 }]));
+
+    fireEvent.change(screen.getByLabelText(/range/i), { target: { value: '5Y' } });
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('upstream error'));
+    expect(secondSetData).not.toHaveBeenCalled();
+  });
+
   it('shows a message instead of a dropdown when there are no tickers anywhere', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([]);

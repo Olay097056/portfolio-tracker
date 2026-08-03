@@ -68,6 +68,24 @@ describe('PriceChart', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('No chart data available for BADTICKER.');
   });
 
+  it('passes a numeric time through to setData for intraday points', () => {
+    render(
+      <PriceChart
+        points={[
+          { time: 1735808400, close: 100 },
+          { time: 1735808700, close: 101.5 },
+        ]}
+        loading={false}
+        error={null}
+      />,
+    );
+
+    expect(setData).toHaveBeenCalledWith([
+      { time: 1735808400, value: 100 },
+      { time: 1735808700, value: 101.5 },
+    ]);
+  });
+
   it('removes the chart on unmount', () => {
     const { unmount } = render(<PriceChart points={null} loading={false} error={null} />);
 

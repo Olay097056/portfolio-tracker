@@ -107,6 +107,13 @@ export function PriceChart({ points, loading, error, zones, onZoneDragMove, onZo
       const rect = container!.getBoundingClientRect();
       const hit = findHit(event.clientY - rect.top);
       if (hit === null) return;
+      // A zone line was actually grabbed: suppress this event before it reaches
+      // lightweight-charts' own canvas-level handlers (registered via capture below) so that
+      // dragging a zone line does not also pan/scale the chart or trigger text selection
+      // underneath it. An ordinary click on empty chart area (hit === null) must NOT be
+      // suppressed, so the chart keeps panning/zooming as normal for non-zone clicks.
+      event.preventDefault();
+      event.stopPropagation();
       draggingRef.current = hit;
     }
 
@@ -126,15 +133,25 @@ export function PriceChart({ points, loading, error, zones, onZoneDragMove, onZo
       if (dragging === null) return;
       const rect = container!.getBoundingClientRect();
       const price = priceAt(event.clientY - rect.top);
+      // Always snap the price line back to the zone's last known-good price before attempting
+      // to commit the drag. If the commit succeeds, the [zones] effect re-run (triggered by the
+      // subsequent refetch) will redraw the server-confirmed price. If the commit is dropped by
+      // the busy-guard or fails, the line never keeps showing an unpersisted price — it already
+      // matches what ZoneList shows. A brief "snap back then forward" on the success path is an
+      // acceptable trade-off for never lying about what's persisted.
+      dragging.priceLine.applyOptions({ price: dragging.zone.price });
       if (price === null) return;
       onZoneDragEnd?.(dragging.zone, price);
     }
 
-    container.addEventListener('mousedown', handleMouseDown);
+    // Capture phase: run before lightweight-charts' own listeners, which it attaches directly to
+    // the canvas elements it creates inside this container (closer to the target than a
+    // bubble-phase ancestor listener, so they'd otherwise fire first).
+    container.addEventListener('mousedown', handleMouseDown, { capture: true });
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
     return () => {
-      container.removeEventListener('mousedown', handleMouseDown);
+      container.removeEventListener('mousedown', handleMouseDown, { capture: true });
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };

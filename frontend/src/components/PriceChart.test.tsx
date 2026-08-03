@@ -341,6 +341,28 @@ describe('PriceChart', () => {
       expect(onZoneDragEnd).not.toHaveBeenCalled();
     });
 
+    it('resets the price line to the zone\'s original price on mouseup, after the live-drag applyOptions calls, regardless of whether the commit succeeds', () => {
+      const priceLine = { applyOptions: vi.fn() };
+      const createPriceLine = vi.fn(() => priceLine);
+      const priceToCoordinate = vi.fn((price: number) => (price === 95 ? 50 : null));
+      const coordinateToPrice = vi.fn((y: number) => 200 - y);
+      addSeries.mockReturnValue({ setData, createPriceLine, removePriceLine: vi.fn(), priceToCoordinate, coordinateToPrice });
+      const onZoneDragEnd = vi.fn();
+      const zone = { id: null, price: 95, kind: 'support' as const, strength: 3, source: 'auto' as const };
+
+      render(<PriceChart points={null} loading={false} error={null} zones={[zone]} onZoneDragEnd={onZoneDragEnd} />);
+
+      fireEvent.mouseDown(screen.getByTestId('price-chart'), { clientY: 50 });
+      fireEvent.mouseMove(window, { clientY: 40 });
+      fireEvent.mouseUp(window, { clientY: 30 });
+
+      const calls = priceLine.applyOptions.mock.calls;
+      expect(calls[0]).toEqual([{ price: 160 }]); // live drag update from mousemove
+      expect(calls[calls.length - 1]).toEqual([{ price: 95 }]); // reset to original zone price on mouseup
+      // The commit is still attempted with the just-dragged target price, not the reset price.
+      expect(onZoneDragEnd).toHaveBeenCalledWith(zone, 170);
+    });
+
     it('removes its window mouse listeners on unmount', () => {
       const priceLine = { applyOptions: vi.fn() };
       const createPriceLine = vi.fn(() => priceLine);
@@ -356,6 +378,56 @@ describe('PriceChart', () => {
       fireEvent.mouseMove(window, { clientY: 30 });
 
       expect(priceLine.applyOptions).not.toHaveBeenCalled();
+    });
+
+    // NOTE: lightweight-charts is fully mocked in this suite (see the vi.mock at the top of this
+    // file), so we cannot verify against the real library that its own pan/scale/crosshair
+    // handlers are actually suppressed. These tests only confirm that PriceChart itself calls
+    // preventDefault/stopPropagation on the right mousedown events; a manual browser smoke test
+    // against the real chart is still recommended to confirm the underlying pan/zoom is
+    // actually suppressed end-to-end.
+    it('calls preventDefault and stopPropagation on mousedown when a zone line is hit, to suppress the chart panning/scaling underneath the drag', () => {
+      const priceLine = { applyOptions: vi.fn() };
+      const createPriceLine = vi.fn(() => priceLine);
+      const priceToCoordinate = vi.fn((price: number) => (price === 95 ? 50 : null));
+      const coordinateToPrice = vi.fn((y: number) => 200 - y);
+      addSeries.mockReturnValue({ setData, createPriceLine, removePriceLine: vi.fn(), priceToCoordinate, coordinateToPrice });
+      const zone = { id: null, price: 95, kind: 'support' as const, strength: 3, source: 'auto' as const };
+
+      render(<PriceChart points={null} loading={false} error={null} zones={[zone]} />);
+
+      const container = screen.getByTestId('price-chart');
+      const rect = container.getBoundingClientRect();
+      const event = new MouseEvent('mousedown', { bubbles: true, cancelable: true, clientY: rect.top + 50 });
+      const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
+      const stopPropagationSpy = vi.spyOn(event, 'stopPropagation');
+
+      container.dispatchEvent(event);
+
+      expect(preventDefaultSpy).toHaveBeenCalledTimes(1);
+      expect(stopPropagationSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not call preventDefault or stopPropagation on mousedown when no zone line is hit, so ordinary chart panning/zooming is unaffected', () => {
+      const priceLine = { applyOptions: vi.fn() };
+      const createPriceLine = vi.fn(() => priceLine);
+      const priceToCoordinate = vi.fn((price: number) => (price === 95 ? 50 : null));
+      const coordinateToPrice = vi.fn((y: number) => 200 - y);
+      addSeries.mockReturnValue({ setData, createPriceLine, removePriceLine: vi.fn(), priceToCoordinate, coordinateToPrice });
+      const zone = { id: null, price: 95, kind: 'support' as const, strength: 3, source: 'auto' as const };
+
+      render(<PriceChart points={null} loading={false} error={null} zones={[zone]} />);
+
+      const container = screen.getByTestId('price-chart');
+      const rect = container.getBoundingClientRect();
+      const event = new MouseEvent('mousedown', { bubbles: true, cancelable: true, clientY: rect.top + 200 });
+      const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
+      const stopPropagationSpy = vi.spyOn(event, 'stopPropagation');
+
+      container.dispatchEvent(event);
+
+      expect(preventDefaultSpy).not.toHaveBeenCalled();
+      expect(stopPropagationSpy).not.toHaveBeenCalled();
     });
   });
 });

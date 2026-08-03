@@ -168,3 +168,33 @@ Work the **frontier**: Ticket 1 can start immediately; Ticket 2 needs Ticket 1 d
 - [x] The chart draws each zone as a horizontal price line at its level, not as a second plotted series (`lightweight-charts`' `createPriceLine()`, with a `S (n)`/`R (n)` title showing strength)
 - [x] Support zones and resistance zones render in visually distinct colors from each other, and both are visually distinct from this app's existing rebalance-severity green/yellow/red colors (teal `#14b8a6` support, amber `#f59e0b` resistance)
 - [x] Changing the selected range recomputes and redraws zones for that range's own bar series, replacing the previous range's zones with no stale line left behind (extended the existing `chartIdentityKey`-based render-phase reset to also clear `zones`, not just `points`/`error` — a first attempt at the regression test was found insufficient during review, since it couldn't distinguish a render-phase reset from an effect-based one; replaced with a child-observation test mirroring the existing `ErrorProbe` pattern)
+
+## Add, edit, and delete manual support/resistance zones (no drag)
+
+**What to build:** Every support/resistance zone can be created, corrected, and removed by hand — just not yet by dragging on the chart itself. An "S" button adds a support zone at the ticker's current price, "R" adds resistance, "Freestyle" adds a plain untyped horizontal level; a small list next to the chart shows every zone (auto zones read-only, manual zones with an editable price input and a delete button); touching any zone for a ticker+range for the first time freezes that pair's entire zone set — every zone currently shown is preserved at its price, auto-recompute stops, and the pair stays exactly as edited until reset. A "Recompute defaults" button, behind a confirmation, discards all edits for the current ticker+range and returns to auto-computed zones. This ticket proves the whole persistence/freeze/API surface end-to-end through a slower but complete interaction (typed price entry); the next ticket adds the faster one (drag) on top of the same backend.
+
+**Blocked by:** Dashboard auto support/resistance zones
+
+- [ ] A new database table persists manual/freestyle zones (ticker, range, price, kind) — no migration tool needed, this is a brand-new table under `Base.metadata.create_all`
+- [ ] The chart endpoint returns manual zones (`source: "manual"`) for a ticker+range that has any, and falls back to the existing auto-computed zones (`source: "auto"`) when it doesn't — `points` is unaffected either way
+- [ ] Zone kind widens to include `"freestyle"` alongside `"support"`/`"resistance"`, rendered in a third color distinct from support, resistance, and this app's existing rebalance-severity palette
+- [ ] `strength` is nullable and is always null on a manual or freestyle zone — never a carried-over or fabricated touch count
+- [ ] Clicking S, R, or Freestyle adds a new zone at the ticker's current price
+- [ ] The first edit (an add, in this ticket) to a ticker+range pair that's still on auto zones preserves every other auto zone currently shown, unchanged, alongside the new one — nothing else present on the chart disappears
+- [ ] Once a ticker+range pair has any manual zones, auto-recompute never overwrites them again until explicitly reset
+- [ ] A side list shows every current zone's exact price and kind; auto zones are read-only in this list; manual/freestyle zones have a delete button and an editable price input
+- [ ] Editing a manual zone's price in the list commits on blur or Enter and updates the chart's rendered line
+- [ ] Deleting a manual zone in the list removes it from the chart and from storage
+- [ ] "Recompute defaults" asks for confirmation, then removes every manual zone for the current ticker+range in one action, reverting that pair to auto-computed zones
+- [ ] Switching ticker or range shows that pair's own zone set (auto if untouched, manual if previously edited) — edits to one ticker+range never appear on another
+
+## Drag support/resistance zones directly on the chart
+
+**What to build:** Any zone — auto or manual — can be grabbed with the mouse directly on the chart and dragged to a new price, using the exact same freeze/update backend the previous ticket already built. This is additive polish on a system that's already fully functional without it.
+
+**Blocked by:** Add, edit, and delete manual support/resistance zones (no drag)
+
+- [ ] Clicking and holding near a rendered zone line on the chart, then moving the mouse, repositions that line's on-screen price live, with no backend call per pixel moved
+- [ ] Releasing the mouse commits the final price exactly once — a move call if the ticker+range pair is already manual, or the same freeze-and-preserve-the-rest behavior as the previous ticket if this is the first edit for that pair
+- [ ] Dragging an auto zone (first edit for that pair) preserves every other zone currently shown, the same guarantee the previous ticket's add path already has
+- [ ] The side list's price value updates live as a zone is dragged, staying in sync with what's rendered on the chart

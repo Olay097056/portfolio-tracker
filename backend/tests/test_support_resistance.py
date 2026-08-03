@@ -71,6 +71,19 @@ def test_select_zones_caps_support_at_three_keeping_the_strongest():
     assert all(zone["source"] == "auto" for zone in result)
 
 
+def test_select_zones_caps_each_side_independently():
+    clustered = [
+        (90.0, 5), (91.0, 4), (92.0, 3), (93.0, 2),  # 4 support candidates, below current_price=100
+        (110.0, 9), (111.0, 8), (112.0, 7), (113.0, 6),  # 4 resistance candidates, above current_price=100
+    ]
+
+    result = support_resistance._select_zones(clustered, current_price=100.0)
+
+    assert len(result) == 6
+    assert sum(1 for zone in result if zone["kind"] == "support") == 3
+    assert sum(1 for zone in result if zone["kind"] == "resistance") == 3
+
+
 def test_select_zones_classifies_by_position_not_by_the_number_of_candidates():
     clustered = [(90.0, 5), (110.0, 2)]  # one below, one above current_price=100
 

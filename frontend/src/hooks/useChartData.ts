@@ -21,17 +21,16 @@ export function useChartData(ticker: string | null, range: ChartRange) {
   // ticker could land after a newer one and relabel the chart with the wrong ticker's data.
   const requestId = useRef(0);
 
-  // Reset points synchronously during render (not in the effect below) the instant `ticker`
-  // changes. A parent that remounts its chart via key={ticker} renders the fresh chart instance
-  // in this very commit — if we waited for an effect to clear points, the new chart's own mount
-  // effect would run first (child effects commit before parent effects) and draw the outgoing
-  // ticker's stale points for one frame before the reset ever landed. Comparing against a ref of
-  // the previous ticker and calling setPoints during render lets React restart the render with
-  // points already null, so no commit ever pairs the new chart with the old ticker's data.
+  // Reset the selection-scoped state (points, error, zones) synchronously during render (not in
+  // the effect below) the instant the ticker+range identity changes. A parent that remounts its
+  // chart via key={chartIdentityKey(...)} renders the fresh chart instance in this very commit —
+  // if we waited for an effect to clear this state, the new chart's own mount effect would run
+  // first (child effects commit before parent effects) and draw the outgoing selection's stale
+  // data for one frame before the reset ever landed. Comparing against a ref of the previous
+  // identity and calling setState during render lets React restart the render with all three
+  // fields already cleared, so no commit ever pairs the new chart with the old selection's data.
   // Compares ticker+range together, not just ticker — switching range for the same ticker must
-  // clear points just as reliably as switching ticker does, for the exact same reason (see the
-  // comment above the useEffect below): a remounted PriceChart's own mount effect runs before
-  // this hook's effect can clear stale data, so the reset must happen synchronously during render.
+  // clear this state just as reliably as switching ticker does, for the exact same reason.
   const prevKeyRef = useRef(chartIdentityKey(ticker, range));
   const currentKey = chartIdentityKey(ticker, range);
   if (prevKeyRef.current !== currentKey) {

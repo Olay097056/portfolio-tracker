@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from app.chart_service import ChartRange
+
 
 class PortfolioCreate(BaseModel):
     name: str
@@ -132,12 +134,35 @@ class ChartPointOut(BaseModel):
 
 
 class ZoneOut(BaseModel):
+    id: int | None
     price: float
-    kind: Literal["support", "resistance"]
-    strength: int
-    source: Literal["auto"]
+    kind: Literal["support", "resistance", "freestyle"]
+    strength: int | None
+    source: Literal["auto", "manual"]
 
 
 class ChartOut(BaseModel):
     points: list[ChartPointOut] | None
     zones: list[ZoneOut]
+
+
+class ZoneInput(BaseModel):
+    kind: Literal["support", "resistance", "freestyle"]
+    price: float
+
+
+class FreezeZonesRequest(BaseModel):
+    ticker: str
+    range: ChartRange
+    zones: list[ZoneInput]
+
+
+class ManualZoneCreate(BaseModel):
+    ticker: str
+    range: ChartRange
+    kind: Literal["support", "resistance", "freestyle"]
+    price: float
+
+
+class ManualZoneUpdate(BaseModel):
+    price: float

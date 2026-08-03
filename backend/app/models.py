@@ -78,3 +78,15 @@ class WatchlistItem(Base):
     ticker: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     category: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=_utcnow)
+
+
+class ManualZone(Base):
+    __tablename__ = "manual_zones"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ticker: Mapped[str] = mapped_column(String, nullable=False)
+    range: Mapped[str] = mapped_column(String, nullable=False)
+    price: Mapped[float] = mapped_column(Float, nullable=False)
+    kind: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=_utcnow, onupdate=_utcnow)

@@ -221,11 +221,11 @@ Work the **frontier**: Ticket 1 can start immediately; Ticket 2 needs Ticket 1 d
 
 **Blocked by:** None — can start immediately.
 
-- [ ] Zone-kind colors (`SUPPORT_COLOR`/`RESISTANCE_COLOR`/`FREESTYLE_COLOR`) extracted to a shared constant consumed by `PriceChart.tsx`, the S/R/Freestyle buttons, and `ZoneList`'s kind badges — single source of truth
-- [ ] Ticker/range/chart/S-R-Freestyle-Recompute buttons wrapped in one card; `ZoneList` wrapped in a separate card — both using the `--card-*` tokens
-- [ ] Price + % change readout computed from the last two `points` entries; omitted (not fabricated) when fewer than 2 points are available
-- [ ] Range selector changed from `<select>` to a 7-button row; the currently-selected range's button is visually distinguished
-- [ ] S/R/Freestyle buttons colored per zone kind; "Recompute defaults" gets a distinct warning-toned style
-- [ ] `ZoneList`'s Kind column shows a color-coded badge matching the buttons/chart
-- [ ] A visible loading indicator (not just `disabled`) appears while `zoneEditing.busy` is true
-- [ ] `PriceChart.tsx`'s `createChart()` call sets `layout.background`/`textColor`/grid colors, resolved from CSS custom properties via `getComputedStyle` at runtime — no chart still renders with the library's default white background
+- [x] Zone-kind colors (`SUPPORT_COLOR`/`RESISTANCE_COLOR`/`FREESTYLE_COLOR`) extracted to a shared constant consumed by `PriceChart.tsx`, the S/R/Freestyle buttons, and `ZoneList`'s kind badges — single source of truth (`frontend/src/utils/zoneStyle.ts`)
+- [x] Ticker/range/chart/S-R-Freestyle-Recompute buttons wrapped in one card; `ZoneList` wrapped in a separate card — both using the `--card-*` tokens
+- [x] Price + % change readout computed from the last two `points` entries; omitted (not fabricated) when fewer than 2 points are available
+- [x] Range selector changed from `<select>` to a 7-button row; the currently-selected range's button is visually distinguished (`aria-pressed` + `--primary` highlight)
+- [x] S/R/Freestyle buttons colored per zone kind; "Recompute defaults" gets a distinct warning-toned style (`--red` border/text)
+- [x] `ZoneList`'s Kind column shows a color-coded badge matching the buttons/chart
+- [x] A visible loading indicator (not just `disabled`) appears while `zoneEditing.busy` is true
+- [x] `PriceChart.tsx`'s `createChart()` call sets `layout.background`/`textColor`/grid colors, resolved from CSS custom properties via `getComputedStyle` at runtime — no chart still renders with the library's default white background

@@ -56,6 +56,67 @@ describe('HoldingRow', () => {
     expect(screen.getByText(/333.74/)).toBeInTheDocument();
     expect(screen.getByText(/4,004.88/)).toBeInTheDocument();
     expect(screen.getByTestId('severity-indicator')).toHaveAttribute('data-severity', 'red');
+    expect(screen.getByTestId('severity-indicator')).toHaveStyle({ backgroundColor: 'var(--red)' });
+  });
+
+  it.each([
+    ['green', 'var(--green)'],
+    ['yellow', 'var(--yellow)'],
+    ['red', 'var(--red)'],
+  ] as const)('colors the severity indicator %s to match the theme token', (severity, expectedColor) => {
+    render(
+      <HoldingRow
+        holding={holding}
+        onDelete={vi.fn()}
+        stats={{
+          ticker: 'AAPL',
+          shares: 12,
+          avg_cost_usd: 187.4,
+          current_price: 333.74,
+          value: 4004.88,
+          current_pct: 41.1,
+          target_pct: 20,
+          deviation_pp: 21.1,
+          severity,
+          unrealized_pnl: 1755.28,
+          realized_pnl: 0,
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('severity-indicator')).toHaveStyle({ backgroundColor: expectedColor });
+  });
+
+  it('renders no severity color (never a fabricated one) when severity is null', () => {
+    render(
+      <HoldingRow
+        holding={holding}
+        onDelete={vi.fn()}
+        stats={{
+          ticker: 'AAPL',
+          shares: 12,
+          avg_cost_usd: 187.4,
+          current_price: 333.74,
+          value: 4004.88,
+          current_pct: 41.1,
+          target_pct: 20,
+          deviation_pp: 21.1,
+          severity: null,
+          unrealized_pnl: 1755.28,
+          realized_pnl: 0,
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('severity-indicator')).toHaveAttribute('data-severity', 'none');
+    // jsdom normalizes the literal 'transparent' keyword to this rgba equivalent.
+    expect(screen.getByTestId('severity-indicator')).toHaveStyle({ backgroundColor: 'rgba(0, 0, 0, 0)' });
+  });
+
+  it('styles the delete button as a warning action, matching the Dashboard\'s Recompute-defaults convention', () => {
+    render(<HoldingRow holding={holding} onDelete={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: /delete/i })).toHaveStyle({ color: 'var(--red)' });
   });
 
   it('renders without price/value when stats are not provided', () => {

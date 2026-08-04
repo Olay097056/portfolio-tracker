@@ -103,6 +103,53 @@ describe('PortfolioCard', () => {
     await waitFor(() => expect(screen.getByText(/1 holding needs rebalancing/i)).toBeInTheDocument());
   });
 
+  it('colors Unrealized P&L green with a positive emoji when it is a gain', async () => {
+    vi.spyOn(client, 'getPortfolioSummary').mockResolvedValue({
+      id: 1,
+      name: 'DIME',
+      cash_usd: 250,
+      target_allocation_pct: 70,
+      holdings_value: 4004.88,
+      total_value: 4254.88,
+      unrealized_pnl: 1755.28,
+      realized_pnl: 0,
+      holdings: [],
+    });
+
+    render(<PortfolioCard portfolio={portfolio} onDelete={vi.fn()} onToggleHoldings={vi.fn()} expanded={false} />);
+
+    const pnl = await screen.findByText(/unrealized p&l/i);
+    expect(pnl).toHaveStyle({ color: 'var(--green)' });
+    expect(pnl).toHaveTextContent('😊');
+  });
+
+  it('colors Unrealized P&L red with a downcast emoji when it is a loss', async () => {
+    vi.spyOn(client, 'getPortfolioSummary').mockResolvedValue({
+      id: 1,
+      name: 'DIME',
+      cash_usd: 250,
+      target_allocation_pct: 70,
+      holdings_value: 100,
+      total_value: 350,
+      unrealized_pnl: -150,
+      realized_pnl: 0,
+      holdings: [],
+    });
+
+    render(<PortfolioCard portfolio={portfolio} onDelete={vi.fn()} onToggleHoldings={vi.fn()} expanded={false} />);
+
+    const pnl = await screen.findByText(/unrealized p&l/i);
+    expect(pnl).toHaveStyle({ color: 'var(--red)' });
+    expect(pnl).toHaveTextContent('😟');
+  });
+
+  it("styles the delete button as a warning action, matching the Dashboard's Recompute-defaults convention", async () => {
+    render(<PortfolioCard portfolio={portfolio} onDelete={vi.fn()} onToggleHoldings={vi.fn()} expanded={false} />);
+
+    await waitFor(() => expect(screen.getByText('DIME')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /delete/i })).toHaveStyle({ color: 'var(--red)' });
+  });
+
   it('does not show a rebalance-needed message when all holdings are green', async () => {
     vi.spyOn(client, 'getPortfolioSummary').mockResolvedValue({
       id: 1,

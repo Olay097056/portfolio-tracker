@@ -85,6 +85,17 @@ describe('PortfoliosPage', () => {
     expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
   });
 
+  it('wraps the add-portfolio form and each portfolio in a card', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([portfolio]);
+
+    const { container } = render(<PortfoliosPage />);
+    await waitFor(() => expect(screen.getByText('DIME')).toBeInTheDocument());
+
+    const cards = container.querySelectorAll('.card');
+    // One card for the add-portfolio form, one for the DIME portfolio.
+    expect(cards.length).toBeGreaterThanOrEqual(2);
+  });
+
   it('expands a portfolio to show its holdings panel when "Show holdings" is clicked, and collapses on second click', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([portfolio]);
     vi.spyOn(client, 'listHoldings').mockResolvedValue([]);

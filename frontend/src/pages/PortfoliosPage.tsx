@@ -20,12 +20,14 @@ export function PortfoliosPage() {
     <div>
       <h2>Portfolios</h2>
       {error && <div role="alert">{error}</div>}
-      <AddPortfolioForm onSubmit={create} />
+      <div className="card">
+        <AddPortfolioForm onSubmit={create} />
+      </div>
       {portfolios.length === 0 ? (
         <p>No portfolios yet — add one above.</p>
       ) : (
         portfolios.map((portfolio) => (
-          <div key={portfolio.id}>
+          <div key={portfolio.id} className="card">
             <PortfolioCard
               portfolio={portfolio}
               onDelete={remove}

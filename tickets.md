@@ -249,8 +249,8 @@ Work the **frontier**: Ticket 1 can start immediately; Ticket 2 needs Ticket 1 d
 
 **Blocked by:** None — can start immediately.
 
-- [ ] The tab matching `aria-pressed="true"` is highlighted with `--primary` (border/text); no structural/shape change to `TabStrip`
-- [ ] Manage Watchlist page wrapped in a single card containing the add-ticker form and the ticker list
-- [ ] Each ticker row gets its own `--panel3` background, separating it from its neighbors
-- [ ] The Remove button gets the `--red` warning-toned style matching every other Delete button in the app
-- [ ] All existing tests pass, including every page that renders `TabStrip` (top nav, Tools, Watchlist sub-tabs); new tests cover active-tab color, card presence, and Remove button color
+- [x] The tab matching `aria-pressed="true"` is highlighted with `--primary` (border/text); no structural/shape change to `TabStrip`
+- [x] Manage Watchlist page wrapped in a single card containing the add-ticker form and the ticker list
+- [x] Each ticker row gets its own `--panel3` background, separating it from its neighbors
+- [x] The Remove button gets the `--red` warning-toned style matching every other Delete button in the app
+- [x] All existing tests pass, including every page that renders `TabStrip` (top nav, Tools, Watchlist sub-tabs); new tests cover active-tab color, card presence, and Remove button color

@@ -214,3 +214,18 @@ Work the **frontier**: Ticket 1 can start immediately; Ticket 2 needs Ticket 1 d
 - [x] Font `@import` changes to `Noto Sans Thai` + `Inter` (Inter's existing weight range kept as-is); `Outfit` is removed entirely; `body`'s `font` family list leads with `Noto Sans Thai`
 - [x] `npx tsc -b` and `npx vitest run` (frontend) both stay green after the change
 - [x] Manual visual check (`npm run dev`) confirms the new background/colors/font are visibly applied across every existing tab
+
+## Dashboard UI redesign — cards, price readout, range buttons, zone-kind colors, chart theming
+
+**What to build:** Opening the Dashboard shows everything wrapped in cards, a price + % change readout, a button-row range selector, S/R/Freestyle buttons colored to match their zone kind, a color-coded ZoneList, a visible loading indicator during zone mutations, and a properly-themed chart (no longer a white box) — all without touching any zone add/edit/delete/drag/freeze/recompute logic. Source: `docs/specs/2026-08-04-dashboard-ui-redesign.md`.
+
+**Blocked by:** None — can start immediately.
+
+- [ ] Zone-kind colors (`SUPPORT_COLOR`/`RESISTANCE_COLOR`/`FREESTYLE_COLOR`) extracted to a shared constant consumed by `PriceChart.tsx`, the S/R/Freestyle buttons, and `ZoneList`'s kind badges — single source of truth
+- [ ] Ticker/range/chart/S-R-Freestyle-Recompute buttons wrapped in one card; `ZoneList` wrapped in a separate card — both using the `--card-*` tokens
+- [ ] Price + % change readout computed from the last two `points` entries; omitted (not fabricated) when fewer than 2 points are available
+- [ ] Range selector changed from `<select>` to a 7-button row; the currently-selected range's button is visually distinguished
+- [ ] S/R/Freestyle buttons colored per zone kind; "Recompute defaults" gets a distinct warning-toned style
+- [ ] `ZoneList`'s Kind column shows a color-coded badge matching the buttons/chart
+- [ ] A visible loading indicator (not just `disabled`) appears while `zoneEditing.busy` is true
+- [ ] `PriceChart.tsx`'s `createChart()` call sets `layout.background`/`textColor`/grid colors, resolved from CSS custom properties via `getComputedStyle` at runtime — no chart still renders with the library's default white background

@@ -274,8 +274,8 @@ Work the **frontier**: Ticket 1 can start immediately; Ticket 2 needs Ticket 1 d
 
 **Blocked by:** None — can start immediately.
 
-- [ ] Each of the four Tools sub-tabs wrapped in its own card
-- [ ] Portfolio Builder's allocation-preview table and ETF Comparison's results table both use the existing `zebra-table` class
-- [ ] Passive Income's "Reachable in N years" / "Not reachable within 30 years" message colored `--green`/`--red`
-- [ ] "Create portfolio" button styled with `--primary`, matching "Add to Watchlist"
-- [ ] All existing tests pass; new tests cover card presence, zebra-table class presence, reachable/not-reachable color, and the Create-portfolio button color
+- [x] Each of the four Tools sub-tabs wrapped in its own card
+- [x] Portfolio Builder's allocation-preview table and ETF Comparison's results table both use the existing `zebra-table` class
+- [x] Passive Income's "Reachable in N years" / "Not reachable within 30 years" message colored `--green`/`--red`
+- [x] "Create portfolio" button styled with `--primary`, matching "Add to Watchlist"
+- [x] All existing tests pass; new tests cover card presence, zebra-table class presence, reachable/not-reachable color, and the Create-portfolio button color

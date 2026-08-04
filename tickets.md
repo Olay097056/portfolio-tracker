@@ -267,3 +267,15 @@ Work the **frontier**: Ticket 1 can start immediately; Ticket 2 needs Ticket 1 d
 - [x] Only Momentum's `percent_change_pct` and Trending's `change_pct` cells are colored `--green`/`--red` by sign; every other signed-percent column (RSI, volume ratio, distance from SMA, dividend yield/growth, BB width, ATR) stays uncolored
 - [x] Trending's "Add to Watchlist" button styled with `--primary`
 - [x] All existing tests pass; new tests cover card presence, the narrow color scope (including that other columns are NOT colored), zebra-stripe, and the Add-to-Watchlist button color
+
+## Tools UI redesign — cards, zebra-stripe reuse, reachable/not-reachable color, positive-action button
+
+**What to build:** All four Tools sub-tabs (DCA Projection, Passive Income, Portfolio Builder, ETF Comparison) are wrapped in cards; Portfolio Builder's preview table and ETF Comparison's results table reuse the existing `zebra-table` class; Passive Income's reachable/not-reachable outcome message is colored green/red; the "Create portfolio" button gets a positive-action accent — none of the underlying calculation, wizard, or fetch logic changes. This is the sixth and final page of the wethaiinvest.com-inspired UI effort. Source: `docs/specs/2026-08-04-tools-ui-redesign.md`.
+
+**Blocked by:** None — can start immediately.
+
+- [ ] Each of the four Tools sub-tabs wrapped in its own card
+- [ ] Portfolio Builder's allocation-preview table and ETF Comparison's results table both use the existing `zebra-table` class
+- [ ] Passive Income's "Reachable in N years" / "Not reachable within 30 years" message colored `--green`/`--red`
+- [ ] "Create portfolio" button styled with `--primary`, matching "Add to Watchlist"
+- [ ] All existing tests pass; new tests cover card presence, zebra-table class presence, reachable/not-reachable color, and the Create-portfolio button color

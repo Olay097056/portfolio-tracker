@@ -35,17 +35,49 @@ body {
   font: 14px/1.6 'Noto Sans Thai', 'Inter', -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
+/* App.tsx's root <div> was never given any width constraint, so on any normal desktop viewport
+   the whole app collapsed to its content's natural (tiny) width, hugging the top-left corner
+   with the rest of the screen left as bare background. */
+#root {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
 button {
   font: inherit;
   cursor: pointer;
+  background: var(--panel3);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
-input {
+button:hover:not(:disabled) {
+  background: var(--panel2);
+  border-color: var(--primary);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+input,
+select {
   background: var(--panel3);
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 6px;
   padding: 6px 8px;
+  font: inherit;
+}
+
+select option {
+  background: var(--card-bg);
+  color: var(--text);
 }
 
 /* First consumer of the --card-* tokens defined above (added by the Dashboard UI redesign

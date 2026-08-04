@@ -27,6 +27,14 @@ describe('WatchlistManagementPage', () => {
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Manage Watchlist' })).toBeInTheDocument());
   });
 
+  it('wraps its content in a card', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([]);
+
+    const { container } = render(<WatchlistManagementPage />);
+
+    await waitFor(() => expect(container.querySelector('.card')).not.toBeNull());
+  });
+
   it('shows an empty state when the watchlist has no items', async () => {
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([]);
 

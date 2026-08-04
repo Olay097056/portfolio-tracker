@@ -26,4 +26,10 @@ describe('WatchlistItemRow', () => {
 
     expect(onDelete).toHaveBeenCalledWith(1);
   });
+
+  it("styles the Remove button as a warning action, matching the app's Delete-button convention", () => {
+    render(<WatchlistItemRow item={item} onDelete={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: /remove/i })).toHaveStyle({ color: 'var(--red)' });
+  });
 });

@@ -13,7 +13,13 @@ export function TabStrip<T extends string>({ tabs, activeTab, onChange }: TabStr
   return (
     <nav>
       {tabs.map((tab) => (
-        <button key={tab.id} type="button" aria-pressed={activeTab === tab.id} onClick={() => onChange(tab.id)}>
+        <button
+          key={tab.id}
+          type="button"
+          aria-pressed={activeTab === tab.id}
+          onClick={() => onChange(tab.id)}
+          style={activeTab === tab.id ? { borderColor: 'var(--primary)', color: 'var(--primary)' } : undefined}
+        >
           {tab.label}
         </button>
       ))}

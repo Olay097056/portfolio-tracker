@@ -10,7 +10,7 @@ export function WatchlistManagementPage() {
   }
 
   return (
-    <div>
+    <div className="card">
       <h3>Manage Watchlist</h3>
       {error && <div role="alert">{error}</div>}
       <AddWatchlistItemForm onSubmit={create} />

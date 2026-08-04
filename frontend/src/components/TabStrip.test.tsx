@@ -34,4 +34,12 @@ describe('TabStrip', () => {
 
     expect(onChange).toHaveBeenCalledWith('a');
   });
+
+  it('highlights only the active tab with the theme accent color', () => {
+    render(<TabStrip tabs={tabs} activeTab="b" onChange={() => {}} />);
+
+    expect(screen.getByRole('button', { name: 'Beta' })).toHaveStyle({ color: 'var(--primary)' });
+    expect(screen.getByRole('button', { name: 'Alpha' })).not.toHaveStyle({ color: 'var(--primary)' });
+    expect(screen.getByRole('button', { name: 'Gamma' })).not.toHaveStyle({ color: 'var(--primary)' });
+  });
 });

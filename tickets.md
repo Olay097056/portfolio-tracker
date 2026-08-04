@@ -229,3 +229,16 @@ Work the **frontier**: Ticket 1 can start immediately; Ticket 2 needs Ticket 1 d
 - [x] `ZoneList`'s Kind column shows a color-coded badge matching the buttons/chart
 - [x] A visible loading indicator (not just `disabled`) appears while `zoneEditing.busy` is true
 - [x] `PriceChart.tsx`'s `createChart()` call sets `layout.background`/`textColor`/grid colors, resolved from CSS custom properties via `getComputedStyle` at runtime — no chart still renders with the library's default white background
+
+## Portfolios UI redesign — cards, severity color fix, P&L color+emoji, warning-style deletes
+
+**What to build:** Opening Portfolios shows every portfolio wrapped in a card, each holding as its own distinct row, a severity indicator that finally shows real color, a colored+emoji P&L readout, and warning-styled Delete buttons at both levels — all without touching portfolio/holding create/edit/delete logic. Source: `docs/specs/2026-08-04-portfolios-ui-redesign.md`.
+
+**Blocked by:** None — can start immediately.
+
+- [ ] `AddPortfolioForm` wrapped in a card; each portfolio's card contains its summary, toggle, delete button, and (when expanded) `AddHoldingForm` + holdings list
+- [ ] Each holding row gets its own distinct background/border (using `--panel3`) instead of a bare unstyled `<div>`
+- [ ] Severity indicator (`data-severity`) shows real color (`--green`/`--yellow`/`--red`); no dot rendered when severity is absent/`none`
+- [ ] Unrealized P&L colored green/red by sign, with a small emoji (two-state, not the stress-test calculator's magnitude ladder)
+- [ ] Delete buttons at both the portfolio and holding level get the `--red` warning-toned style matching "Recompute defaults" — style only, no new confirmation step
+- [ ] All existing tests pass; new tests cover severity color, P&L color/emoji, delete button color, and card-wrapping presence

@@ -205,12 +205,12 @@ Work the **frontier**: Ticket 1 can start immediately; Ticket 2 needs Ticket 1 d
 
 **Blocked by:** None — can start immediately.
 
-- [ ] `--bg` changes to `#09090b`; the `body` radial-gradient background-image is removed entirely (flat `background-color` only)
-- [ ] `--primary` changes to `#3b82f6`
-- [ ] `--green` changes to `#2ca559`
-- [ ] `--red` confirmed unchanged (`#ef4444` already matches the reference)
-- [ ] `--text` changes to `rgb(255, 248, 240)`
-- [ ] New tokens added: `--card-bg`, `--card-radius-lg`, `--card-radius`, `--card-shadow` (unconsumed by any component in this ticket — reserved for a future per-page ticket)
-- [ ] Font `@import` changes to `Noto Sans Thai` + `Inter` (Inter's existing weight range kept as-is); `Outfit` is removed entirely; `body`'s `font` family list leads with `Noto Sans Thai`
-- [ ] `npx tsc -b` and `npx vitest run` (frontend) both stay green after the change
-- [ ] Manual visual check (`npm run dev`) confirms the new background/colors/font are visibly applied across every existing tab
+- [x] `--bg` changes to `#09090b`; the `body` radial-gradient background-image is removed entirely (flat `background-color` only)
+- [x] `--primary` changes to `#3b82f6`
+- [x] `--green` changes to `#2ca559`
+- [x] `--red` confirmed unchanged (`#ef4444` already matches the reference)
+- [x] `--text` changes to `rgb(255, 248, 240)`
+- [x] New tokens added: `--card-bg`, `--card-radius-lg`, `--card-radius`, `--card-shadow` (unconsumed by any component in this ticket — reserved for a future per-page ticket)
+- [x] Font `@import` changes to `Noto Sans Thai` + `Inter` (Inter's existing weight range kept as-is); `Outfit` is removed entirely; `body`'s `font` family list leads with `Noto Sans Thai`
+- [x] `npx tsc -b` and `npx vitest run` (frontend) both stay green after the change
+- [x] Manual visual check (`npm run dev`) confirms the new background/colors/font are visibly applied across every existing tab

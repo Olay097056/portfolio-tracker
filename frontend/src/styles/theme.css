@@ -1,20 +1,27 @@
 /* frontend/src/styles/theme.css */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --bg: #0b0f19;
+  --bg: #09090b;
   --panel: rgba(20, 26, 42, 0.85);
   --panel2: rgba(30, 38, 60, 0.95);
   --panel3: rgba(15, 23, 42, 0.8);
   --border: rgba(255, 255, 255, 0.08);
-  --primary: #38bdf8;
+  --primary: #3b82f6;
   --primary-glow: rgba(56, 189, 248, 0.25);
   --accent-purple: #8b5cf6;
-  --green: #10b981;
+  --green: #2ca559;
   --yellow: #f59e0b;
   --red: #ef4444;
-  --text: #f8fafc;
+  --text: rgb(255, 248, 240);
   --muted: #94a3b8;
+
+  /* Card/container tokens — sampled from wethaiinvest.com, not yet consumed by any
+     component. Reserved for a future per-page redesign ticket. */
+  --card-bg: #18181b;
+  --card-radius-lg: 16px;
+  --card-radius: 12px;
+  --card-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
 * {
@@ -24,11 +31,8 @@
 body {
   margin: 0;
   background-color: var(--bg);
-  background-image:
-    radial-gradient(circle at 15% 15%, rgba(56, 189, 248, 0.08) 0%, transparent 40%),
-    radial-gradient(circle at 85% 85%, rgba(139, 92, 246, 0.08) 0%, transparent 40%);
   color: var(--text);
-  font: 14px/1.6 'Inter', -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 14px/1.6 'Noto Sans Thai', 'Inter', -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 button {

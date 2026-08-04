@@ -198,3 +198,19 @@ Work the **frontier**: Ticket 1 can start immediately; Ticket 2 needs Ticket 1 d
 - [x] Releasing the mouse commits the final price exactly once — a move call if the ticker+range pair is already manual, or the same freeze-and-preserve-the-rest behavior as the previous ticket if this is the first edit for that pair
 - [x] Dragging an auto zone (first edit for that pair) preserves every other zone currently shown, the same guarantee the previous ticket's add path already has
 - [x] The side list's price value updates live as a zone is dragged, staying in sync with what's rendered on the chart (uncontrolled price input's `key` widened to include price so it actually re-displays)
+
+## UI theme foundation — dark palette + typography matched to wethaiinvest.com
+
+**What to build:** Loading any page of the app shows a flat near-black background (no gradient), the accent/gain/text colors and Thai+English typography sampled from wethaiinvest.com's own member dashboard — visible immediately across every existing page since this is a single global CSS file, with zero layout or behavior change anywhere. New card/container CSS tokens are also defined for a later ticket to consume. Source: `docs/specs/2026-08-04-ui-theme-foundation.md`.
+
+**Blocked by:** None — can start immediately.
+
+- [ ] `--bg` changes to `#09090b`; the `body` radial-gradient background-image is removed entirely (flat `background-color` only)
+- [ ] `--primary` changes to `#3b82f6`
+- [ ] `--green` changes to `#2ca559`
+- [ ] `--red` confirmed unchanged (`#ef4444` already matches the reference)
+- [ ] `--text` changes to `rgb(255, 248, 240)`
+- [ ] New tokens added: `--card-bg`, `--card-radius-lg`, `--card-radius`, `--card-shadow` (unconsumed by any component in this ticket — reserved for a future per-page ticket)
+- [ ] Font `@import` changes to `Noto Sans Thai` + `Inter` (Inter's existing weight range kept as-is); `Outfit` is removed entirely; `body`'s `font` family list leads with `Noto Sans Thai`
+- [ ] `npx tsc -b` and `npx vitest run` (frontend) both stay green after the change
+- [ ] Manual visual check (`npm run dev`) confirms the new background/colors/font are visibly applied across every existing tab

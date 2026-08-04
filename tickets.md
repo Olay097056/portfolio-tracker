@@ -254,3 +254,16 @@ Work the **frontier**: Ticket 1 can start immediately; Ticket 2 needs Ticket 1 d
 - [x] Each ticker row gets its own `--panel3` background, separating it from its neighbors
 - [x] The Remove button gets the `--red` warning-toned style matching every other Delete button in the app
 - [x] All existing tests pass, including every page that renders `TabStrip` (top nav, Tools, Watchlist sub-tabs); new tests cover active-tab color, card presence, and Remove button color
+
+## Watchlist scanner tables UI redesign — cards, zebra-stripe, narrow gain/loss colors, positive-action button
+
+**What to build:** All four Watchlist scanner/ranking sub-tabs (Dividend Ranking, Momentum Scanner, Pre-Squeeze Scanner, Trending Stocks Today) are wrapped in cards with zebra-striped tables; exactly two columns (Momentum's and Trending's "% change") get gain/loss color, every other signed-percent column stays uncolored; Trending's "Add to Watchlist" button gets a positive-action accent — none of the underlying scan/sort/tax-rate logic changes. Source: `docs/specs/2026-08-04-watchlist-scanner-tables-ui-redesign.md`.
+
+**Blocked by:** TabStrip + Manage Watchlist UI redesign (already merged)
+
+- [ ] Dividend Ranking, Momentum Scanner, and Pre-Squeeze Scanner each wrapped in a single card containing their controls and table
+- [ ] Trending Stocks Today wrapped in one card containing all three lists (Gainers/Losers/Most active)
+- [ ] Every table's rows zebra-striped with `--panel3` on even rows, including Trending's three sub-tables
+- [ ] Only Momentum's `percent_change_pct` and Trending's `change_pct` cells are colored `--green`/`--red` by sign; every other signed-percent column (RSI, volume ratio, distance from SMA, dividend yield/growth, BB width, ATR) stays uncolored
+- [ ] Trending's "Add to Watchlist" button styled with `--primary`
+- [ ] All existing tests pass; new tests cover card presence, the narrow color scope (including that other columns are NOT colored), zebra-stripe, and the Add-to-Watchlist button color

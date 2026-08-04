@@ -242,3 +242,15 @@ Work the **frontier**: Ticket 1 can start immediately; Ticket 2 needs Ticket 1 d
 - [x] Unrealized P&L colored green/red by sign, with a small emoji (two-state, not the stress-test calculator's magnitude ladder)
 - [x] Delete buttons at both the portfolio and holding level get the `--red` warning-toned style matching "Recompute defaults" — style only, no new confirmation step
 - [x] All existing tests pass; new tests cover severity color, P&L color/emoji, delete button color, and card-wrapping presence
+
+## TabStrip + Manage Watchlist UI redesign — active-tab highlight, card, row separation, warning-style Remove
+
+**What to build:** The currently-active tab is highlighted with `--primary` everywhere `TabStrip` is used (top-level nav, Tools sub-tabs, Watchlist sub-tabs); the Manage Watchlist page is wrapped in a card with separated ticker rows and a warning-styled Remove button — none of the four Watchlist scanner tables are touched. Source: `docs/specs/2026-08-04-tabstrip-and-manage-watchlist-ui-redesign.md`.
+
+**Blocked by:** None — can start immediately.
+
+- [ ] The tab matching `aria-pressed="true"` is highlighted with `--primary` (border/text); no structural/shape change to `TabStrip`
+- [ ] Manage Watchlist page wrapped in a single card containing the add-ticker form and the ticker list
+- [ ] Each ticker row gets its own `--panel3` background, separating it from its neighbors
+- [ ] The Remove button gets the `--red` warning-toned style matching every other Delete button in the app
+- [ ] All existing tests pass, including every page that renders `TabStrip` (top nav, Tools, Watchlist sub-tabs); new tests cover active-tab color, card presence, and Remove button color

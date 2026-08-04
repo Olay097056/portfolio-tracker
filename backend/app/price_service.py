@@ -115,15 +115,15 @@ def _fetch_dividend_yield_pct(ticker: str) -> float | None:
         if raw_yield is None:
             return None
         raw_yield = float(raw_yield)
-        # yfinance has returned dividendYield as either a fraction (e.g. 0.111
-        # for 11.1%) or an already-scaled percentage (e.g. 11.1), depending on
-        # version/backend. No real equity/ETF dividend yield is ever >= 100%,
-        # so use that as the heuristic to detect which format we got.
         if raw_yield < 0:
             return None
-        if raw_yield > 1:
-            return raw_yield
-        return raw_yield * 100
+        # Confirmed against real yfinance responses (2026-08-04, yfinance==1.5.2) across both
+        # low-yield stocks (AAPL: 0.35) and high-yield ETFs (JEPQ: 9.95, SCHD: 3.3, KO: 2.42,
+        # VOO: 1.07) — dividendYield is always already a direct percentage, never a fraction.
+        # A prior version of this function guessed the format via a ">1" heuristic, which
+        # silently multiplied every low-yield ticker (anything under 1%, like AAPL) by 100 —
+        # a real, previously-unverified fabrication bug (0.35% reported as 35%).
+        return raw_yield
     except Exception:
         return None
 
@@ -133,6 +133,9 @@ def _fetch_growth_rate_pct(ticker: str) -> float | None:
 
     try:
         history = yf.Ticker(ticker).history(period="5y")
+        # Same reasoning as chart_service.py/history_service.py: drop a still-forming bar (NaN
+        # Close) rather than let it become a NaN growth rate downstream.
+        history = history.dropna(subset=["Close"])
         if history.empty or len(history) < 2:
             return None
         start_price = float(history["Close"].iloc[0])

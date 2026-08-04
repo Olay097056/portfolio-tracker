@@ -37,6 +37,11 @@ def _fetch_history(ticker: str) -> list[Bar] | None:
 
     try:
         history = yf.Ticker(ticker).history(period="1y")
+        # Same reasoning as chart_service.py: the most recent bar can be NaN while the market is
+        # still forming it. Drop it rather than let NaN reach a signal calculation or the JSON
+        # response — an incomplete bar isn't a real data point, and fabricating one would violate
+        # this project's never-fabricate principle.
+        history = history.dropna(subset=["Close", "High", "Low", "Volume"])
         if history.empty:
             return None
         return [

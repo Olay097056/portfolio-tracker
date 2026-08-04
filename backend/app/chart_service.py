@@ -64,6 +64,12 @@ def _fetch_from_provider(ticker: str, range_: str) -> ChartFetchResult | None:
     period, interval, encoding = RANGE_TO_YFINANCE[range_]
     try:
         history = yf.Ticker(ticker).history(period=period, interval=interval)
+        # The most recent bar (today, while the market is still open) can come back with NaN
+        # OHLC from yfinance for a still-forming period — surfacing that NaN downstream (JSON
+        # rejects NaN/Infinity) is a real bug, and fabricating a value for it would violate this
+        # project's never-fabricate principle. Dropping the incomplete row is correct: it's not
+        # a data point yet, not a value we chose to hide.
+        history = history.dropna(subset=["High", "Low", "Close"])
         if history.empty:
             return None
 

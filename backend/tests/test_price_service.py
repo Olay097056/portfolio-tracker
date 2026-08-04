@@ -203,20 +203,6 @@ def test_get_market_data_with_empty_list_returns_empty_dict():
     assert result == {}
 
 
-def test_fetch_dividend_yield_pct_scales_fraction_to_percent(monkeypatch):
-    import yfinance
-
-    class FakeTicker:
-        def __init__(self, ticker):
-            self.info = {"dividendYield": 0.111}
-
-    monkeypatch.setattr(yfinance, "Ticker", FakeTicker)
-
-    result = price_service._fetch_dividend_yield_pct("JEPQ")
-
-    assert result == pytest.approx(11.1)
-
-
 def test_fetch_dividend_yield_pct_leaves_already_percentage_value_unscaled(monkeypatch):
     import yfinance
 
@@ -229,6 +215,24 @@ def test_fetch_dividend_yield_pct_leaves_already_percentage_value_unscaled(monke
     result = price_service._fetch_dividend_yield_pct("JEPQ")
 
     assert result == pytest.approx(11.1)
+
+
+def test_fetch_dividend_yield_pct_does_not_scale_a_sub_one_percent_value(monkeypatch):
+    # Regression test for a real bug: a prior ">1" heuristic treated any dividendYield under 1
+    # as a fraction and multiplied it by 100. Real low-yield tickers (e.g. AAPL, confirmed
+    # directly against a live yfinance==1.5.2 response returning 0.35 for its ~0.35% yield)
+    # would have been reported as 35% instead of 0.35%.
+    import yfinance
+
+    class FakeTicker:
+        def __init__(self, ticker):
+            self.info = {"dividendYield": 0.35}
+
+    monkeypatch.setattr(yfinance, "Ticker", FakeTicker)
+
+    result = price_service._fetch_dividend_yield_pct("AAPL")
+
+    assert result == pytest.approx(0.35)
 
 
 def test_fetch_dividend_yield_pct_returns_none_when_missing(monkeypatch):

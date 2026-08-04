@@ -201,7 +201,7 @@ Residual ที่แก้ไปแล้ว (2026-07-30):
 Residual ที่ยังเหลือ:
 
 - **FMP v3 `stock_market` endpoints อาจเป็น legacy API path** — FMP มี `/stable/biggest-gainers` เป็นเวอร์ชันใหม่กว่าแล้ว ยังไม่เคยทดสอบกับ real API key เลย **แนะนำให้ smoke test ด้วย real `FMP_API_KEY` เป็นอันดับแรกที่ทำได้** พร้อมยืนยันว่า `change_pct` ไม่ได้เป็น null ทั้งหมด (เผื่อ field type เปลี่ยนไปในเวอร์ชันใหม่) — รอ user ให้ key มา (2026-07-30: ยังไม่มี key)
-- **`_fetch_dividend_yield_pct` scaling ยังไม่ยืนยัน 100% ว่าถูกกับ yfinance 0.2.51 ที่ pin ไว้** — ตอนนี้ใช้ heuristic (>1 = ถือว่าเป็น % อยู่แล้ว, ≤1 = คูณ 100) ที่ครอบคลุมกรณีหลัก (ETF yield สูงอย่าง JEPQ) ถูกต้อง แต่ยังมีความเสี่ยงที่หุ้น yield ต่ำกว่า 1% (เช่น AAPL ~0.44%) อาจถูกคูณผิด 100 เท่า ถ้า yfinance เวอร์ชันนี้คืนค่าเป็น % อยู่แล้วจริงๆ — ยืนยันไม่ได้เพราะ yfinance โดน rate-limit (429) ตลอด session นี้ ต้องลองเรียกจริงตอน rate limit หายแล้วเพื่อ confirm รูปแบบ แล้วปรับ/ลบ heuristic ถ้าจำเป็น
+- ~~`_fetch_dividend_yield_pct` scaling ยังไม่ยืนยัน 100% ว่าถูกกับ yfinance~~ — **แก้แล้ว (2026-08-04)**: ยืนยันกับ yfinance จริง (อัปเกรดเป็น 1.5.2 แล้ว — ดู "yfinance 429 rate-limit + real-data smoke test" ด้านล่าง) ด้วย 5 ticker จริง (AAPL 0.35, JEPQ 9.95, SCHD 3.3, KO 2.42, VOO 1.07) พบว่า `dividendYield` เป็น % ตรงๆ เสมอ ไม่ใช่ fraction — heuristic เดิม (`>1` = % อยู่แล้ว, `≤1` = คูณ 100) **เป็นบั๊กจริง** ทำให้ทุก ticker yield ต่ำกว่า 1% (เช่น AAPL) ถูกคูณผิด 100 เท่า (0.35% กลายเป็น 35%) — ลบ heuristic ออก คืนค่า raw ตรงๆ เสมอ พร้อม regression test ยืนยัน
 - ~~Portfolio Builder wizard ไม่ rollback เมื่อสร้าง holding ล้มเหลวกลางทาง~~ — **grill แล้ว + fix แล้ว (2026-07-30)**: ถ้า `createHolding` พังหลังจาก `createPortfolio` สำเร็จ ระบบเรียก `deletePortfolio` ให้อัตโนมัติ (cascade ลบ holdings ที่ทันสร้างไปด้วย) แล้วบอก error ว่ายกเลิกพอร์ตให้แล้ว ลองใหม่ได้เลย ถ้า rollback เองก็พังด้วย จะบอกชื่อพอร์ตที่ต้องไปลบเองที่ Portfolios แทน ไม่อ้างว่า rollback สำเร็จทั้งที่ไม่ได้ทำ
 
 ### จาก Dashboard price chart effort (2026-07-30) — Ticket 1/2 (walking skeleton) merge แล้ว
@@ -261,3 +261,15 @@ Residual ที่เหลือ (Minor, ไม่บล็อก merge):
 - ไม่มี affordance ว่าเส้นลากได้ (ไม่มี `cursor: ns-resize`, hover highlight, `user-select: none` ระหว่างลาก) — เรื่อง discoverability/polish ล้วนๆ สเปกไม่ได้ขอ
 - `preventDefault` ตัวใหม่ (แก้ I3) กัน input blur ไปด้วยโดยไม่ตั้งใจ — ส่วนใหญ่เป็นผลดี แต่ถ้า user พิมพ์ค่าครึ่งๆใน ZoneList แล้วไปลากกราฟพอดี ค่าที่พิมพ์ครึ่งๆอาจหายไปตอน auto-zone freeze+refetch
 - มี snap-back flicker เล็กน้อยตอน drag สำเร็จ (เส้นรีเซ็ตกลับราคาเดิมก่อน แล้วค่อยกระโดดไปราคาใหม่หลัง refetch) — ตั้งใจแลกมาเพื่อไม่ให้เส้นค้างโชว์ราคาที่ไม่จริงเลย ยอมรับได้
+
+### yfinance 429 rate-limit + real-data smoke test (2026-08-04) — แก้แล้ว, ทดสอบจริงสำเร็จ
+
+ตลอดหลาย session ก่อนหน้านี้ yfinance โดน `429 Too Many Requests` จาก Yahoo ตลอด ทำให้ไม่เคยทดสอบ Dashboard/Watchlist ด้วยข้อมูลจริงได้เลย (สงสัยว่าเป็นเพราะ IP ของ sandbox โดนแบนเฉพาะ) — ลอง**อัปเกรด `yfinance` จาก `0.2.51` เป็น `1.5.2`** (เวอร์ชันที่ pin ไว้เก่ากว่าปัจจุบันหลายสิบ release ซึ่งมาพร้อม anti-bot-detection ที่ดีขึ้นเรื่อยๆ) แล้ว **429 หายไปทันที** ดึงข้อมูลจริงได้ (`.history()`, `.fast_info`, `.info`, `.dividends` ทดสอบครบ API เดิมยังใช้ได้เหมือนเดิม ไม่มี breaking change ต่อโค้ดที่มีอยู่)
+
+ตอนทดสอบด้วยข้อมูลจริงครั้งแรก เจอบั๊กจริงเพิ่ม 2 ตัวที่ mock ไม่เคยเจอ (แก้ไปแล้วทั้งคู่):
+- **NaN หลุดเข้า JSON response ทำให้ 500 error** — แท่งราคาของวันนี้ (ตลาดยังไม่ปิด) จาก yfinance มี OHLC เป็น `NaN` บางฟิลด์ (starlette's `JSONResponse` ใช้ `allow_nan=False`) แก้โดย `history.dropna(subset=[...])` ก่อนใช้งานใน `chart_service.py`, `history_service.py`, และ `price_service.py`'s growth-rate fetch — ตัดแท่งที่ยังไม่สมบูรณ์ทิ้งแทนที่จะ fabricate ค่า ตรงตามหลัก never-fabricate
+- **`_fetch_dividend_yield_pct` scaling ผิดจริง** — ดูรายละเอียดในหัวข้อ residual ด้านบนที่อัปเดตแล้ว
+
+ทดสอบ end-to-end ผ่าน UI จริงสำเร็จ: Dashboard โหลดกราฟ AAPL 1 ปีได้จริง พร้อม S/R zones auto-computed จากข้อมูลจริง, แถบราคา+% เปลี่ยนแปลงสีถูกต้อง, **และที่สำคัญ — ทดสอบการลาก zone บนกราฟจริง (`lightweight-charts` ตัวจริง ไม่ใช่ mock) เป็นครั้งแรกสำเร็จ**: hit-test เจอเส้นจริง, `preventDefault()` ทำงานถูกต้อง (ป้องกันกราฟ pan ตามที่ I3 ตั้งใจไว้), ยิง `POST /market/chart/zones/freeze` สำเร็จ และ UI re-render เป็น manual zone ถูกต้อง — ปิด residual "manual browser smoke test" ที่ค้างมาตั้งแต่ ticket ลาก zone แล้ว
+
+**หมายเหตุ**: 429 ที่เจอก่อนหน้านี้อาจเป็นทั้งจาก (ก) เวอร์ชัน yfinance เก่าจัดการ bot-detection ได้แย่กว่า และ/หรือ (ข) IP ของ sandbox โดนแบนเฉพาะ — แก้ด้วยการอัปเกรดเวอร์ชันแก้ปัญหาได้ครบทั้งสองสาเหตุที่เป็นไปได้ในทางปฏิบัติ

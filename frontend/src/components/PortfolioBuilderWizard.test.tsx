@@ -47,6 +47,28 @@ describe('PortfolioBuilderWizard', () => {
     expect(client.createHolding).toHaveBeenCalledWith(1, { ticker: 'BND', shares: 10, avg_cost_usd: 90 });
   });
 
+  it('wraps its content in a card', () => {
+    const { container } = render(<PortfolioBuilderWizard />);
+
+    expect(container.querySelector('.card')).not.toBeNull();
+  });
+
+  it('zebra-stripes the allocation-preview table and styles Create portfolio as a positive action', async () => {
+    vi.spyOn(client, 'getUsdToThbRate').mockResolvedValue(35);
+    vi.spyOn(client, 'getPrices').mockResolvedValue({ VTI: 210, SPY: 150, BND: 90 });
+
+    const { container } = render(<PortfolioBuilderWizard />);
+
+    fireEvent.change(screen.getByLabelText(/portfolio name/i), { target: { value: 'Test Portfolio' } });
+    fireEvent.change(screen.getByLabelText('Capital (THB)'), { target: { value: '105000' } });
+    fireEvent.click(screen.getByRole('button', { name: /preview allocation/i }));
+
+    await waitFor(() => expect(screen.getByText(/5.0000 shares/)).toBeInTheDocument());
+
+    expect(container.querySelector('table.zebra-table')).not.toBeNull();
+    expect(screen.getByRole('button', { name: /create portfolio/i })).toHaveStyle({ color: 'var(--primary)' });
+  });
+
   it('clears the preview after a failed create so a blind retry cannot create a duplicate portfolio', async () => {
     vi.spyOn(client, 'getUsdToThbRate').mockResolvedValue(35);
     vi.spyOn(client, 'getPrices').mockResolvedValue({ VTI: 210, SPY: 150, BND: 90 });

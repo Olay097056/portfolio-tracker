@@ -33,6 +33,24 @@ describe('EtfComparisonTool', () => {
     expect(screen.getByText('Price unavailable')).toBeInTheDocument();
   });
 
+  it('wraps its content in a card', () => {
+    const { container } = render(<EtfComparisonTool />);
+
+    expect(container.querySelector('.card')).not.toBeNull();
+  });
+
+  it('zebra-stripes the results table', async () => {
+    vi.spyOn(client, 'getPrices').mockResolvedValue({ VTI: 210, SPY: 150 });
+
+    const { container } = render(<EtfComparisonTool />);
+    fireEvent.change(screen.getByLabelText(/ticker a/i), { target: { value: 'VTI' } });
+    fireEvent.change(screen.getByLabelText(/ticker b/i), { target: { value: 'SPY' } });
+    fireEvent.click(screen.getByRole('button', { name: /compare/i }));
+
+    await waitFor(() => expect(screen.getByText('$210.00')).toBeInTheDocument());
+    expect(container.querySelector('table.zebra-table')).not.toBeNull();
+  });
+
   it('shows an error and does not call getPrices when a ticker field is left blank', () => {
     const getPricesSpy = vi.spyOn(client, 'getPrices');
 

@@ -50,7 +50,7 @@ export function PassiveIncomeCalculator() {
   });
 
   return (
-    <div>
+    <div className="card">
       <h3>Passive Income</h3>
       <label htmlFor="ff-ticker">Ticker</label>
       <input id="ff-ticker" value={ticker} onChange={(e) => setTicker(e.target.value)} />
@@ -94,7 +94,7 @@ export function PassiveIncomeCalculator() {
       <input id="ff-tax" type="number" value={taxRatePct} onChange={(e) => setTaxRatePct(e.target.value)} />
 
       <div>Required portfolio: ฿{result.requiredPortfolioThb.toFixed(0)}</div>
-      <div>
+      <div style={{ color: result.isAchievableWithin30Years ? 'var(--green)' : 'var(--red)' }}>
         {result.isAchievableWithin30Years
           ? `Reachable in ${result.yearsToTarget} years at this contribution rate`
           : 'Not reachable within 30 years at this contribution rate'}

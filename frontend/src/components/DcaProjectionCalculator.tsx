@@ -54,7 +54,7 @@ export function DcaProjectionCalculator() {
   const last = projection[projection.length - 1];
 
   return (
-    <div>
+    <div className="card">
       <h3>DCA Projection</h3>
       <label htmlFor="dca-proj-ticker">Ticker</label>
       <input id="dca-proj-ticker" value={ticker} onChange={(e) => setTicker(e.target.value)} />

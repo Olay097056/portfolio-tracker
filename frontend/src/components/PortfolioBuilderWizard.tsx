@@ -86,7 +86,7 @@ export function PortfolioBuilderWizard() {
   }
 
   return (
-    <div>
+    <div className="card">
       <h3>Portfolio Builder</h3>
       {error && <div role="alert">{error}</div>}
       {created && <div>Portfolio created.</div>}
@@ -131,7 +131,7 @@ export function PortfolioBuilderWizard() {
 
       {lines && (
         <div>
-          <table>
+          <table className="zebra-table">
             <tbody>
               {lines.map((line) => (
                 <tr key={line.ticker}>
@@ -143,7 +143,12 @@ export function PortfolioBuilderWizard() {
               ))}
             </tbody>
           </table>
-          <button type="button" onClick={handleCreate} disabled={creating || !name.trim()}>
+          <button
+            type="button"
+            onClick={handleCreate}
+            disabled={creating || !name.trim()}
+            style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}
+          >
             Create portfolio
           </button>
         </div>

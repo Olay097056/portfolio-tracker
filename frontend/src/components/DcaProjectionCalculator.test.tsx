@@ -14,6 +14,12 @@ describe('DcaProjectionCalculator', () => {
     expect(screen.getByText(/Portfolio value after 10 years/i)).toBeInTheDocument();
   });
 
+  it('wraps its content in a card', () => {
+    const { container } = render(<DcaProjectionCalculator />);
+
+    expect(container.querySelector('.card')).not.toBeNull();
+  });
+
   it('pre-fills yield and growth from real market data once a ticker is entered', async () => {
     vi.spyOn(client, 'getMarketData').mockResolvedValue({
       JEPQ: { price: 58.5, dividend_yield_pct: 11.1, growth_rate_pct: 10 },

@@ -33,7 +33,7 @@ export function EtfComparisonTool() {
   }
 
   return (
-    <div>
+    <div className="card">
       <h3>ETF Comparison</h3>
       {error && <div role="alert">{error}</div>}
 
@@ -48,7 +48,7 @@ export function EtfComparisonTool() {
       </button>
 
       {results && (
-        <table>
+        <table className="zebra-table">
           <tbody>
             {results.map((r) => (
               <tr key={r.ticker}>

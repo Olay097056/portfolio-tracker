@@ -261,9 +261,9 @@ Work the **frontier**: Ticket 1 can start immediately; Ticket 2 needs Ticket 1 d
 
 **Blocked by:** TabStrip + Manage Watchlist UI redesign (already merged)
 
-- [ ] Dividend Ranking, Momentum Scanner, and Pre-Squeeze Scanner each wrapped in a single card containing their controls and table
-- [ ] Trending Stocks Today wrapped in one card containing all three lists (Gainers/Losers/Most active)
-- [ ] Every table's rows zebra-striped with `--panel3` on even rows, including Trending's three sub-tables
-- [ ] Only Momentum's `percent_change_pct` and Trending's `change_pct` cells are colored `--green`/`--red` by sign; every other signed-percent column (RSI, volume ratio, distance from SMA, dividend yield/growth, BB width, ATR) stays uncolored
-- [ ] Trending's "Add to Watchlist" button styled with `--primary`
-- [ ] All existing tests pass; new tests cover card presence, the narrow color scope (including that other columns are NOT colored), zebra-stripe, and the Add-to-Watchlist button color
+- [x] Dividend Ranking, Momentum Scanner, and Pre-Squeeze Scanner each wrapped in a single card containing their controls and table
+- [x] Trending Stocks Today wrapped in one card containing all three lists (Gainers/Losers/Most active)
+- [x] Every table's rows zebra-striped with `--panel3` on even rows, including Trending's three sub-tables
+- [x] Only Momentum's `percent_change_pct` and Trending's `change_pct` cells are colored `--green`/`--red` by sign; every other signed-percent column (RSI, volume ratio, distance from SMA, dividend yield/growth, BB width, ATR) stays uncolored
+- [x] Trending's "Add to Watchlist" button styled with `--primary`
+- [x] All existing tests pass; new tests cover card presence, the narrow color scope (including that other columns are NOT colored), zebra-stripe, and the Add-to-Watchlist button color

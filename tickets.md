@@ -236,9 +236,9 @@ Work the **frontier**: Ticket 1 can start immediately; Ticket 2 needs Ticket 1 d
 
 **Blocked by:** None — can start immediately.
 
-- [ ] `AddPortfolioForm` wrapped in a card; each portfolio's card contains its summary, toggle, delete button, and (when expanded) `AddHoldingForm` + holdings list
-- [ ] Each holding row gets its own distinct background/border (using `--panel3`) instead of a bare unstyled `<div>`
-- [ ] Severity indicator (`data-severity`) shows real color (`--green`/`--yellow`/`--red`); no dot rendered when severity is absent/`none`
-- [ ] Unrealized P&L colored green/red by sign, with a small emoji (two-state, not the stress-test calculator's magnitude ladder)
-- [ ] Delete buttons at both the portfolio and holding level get the `--red` warning-toned style matching "Recompute defaults" — style only, no new confirmation step
-- [ ] All existing tests pass; new tests cover severity color, P&L color/emoji, delete button color, and card-wrapping presence
+- [x] `AddPortfolioForm` wrapped in a card; each portfolio's card contains its summary, toggle, delete button, and (when expanded) `AddHoldingForm` + holdings list
+- [x] Each holding row gets its own distinct background/border (using `--panel3`) instead of a bare unstyled `<div>`
+- [x] Severity indicator (`data-severity`) shows real color (`--green`/`--yellow`/`--red`); no dot rendered when severity is absent/`none`
+- [x] Unrealized P&L colored green/red by sign, with a small emoji (two-state, not the stress-test calculator's magnitude ladder)
+- [x] Delete buttons at both the portfolio and holding level get the `--red` warning-toned style matching "Recompute defaults" — style only, no new confirmation step
+- [x] All existing tests pass; new tests cover severity color, P&L color/emoji, delete button color, and card-wrapping presence

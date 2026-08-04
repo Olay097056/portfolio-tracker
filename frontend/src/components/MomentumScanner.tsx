@@ -4,7 +4,7 @@ import type { PriceSignalRow, ScanPeriod } from '../api/types';
 import { useSortableColumn } from '../hooks/useSortableColumn';
 import { DEFAULT_PERIOD, type PriceSignalsScanState } from '../hooks/usePriceSignalsScan';
 import { useWatchlist } from '../hooks/useWatchlist';
-import { formatNumber, formatSignedPercent } from '../utils/signalFormatting';
+import { changeColor, formatNumber, formatSignedPercent } from '../utils/signalFormatting';
 import { sortByNullableNumber } from '../utils/sortRows';
 
 interface MomentumScannerProps {
@@ -29,7 +29,7 @@ export function MomentumScanner({ scanState }: MomentumScannerProps) {
 
   if (items.length === 0) {
     return (
-      <div>
+      <div className="card">
         <h3>Momentum Scanner</h3>
         <p>
           Your watchlist is empty — add tickers in Manage Watchlist, or add some instantly from Trending Stocks
@@ -59,7 +59,7 @@ export function MomentumScanner({ scanState }: MomentumScannerProps) {
   const headingPeriod = scannedPeriod ?? period;
 
   return (
-    <div>
+    <div className="card">
       <h3>Momentum Scanner</h3>
 
       <label htmlFor="momentum-period">Period</label>
@@ -85,7 +85,7 @@ export function MomentumScanner({ scanState }: MomentumScannerProps) {
       )}
 
       {sortedRows.length > 0 && (
-        <table>
+        <table className="zebra-table">
           <thead>
             <tr>
               <th>Ticker</th>
@@ -115,7 +115,7 @@ export function MomentumScanner({ scanState }: MomentumScannerProps) {
             {sortedRows.map((row) => (
               <tr key={row.ticker}>
                 <td>{row.ticker}</td>
-                <td>{formatSignedPercent(row.percent_change_pct)}</td>
+                <td style={{ color: changeColor(row.percent_change_pct) }}>{formatSignedPercent(row.percent_change_pct)}</td>
                 <td>{formatNumber(row.rsi_14)}</td>
                 <td>{formatNumber(row.volume_ratio)}</td>
                 <td>{formatSignedPercent(row.distance_from_sma50_pct)}</td>

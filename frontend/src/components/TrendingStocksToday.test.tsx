@@ -146,6 +146,57 @@ describe('TrendingStocksToday', () => {
     expect(screen.getByText('No data.')).toBeInTheDocument();
   });
 
+  it('wraps its content (all three lists) in a single card', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([]);
+    vi.spyOn(client, 'getTrending').mockResolvedValue({
+      gainers: [],
+      losers: [],
+      most_active: [],
+      api_key_configured: true,
+    });
+
+    const { container } = render(<Wrapper />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /^refresh$/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /^refresh$/i }));
+
+    await waitFor(() => expect(container.querySelectorAll('.card')).toHaveLength(1));
+  });
+
+  it('colors % change green for a gain and red for a loss', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([]);
+    vi.spyOn(client, 'getTrending').mockResolvedValue({
+      gainers: [{ ticker: 'AAPL', name: 'Apple Inc.', price: 195.5, change_pct: 4.2 }],
+      losers: [{ ticker: 'XYZ', name: 'Xyz Corp.', price: 10.0, change_pct: -6.1 }],
+      most_active: [],
+      api_key_configured: true,
+    });
+
+    render(<Wrapper />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /^refresh$/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /^refresh$/i }));
+
+    await waitFor(() => expect(screen.getByText('4.20%')).toBeInTheDocument());
+    expect(screen.getByText('4.20%')).toHaveStyle({ color: 'var(--green)' });
+    expect(screen.getByText('-6.10%')).toHaveStyle({ color: 'var(--red)' });
+  });
+
+  it('styles the "Add to Watchlist" button as a positive action', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([]);
+    vi.spyOn(client, 'getTrending').mockResolvedValue({
+      gainers: [{ ticker: 'AAPL', name: 'Apple Inc.', price: 195.5, change_pct: 4.2 }],
+      losers: [],
+      most_active: [],
+      api_key_configured: true,
+    });
+
+    render(<Wrapper />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /^refresh$/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /^refresh$/i }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /add to watchlist/i })).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /add to watchlist/i })).toHaveStyle({ color: 'var(--primary)' });
+  });
+
   it('shows an already-watched row as such instead of an Add button', async () => {
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getTrending').mockResolvedValue({

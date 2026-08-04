@@ -57,3 +57,9 @@ input {
   padding: 16px;
   margin-bottom: 16px;
 }
+
+/* Opt-in per-table zebra-stripe (Watchlist scanner tables ticket) — scoped to this class, not
+   every table inside a .card, so it doesn't silently change Dashboard's ZoneList table too. */
+.zebra-table tbody tr:nth-child(even) {
+  background: var(--panel3);
+}

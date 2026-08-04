@@ -178,6 +178,65 @@ describe('MomentumScanner', () => {
     expect(screen.getAllByText(/unavailable/i).length).toBeGreaterThan(0);
   });
 
+  it('wraps its content in a card', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([]);
+
+    const { container } = render(<Wrapper />);
+
+    await waitFor(() => expect(container.querySelector('.card')).not.toBeNull());
+  });
+
+  it('colors % change green for a gain and red for a loss, but leaves every other column uncolored', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([
+      { id: 1, ticker: 'UP', category: null, created_at: '2026-01-01T00:00:00Z' },
+      { id: 2, ticker: 'DOWN', category: null, created_at: '2026-01-01T00:00:00Z' },
+    ]);
+    vi.spyOn(client, 'getPriceSignal').mockImplementation(async (ticker) => ({
+      ticker,
+      percent_change_pct: ticker === 'UP' ? 1.5 : -2.25,
+      rsi_14: 50,
+      volume_ratio: 1,
+      distance_from_sma50_pct: 1,
+      bb_width_pct: null,
+      bb_width_percentile: null,
+      atr_pct: null,
+    }));
+
+    render(<Wrapper />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /^scan$/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /^scan$/i }));
+    await waitFor(() => expect(screen.getByText('1.50%')).toBeInTheDocument());
+
+    expect(screen.getByText('1.50%')).toHaveStyle({ color: 'var(--green)' });
+    expect(screen.getByText('-2.25%')).toHaveStyle({ color: 'var(--red)' });
+    // RSI (a volatility measurement, not a price change) must not be colored.
+    expect(screen.getAllByText('50.00')[0]).not.toHaveStyle({ color: 'var(--green)' });
+    expect(screen.getAllByText('50.00')[0]).not.toHaveStyle({ color: 'var(--red)' });
+  });
+
+  it('marks its table for zebra-striping (the CSS rule itself is verified once, in this file, per the spec — not re-tested per table)', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([
+      { id: 1, ticker: 'A', category: null, created_at: '2026-01-01T00:00:00Z' },
+    ]);
+    vi.spyOn(client, 'getPriceSignal').mockResolvedValue({
+      ticker: 'A',
+      percent_change_pct: 1,
+      rsi_14: null,
+      volume_ratio: null,
+      distance_from_sma50_pct: null,
+      bb_width_pct: null,
+      bb_width_percentile: null,
+      atr_pct: null,
+    });
+
+    const { container } = render(<Wrapper />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /^scan$/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /^scan$/i }));
+    await waitFor(() => expect(screen.getByText('A')).toBeInTheDocument());
+
+    expect(container.querySelector('table.zebra-table')).not.toBeNull();
+  });
+
   it('sends the selected period to getPriceSignal', async () => {
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([
       { id: 1, ticker: 'VTI', category: null, created_at: '2026-01-01T00:00:00Z' },

@@ -117,6 +117,39 @@ describe('DividendRanking', () => {
     expect(screen.getByText('Unavailable')).toBeInTheDocument(); // dividend_growth_pct: null
   });
 
+  it('wraps its content in a card', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([]);
+
+    const { container } = render(<Wrapper />);
+
+    await waitFor(() => expect(container.querySelector('.card')).not.toBeNull());
+  });
+
+  it('does not color any of its columns green/red — yield and growth are not price changes', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'JEPQ', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+    vi.spyOn(client, 'getDividendSignal').mockResolvedValue({
+      ticker: 'JEPQ',
+      price: 58.51,
+      gross_yield_pct: 11.1,
+      payment_frequency: 12,
+      dividend_growth_pct: -3.2,
+    });
+
+    render(<Wrapper />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /^scan$/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /^scan$/i }));
+    await waitFor(() => expect(screen.getByText('JEPQ')).toBeInTheDocument());
+
+    // dividend_growth_pct is negative here specifically to prove a negative signed-percent value
+    // in this table still isn't colored red — the narrow-scope decision, not an accident of only
+    // testing positive values.
+    for (const text of ['58.51', '11.10%', '9.43%', '12', '-3.20%']) {
+      const cell = screen.getByText(text);
+      expect(cell).not.toHaveStyle({ color: 'var(--green)' });
+      expect(cell).not.toHaveStyle({ color: 'var(--red)' });
+    }
+  });
+
   it('shows a row marked unavailable for a ticker whose signal could not be fetched', async () => {
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'BADTICKER', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getDividendSignal').mockRejectedValue(new client.ApiError(502, 'upstream error'));

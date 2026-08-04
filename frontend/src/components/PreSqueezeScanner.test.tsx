@@ -86,6 +86,32 @@ describe('PreSqueezeScanner', () => {
     expect(screen.getAllByText('Unavailable')).toHaveLength(4);
   });
 
+  it('wraps its content in a card', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([]);
+
+    const { container } = render(<Wrapper />);
+
+    await waitFor(() => expect(container.querySelector('.card')).not.toBeNull());
+  });
+
+  it('does not color any of its columns green/red — none of them represent a price change', async () => {
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([
+      { id: 1, ticker: 'VTI', category: null, created_at: '2026-01-01T00:00:00Z' },
+    ]);
+    vi.spyOn(client, 'getPriceSignal').mockResolvedValue({ ticker: 'VTI', ...fullRow });
+
+    render(<Wrapper />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /^scan$/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /^scan$/i }));
+    await waitFor(() => expect(screen.getByText('4.20%')).toBeInTheDocument());
+
+    for (const text of ['4.20%', '12.50', '3.10%', '1.80']) {
+      const cell = screen.getByText(text);
+      expect(cell).not.toHaveStyle({ color: 'var(--green)' });
+      expect(cell).not.toHaveStyle({ color: 'var(--red)' });
+    }
+  });
+
   it('shows a row marked unavailable for a ticker whose signal could not be fetched', async () => {
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([
       { id: 1, ticker: 'BADTICKER', category: null, created_at: '2026-01-01T00:00:00Z' },

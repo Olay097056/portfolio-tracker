@@ -33,7 +33,7 @@ export function DividendRanking({ scanState, taxRatePct, onTaxRatePctChange }: D
 
   if (items.length === 0) {
     return (
-      <div>
+      <div className="card">
         <h3>Dividend Ranking</h3>
         <p>
           Your watchlist is empty — add tickers in Manage Watchlist, or add some instantly from Trending Stocks
@@ -55,7 +55,7 @@ export function DividendRanking({ scanState, taxRatePct, onTaxRatePctChange }: D
   }
 
   return (
-    <div>
+    <div className="card">
       <h3>Dividend Ranking</h3>
 
       <label htmlFor="dividend-tax-rate">Dividend tax rate (%)</label>
@@ -79,7 +79,7 @@ export function DividendRanking({ scanState, taxRatePct, onTaxRatePctChange }: D
       )}
 
       {sortedRows.length > 0 && (
-        <table>
+        <table className="zebra-table">
           <thead>
             <tr>
               <th>Ticker</th>

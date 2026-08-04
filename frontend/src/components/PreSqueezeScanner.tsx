@@ -26,7 +26,7 @@ export function PreSqueezeScanner({ scanState }: PreSqueezeScannerProps) {
 
   if (items.length === 0) {
     return (
-      <div>
+      <div className="card">
         <h3>Pre-Squeeze Scanner</h3>
         <p>
           Your watchlist is empty — add tickers in Manage Watchlist, or add some instantly from Trending Stocks
@@ -49,7 +49,7 @@ export function PreSqueezeScanner({ scanState }: PreSqueezeScannerProps) {
   }
 
   return (
-    <div>
+    <div className="card">
       <h3>Pre-Squeeze Scanner</h3>
 
       <button type="button" onClick={handleScan} disabled={scanning}>
@@ -63,7 +63,7 @@ export function PreSqueezeScanner({ scanState }: PreSqueezeScannerProps) {
       )}
 
       {sortedRows.length > 0 && (
-        <table>
+        <table className="zebra-table">
           <thead>
             <tr>
               <th>Ticker</th>

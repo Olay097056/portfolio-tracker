@@ -1,7 +1,7 @@
 import type { TrendingRow } from '../api/types';
 import type { TrendingDataState } from '../hooks/useTrendingData';
 import { useWatchlist } from '../hooks/useWatchlist';
-import { formatNumber, formatSignedPercent } from '../utils/signalFormatting';
+import { changeColor, formatNumber, formatSignedPercent } from '../utils/signalFormatting';
 
 interface TrendingStocksTodayProps {
   scanState: TrendingDataState;
@@ -23,7 +23,7 @@ function TrendingList({ title, rows, watchedTickers, onAdd }: TrendingListProps)
       ) : rows.length === 0 ? (
         <p>No data.</p>
       ) : (
-        <table>
+        <table className="zebra-table">
           <thead>
             <tr>
               <th>Ticker</th>
@@ -39,12 +39,16 @@ function TrendingList({ title, rows, watchedTickers, onAdd }: TrendingListProps)
                 <td>{row.ticker}</td>
                 <td>{row.name}</td>
                 <td>{formatNumber(row.price)}</td>
-                <td>{formatSignedPercent(row.change_pct)}</td>
+                <td style={{ color: changeColor(row.change_pct) }}>{formatSignedPercent(row.change_pct)}</td>
                 <td>
                   {watchedTickers.has(row.ticker) ? (
                     <span>Already watched</span>
                   ) : (
-                    <button type="button" onClick={() => onAdd(row.ticker)}>
+                    <button
+                      type="button"
+                      onClick={() => onAdd(row.ticker)}
+                      style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}
+                    >
                       Add to Watchlist
                     </button>
                   )}
@@ -78,7 +82,7 @@ export function TrendingStocksToday({ scanState }: TrendingStocksTodayProps) {
   }
 
   return (
-    <div>
+    <div className="card">
       <h3>Trending Stocks Today</h3>
 
       <button type="button" onClick={refresh} disabled={loading}>

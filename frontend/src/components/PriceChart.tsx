@@ -1,5 +1,6 @@
 // frontend/src/components/PriceChart.tsx
 import {
+  ColorType,
   createChart,
   LineSeries,
   type IChartApi,
@@ -10,16 +11,19 @@ import {
 } from 'lightweight-charts';
 import { useEffect, useRef } from 'react';
 import type { ChartPoint, Zone } from '../api/types';
+import { ZONE_STYLE } from '../utils/zoneStyle';
 
-const SUPPORT_COLOR = '#14b8a6'; // teal — visually distinct from this app's rebalance-severity green/yellow/red
-const RESISTANCE_COLOR = '#f59e0b'; // amber — visually distinct from this app's rebalance-severity green/yellow/red
-const FREESTYLE_COLOR = '#8b5cf6'; // violet — visually distinct from support/resistance and from this app's rebalance-severity green/yellow/red
-
-const ZONE_STYLE: Record<Zone['kind'], { color: string; prefix: string }> = {
-  support: { color: SUPPORT_COLOR, prefix: 'S' },
-  resistance: { color: RESISTANCE_COLOR, prefix: 'R' },
-  freestyle: { color: FREESTYLE_COLOR, prefix: 'F' },
-};
+// Reads a theme CSS custom property's resolved value at call time. lightweight-charts draws to
+// a <canvas>, whose 2D context only accepts literal resolved color strings — a raw
+// `"var(--card-bg)"` string is not resolved by the Canvas API the way it would be for a CSS
+// property, so this must read the actual computed value rather than pass the var() reference
+// through. theme.css stays the single source of truth; this never hardcodes a second copy of
+// the hex values.
+function resolveCssVar(name: string, fallback: string): string {
+  if (typeof window === 'undefined') return fallback;
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value === '' ? fallback : value;
+}
 
 function zoneTitle(zone: Zone): string {
   const { prefix } = ZONE_STYLE[zone.kind];
@@ -46,7 +50,18 @@ export function PriceChart({ points, loading, error, zones, onZoneDragMove, onZo
 
   useEffect(() => {
     if (!containerRef.current) return;
-    const chart: IChartApi = createChart(containerRef.current, { width: 600, height: 300 });
+    const chart: IChartApi = createChart(containerRef.current, {
+      width: 600,
+      height: 300,
+      layout: {
+        background: { type: ColorType.Solid, color: resolveCssVar('--card-bg', '#18181b') },
+        textColor: resolveCssVar('--text', '#f8fafc'),
+      },
+      grid: {
+        vertLines: { color: resolveCssVar('--border', 'rgba(255, 255, 255, 0.08)') },
+        horzLines: { color: resolveCssVar('--border', 'rgba(255, 255, 255, 0.08)') },
+      },
+    });
     const series = chart.addSeries(LineSeries);
     seriesRef.current = series;
     return () => {

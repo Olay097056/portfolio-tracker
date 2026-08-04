@@ -47,3 +47,13 @@ input {
   border-radius: 6px;
   padding: 6px 8px;
 }
+
+/* First consumer of the --card-* tokens defined above (added by the Dashboard UI redesign
+   ticket, which follows the theme-foundation ticket that introduced these tokens unconsumed). */
+.card {
+  background: var(--card-bg);
+  border-radius: var(--card-radius-lg);
+  box-shadow: var(--card-shadow);
+  padding: 16px;
+  margin-bottom: 16px;
+}

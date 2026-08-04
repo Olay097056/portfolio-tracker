@@ -1,6 +1,7 @@
 // frontend/src/components/ZoneList.tsx
 import type { Zone } from '../api/types';
 import { formatNumber } from '../utils/signalFormatting';
+import { ZONE_STYLE } from '../utils/zoneStyle';
 
 interface ZoneListProps {
   zones: Zone[];
@@ -49,7 +50,20 @@ export function ZoneList({ zones, onEditPrice, onDelete, disabled = false }: Zon
                 formatNumber(zone.price)
               )}
             </td>
-            <td>{zone.kind}</td>
+            <td>
+              <span
+                data-testid="zone-kind-badge"
+                style={{
+                  display: 'inline-block',
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  backgroundColor: ZONE_STYLE[zone.kind].color,
+                  marginRight: 6,
+                }}
+              />
+              {zone.kind}
+            </td>
             <td>
               {zone.source === 'manual' && zone.id !== null && (
                 <button type="button" onClick={() => onDelete(zone.id as number)} disabled={disabled}>

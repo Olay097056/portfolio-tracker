@@ -2,6 +2,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Zone } from '../api/types';
+import { ZONE_STYLE } from '../utils/zoneStyle';
 import { ZoneList } from './ZoneList';
 
 const autoZone: Zone = { id: null, price: 95, kind: 'support', strength: 3, source: 'auto' };
@@ -70,5 +71,14 @@ describe('ZoneList', () => {
 
     expect(screen.getByLabelText(/freestyle zone price/i)).not.toBeDisabled();
     expect(screen.getByRole('button', { name: /delete/i })).not.toBeDisabled();
+  });
+
+  it("shows a color-coded badge for each zone's kind, matching the shared zone-style color", () => {
+    const { container } = render(<ZoneList zones={[autoZone, manualZone]} onEditPrice={vi.fn()} onDelete={vi.fn()} />);
+
+    const badges = container.querySelectorAll('[data-testid="zone-kind-badge"]');
+    expect(badges).toHaveLength(2);
+    expect(badges[0]).toHaveStyle({ backgroundColor: ZONE_STYLE.support.color });
+    expect(badges[1]).toHaveStyle({ backgroundColor: ZONE_STYLE.freestyle.color });
   });
 });

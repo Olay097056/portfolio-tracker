@@ -8,6 +8,7 @@ import { DashboardPage } from './DashboardPage';
 vi.mock('lightweight-charts', () => ({
   createChart: vi.fn(),
   LineSeries: 'line-series-definition',
+  ColorType: { Solid: 'solid' },
 }));
 
 describe('DashboardPage', () => {
@@ -143,22 +144,23 @@ describe('DashboardPage', () => {
     expect(secondSetData).not.toHaveBeenCalled();
   });
 
-  it('shows a range selector once a ticker is selected, defaulting to 1 year', async () => {
+  it('shows a range button row once a ticker is selected, defaulting to 1 year', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }], zones: [] });
 
     render(<DashboardPage />);
     await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
-    expect(screen.queryByLabelText(/range/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: /range/i })).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
 
-    await waitFor(() => expect(screen.getByLabelText(/range/i)).toBeInTheDocument());
-    expect(screen.getByLabelText(/range/i)).toHaveValue('1Y');
+    await waitFor(() => expect(screen.getByRole('group', { name: /range/i })).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: '1 year' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: '5 years' })).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('refetches with the new range when the range selector changes', async () => {
+  it('refetches with the new range when a range button is clicked', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }], zones: [] });
@@ -168,9 +170,11 @@ describe('DashboardPage', () => {
     fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
     await waitFor(() => expect(client.getChartData).toHaveBeenCalledWith('AAPL', '1Y'));
 
-    fireEvent.change(screen.getByLabelText(/range/i), { target: { value: '5Y' } });
+    fireEvent.click(screen.getByRole('button', { name: '5 years' }));
 
     await waitFor(() => expect(client.getChartData).toHaveBeenCalledWith('AAPL', '5Y'));
+    expect(screen.getByRole('button', { name: '5 years' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: '1 year' })).toHaveAttribute('aria-pressed', 'false');
   });
 
   // Paired with the 'never draws the previous range stale data' test below — this one proves the
@@ -201,7 +205,7 @@ describe('DashboardPage', () => {
     fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
     await waitFor(() => expect(createChart).toHaveBeenCalledTimes(1));
 
-    fireEvent.change(screen.getByLabelText(/range/i), { target: { value: '5Y' } });
+    fireEvent.click(screen.getByRole('button', { name: '5 years' }));
 
     await waitFor(() => expect(createChart).toHaveBeenCalledTimes(2));
     expect(firstRemove).toHaveBeenCalledTimes(1);
@@ -236,7 +240,7 @@ describe('DashboardPage', () => {
     fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
     await waitFor(() => expect(firstSetData).toHaveBeenCalledWith([{ time: '2026-01-02', value: 100 }]));
 
-    fireEvent.change(screen.getByLabelText(/range/i), { target: { value: '5Y' } });
+    fireEvent.click(screen.getByRole('button', { name: '5 years' }));
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('upstream error'));
     expect(secondSetData).not.toHaveBeenCalled();
@@ -367,6 +371,7 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('button', { name: /^r$/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /freestyle/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /recompute defaults/i })).toBeDisabled();
+    expect(screen.getByText(/working/i)).toBeInTheDocument();
 
     resolveFreeze!([{ id: 1, price: 100, kind: 'support', strength: null, source: 'manual' }]);
 
@@ -374,6 +379,7 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('button', { name: /^r$/i })).not.toBeDisabled();
     expect(screen.getByRole('button', { name: /freestyle/i })).not.toBeDisabled();
     expect(screen.getByRole('button', { name: /recompute defaults/i })).not.toBeDisabled();
+    expect(screen.queryByText(/working/i)).not.toBeInTheDocument();
   });
 
   it('a second click on S while the first is still in flight does not fire a second freeze call', async () => {
@@ -533,5 +539,61 @@ describe('DashboardPage', () => {
         { kind: 'resistance', price: 110 },
       ]),
     );
+  });
+
+  it('shows the current price and a signed, colored change readout computed from the last two points', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+    vi.spyOn(client, 'getChartData').mockResolvedValue({
+      points: [
+        { time: '2026-01-01', close: 100 },
+        { time: '2026-01-02', close: 105 },
+      ],
+      zones: [],
+    });
+
+    render(<DashboardPage />);
+    await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+
+    await waitFor(() => expect(screen.getByText('105.00')).toBeInTheDocument());
+    const change = screen.getByText('+5.00 (+5.00%)');
+    expect(change).toBeInTheDocument();
+    expect(change).toHaveStyle({ color: 'var(--green)' });
+  });
+
+  it('shows a negative change in red when the price is down', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+    vi.spyOn(client, 'getChartData').mockResolvedValue({
+      points: [
+        { time: '2026-01-01', close: 100 },
+        { time: '2026-01-02', close: 95 },
+      ],
+      zones: [],
+    });
+
+    render(<DashboardPage />);
+    await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+
+    const change = await screen.findByText('-5.00 (-5.00%)');
+    expect(change).toHaveStyle({ color: 'var(--red)' });
+  });
+
+  it('omits the price change readout (rather than showing zero or fabricating one) when there is only one point', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+    vi.spyOn(client, 'getChartData').mockResolvedValue({
+      points: [{ time: '2026-01-02', close: 100 }],
+      zones: [],
+    });
+
+    render(<DashboardPage />);
+    await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+
+    await waitFor(() => expect(screen.getByRole('group', { name: /range/i })).toBeInTheDocument());
+    expect(screen.queryByText(/%\)/)).not.toBeInTheDocument();
   });
 });

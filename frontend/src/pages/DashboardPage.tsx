@@ -6,6 +6,8 @@ import { ZoneList } from '../components/ZoneList';
 import { chartIdentityKey, useChartData } from '../hooks/useChartData';
 import { useDashboardTickers } from '../hooks/useDashboardTickers';
 import { useZoneEditing } from '../hooks/useZoneEditing';
+import { formatNumber } from '../utils/signalFormatting';
+import { ZONE_STYLE } from '../utils/zoneStyle';
 
 const RANGES: { value: ChartRange; label: string }[] = [
   { value: '1D', label: '1 day' },
@@ -17,6 +19,14 @@ const RANGES: { value: ChartRange; label: string }[] = [
   { value: '5Y', label: '5 years' },
 ];
 
+// Adds an explicit "+" for positive values — Intl/toFixed alone never do, and this app's
+// gain/loss readouts (this one, plus the --green/--red color it's paired with) need the sign
+// to be visually unambiguous at a glance, not just implied by color.
+function formatSigned(value: number, decimals = 2): string {
+  const sign = value > 0 ? '+' : '';
+  return `${sign}${value.toFixed(decimals)}`;
+}
+
 export function DashboardPage() {
   const { tickers, loading: tickersLoading, error: tickersError } = useDashboardTickers();
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
@@ -27,6 +37,13 @@ export function DashboardPage() {
   const displayZones = dragPreview === null ? zones : zones.map((z) => (z === dragPreview.zone ? { ...z, price: dragPreview.price } : z));
 
   const currentPrice = points !== null && points.length > 0 ? points[points.length - 1].close : null;
+  // The change readout needs two points (today's close and the prior one) — with fewer than
+  // that (loading, error, or a single-point range) it's omitted entirely rather than shown as
+  // zero or fabricated, matching this project's standing never-fabricate principle.
+  const previousClose = points !== null && points.length > 1 ? points[points.length - 2].close : null;
+  const priceChange = currentPrice !== null && previousClose !== null ? currentPrice - previousClose : null;
+  const priceChangePercent =
+    priceChange !== null && previousClose !== null && previousClose !== 0 ? (priceChange / previousClose) * 100 : null;
 
   function handleAddZone(kind: 'support' | 'resistance' | 'freestyle') {
     if (currentPrice === null) return;
@@ -52,63 +69,105 @@ export function DashboardPage() {
         <p>No tickers to chart yet — add a holding or a Watchlist ticker first.</p>
       ) : (
         <>
-          <label htmlFor="dashboard-ticker">Ticker</label>
-          <select id="dashboard-ticker" value={selectedTicker ?? ''} onChange={(e) => setSelectedTicker(e.target.value || null)}>
-            <option value="">Select a ticker…</option>
-            {tickers.map((ticker) => (
-              <option key={ticker} value={ticker}>
-                {ticker}
-              </option>
-            ))}
-          </select>
+          <div className="card">
+            <label htmlFor="dashboard-ticker">Ticker</label>
+            <select id="dashboard-ticker" value={selectedTicker ?? ''} onChange={(e) => setSelectedTicker(e.target.value || null)}>
+              <option value="">Select a ticker…</option>
+              {tickers.map((ticker) => (
+                <option key={ticker} value={ticker}>
+                  {ticker}
+                </option>
+              ))}
+            </select>
+
+            {selectedTicker && (
+              <>
+                {priceChange !== null && priceChangePercent !== null && (
+                  <div>
+                    <span style={{ fontSize: 24, fontWeight: 700 }}>{formatNumber(currentPrice)}</span>{' '}
+                    <span style={{ color: priceChange >= 0 ? 'var(--green)' : 'var(--red)', fontWeight: 600 }}>
+                      {formatSigned(priceChange)} ({formatSigned(priceChangePercent)}%)
+                    </span>
+                  </div>
+                )}
+
+                <div role="group" aria-label="Range">
+                  {RANGES.map((r) => (
+                    <button
+                      key={r.value}
+                      type="button"
+                      aria-pressed={r.value === range}
+                      onClick={() => setRange(r.value)}
+                      style={r.value === range ? { borderColor: 'var(--primary)', color: 'var(--primary)' } : undefined}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+
+                <PriceChart
+                  key={chartIdentityKey(selectedTicker, range)}
+                  points={points}
+                  loading={loading}
+                  error={error}
+                  zones={zones}
+                  onZoneDragMove={(zone, price) => setDragPreview({ zone, price })}
+                  onZoneDragEnd={(zone, price) => {
+                    setDragPreview(null);
+                    void zoneEditing.dragZonePrice(zone, price);
+                  }}
+                  disabled={zoneEditing.busy}
+                />
+
+                {zoneEditing.error && <div role="alert">{zoneEditing.error}</div>}
+
+                <button
+                  type="button"
+                  onClick={() => handleAddZone('support')}
+                  disabled={zoneEditing.busy}
+                  style={{ borderColor: ZONE_STYLE.support.color, color: ZONE_STYLE.support.color }}
+                >
+                  S
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddZone('resistance')}
+                  disabled={zoneEditing.busy}
+                  style={{ borderColor: ZONE_STYLE.resistance.color, color: ZONE_STYLE.resistance.color }}
+                >
+                  R
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddZone('freestyle')}
+                  disabled={zoneEditing.busy}
+                  style={{ borderColor: ZONE_STYLE.freestyle.color, color: ZONE_STYLE.freestyle.color }}
+                >
+                  Freestyle
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRecomputeDefaults}
+                  disabled={zoneEditing.busy}
+                  style={{ borderColor: 'var(--red)', color: 'var(--red)' }}
+                >
+                  Recompute defaults
+                </button>
+
+                {zoneEditing.busy && <span aria-live="polite">Working…</span>}
+              </>
+            )}
+          </div>
 
           {selectedTicker && (
-            <>
-              <label htmlFor="dashboard-range">Range</label>
-              <select id="dashboard-range" value={range} onChange={(e) => setRange(e.target.value as ChartRange)}>
-                {RANGES.map((r) => (
-                  <option key={r.value} value={r.value}>
-                    {r.label}
-                  </option>
-                ))}
-              </select>
-
-              <PriceChart
-                key={chartIdentityKey(selectedTicker, range)}
-                points={points}
-                loading={loading}
-                error={error}
-                zones={zones}
-                onZoneDragMove={(zone, price) => setDragPreview({ zone, price })}
-                onZoneDragEnd={(zone, price) => {
-                  setDragPreview(null);
-                  void zoneEditing.dragZonePrice(zone, price);
-                }}
-                disabled={zoneEditing.busy}
-              />
-
-              {zoneEditing.error && <div role="alert">{zoneEditing.error}</div>}
-
-              <button type="button" onClick={() => handleAddZone('support')} disabled={zoneEditing.busy}>
-                S
-              </button>
-              <button type="button" onClick={() => handleAddZone('resistance')} disabled={zoneEditing.busy}>
-                R
-              </button>
-              <button type="button" onClick={() => handleAddZone('freestyle')} disabled={zoneEditing.busy}>
-                Freestyle
-              </button>
-              <button type="button" onClick={handleRecomputeDefaults} disabled={zoneEditing.busy}>
-                Recompute defaults
-              </button>
-
+            <div className="card">
               <ZoneList
                 zones={displayZones}
                 onEditPrice={zoneEditing.editZonePrice}
                 onDelete={zoneEditing.removeZone}
                 disabled={zoneEditing.busy}
               />
-            </>
+            </div>
           )}
         </>
       )}

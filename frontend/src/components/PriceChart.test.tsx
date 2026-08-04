@@ -7,6 +7,7 @@ import { PriceChart } from './PriceChart';
 vi.mock('lightweight-charts', () => ({
   createChart: vi.fn(),
   LineSeries: 'line-series-definition',
+  ColorType: { Solid: 'solid' },
 }));
 
 describe('PriceChart', () => {
@@ -30,6 +31,46 @@ describe('PriceChart', () => {
 
     expect(createChart).toHaveBeenCalledTimes(1);
     expect(addSeries).toHaveBeenCalledTimes(1);
+  });
+
+  it('resolves the chart background/text/grid colors from the current theme CSS variables at creation time, not literal var() strings', () => {
+    document.documentElement.style.setProperty('--card-bg', '#123456');
+    document.documentElement.style.setProperty('--text', '#abcdef');
+    document.documentElement.style.setProperty('--border', 'rgba(1, 2, 3, 0.5)');
+
+    render(<PriceChart points={null} loading={false} error={null} zones={[]} />);
+
+    expect(createChart).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        layout: expect.objectContaining({
+          background: { type: 'solid', color: '#123456' },
+          textColor: '#abcdef',
+        }),
+        grid: expect.objectContaining({
+          vertLines: expect.objectContaining({ color: 'rgba(1, 2, 3, 0.5)' }),
+          horzLines: expect.objectContaining({ color: 'rgba(1, 2, 3, 0.5)' }),
+        }),
+      }),
+    );
+
+    document.documentElement.style.removeProperty('--card-bg');
+    document.documentElement.style.removeProperty('--text');
+    document.documentElement.style.removeProperty('--border');
+  });
+
+  it('falls back to hardcoded default colors when the theme CSS variables are unset', () => {
+    render(<PriceChart points={null} loading={false} error={null} zones={[]} />);
+
+    expect(createChart).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        layout: expect.objectContaining({
+          background: { type: 'solid', color: '#18181b' },
+          textColor: '#f8fafc',
+        }),
+      }),
+    );
   });
 
   it('calls setData with close mapped to value when points are provided', () => {

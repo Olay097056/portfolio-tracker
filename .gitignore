@@ -1,5 +1,11 @@
 backend/.venv/
 backend/portfolio.db
+portfolio.db
+.env
+*.env
+!.env.example
+node_modules/
+.agents/
 __pycache__/
 *.pyc
 .pytest_cache/

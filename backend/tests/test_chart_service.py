@@ -12,8 +12,8 @@ def _clear_cache():
 
 
 SAMPLE_POINTS = [
-    {"time": "2026-01-02", "close": 100.0},
-    {"time": "2026-01-05", "close": 101.5},
+    {"time": "2026-01-02", "open": 99.0, "high": 100.5, "low": 98.5, "close": 100.0, "volume": 1_000_000.0},
+    {"time": "2026-01-05", "open": 100.8, "high": 102.0, "low": 100.5, "close": 101.5, "volume": 1_200_000.0},
 ]
 SAMPLE_RESULT = {"points": SAMPLE_POINTS, "zones": []}
 
@@ -127,12 +127,19 @@ def test_a_failed_fetch_is_not_cached(monkeypatch):
     assert call_count["n"] == 1
 
 
-def test_fetch_from_provider_maps_yfinance_rows_to_time_and_close(monkeypatch):
+def test_fetch_from_provider_maps_yfinance_rows_to_ohlcv(monkeypatch):
     import pandas as pd
 
     index = pd.to_datetime(["2026-01-02", "2026-01-05"])
     history = pd.DataFrame(
-        {"Close": [100.0, 101.5], "High": [100.0, 101.5], "Low": [100.0, 101.5]}, index=index
+        {
+            "Open": [99.0, 100.8],
+            "High": [100.5, 102.0],
+            "Low": [98.5, 100.5],
+            "Close": [100.0, 101.5],
+            "Volume": [1_000_000.0, 1_200_000.0],
+        },
+        index=index,
     )
 
     class FakeTicker:
@@ -149,8 +156,8 @@ def test_fetch_from_provider_maps_yfinance_rows_to_time_and_close(monkeypatch):
     result = chart_service._fetch_from_provider("VTI", "1Y")
 
     assert result["points"] == [
-        {"time": "2026-01-02", "close": 100.0},
-        {"time": "2026-01-05", "close": 101.5},
+        {"time": "2026-01-02", "open": 99.0, "high": 100.5, "low": 98.5, "close": 100.0, "volume": 1_000_000.0},
+        {"time": "2026-01-05", "open": 100.8, "high": 102.0, "low": 100.5, "close": 101.5, "volume": 1_200_000.0},
     ]
 
 
@@ -234,7 +241,14 @@ def test_fetch_from_provider_uses_unix_timestamps_for_intraday_ranges(monkeypatc
 
     index = pd.to_datetime(["2026-01-02 09:30:00", "2026-01-02 09:35:00"], utc=True)
     history = pd.DataFrame(
-        {"Close": [100.0, 100.5], "High": [100.0, 100.5], "Low": [100.0, 100.5]}, index=index
+        {
+            "Open": [99.8, 100.1],
+            "High": [100.2, 100.6],
+            "Low": [99.5, 100.0],
+            "Close": [100.0, 100.5],
+            "Volume": [50_000.0, 60_000.0],
+        },
+        index=index,
     )
 
     class FakeTicker:
@@ -251,8 +265,8 @@ def test_fetch_from_provider_uses_unix_timestamps_for_intraday_ranges(monkeypatc
     result = chart_service._fetch_from_provider("VTI", "1D")
 
     assert result["points"] == [
-        {"time": int(index[0].timestamp()), "close": 100.0},
-        {"time": int(index[1].timestamp()), "close": 100.5},
+        {"time": int(index[0].timestamp()), "open": 99.8, "high": 100.2, "low": 99.5, "close": 100.0, "volume": 50_000.0},
+        {"time": int(index[1].timestamp()), "open": 100.1, "high": 100.6, "low": 100.0, "close": 100.5, "volume": 60_000.0},
     ]
     assert all(isinstance(point["time"], int) for point in result["points"])
 
@@ -268,7 +282,14 @@ def test_fetch_from_provider_uses_date_strings_for_the_weekly_range(monkeypatch)
 
     index = pd.to_datetime(["2026-01-02", "2026-01-09"])
     history = pd.DataFrame(
-        {"Close": [100.0, 105.0], "High": [100.0, 105.0], "Low": [100.0, 105.0]}, index=index
+        {
+            "Open": [98.0, 101.0],
+            "High": [101.0, 106.0],
+            "Low": [97.5, 100.5],
+            "Close": [100.0, 105.0],
+            "Volume": [2_000_000.0, 2_100_000.0],
+        },
+        index=index,
     )
 
     class FakeTicker:
@@ -285,6 +306,6 @@ def test_fetch_from_provider_uses_date_strings_for_the_weekly_range(monkeypatch)
     result = chart_service._fetch_from_provider("VTI", "5Y")
 
     assert result["points"] == [
-        {"time": "2026-01-02", "close": 100.0},
-        {"time": "2026-01-09", "close": 105.0},
+        {"time": "2026-01-02", "open": 98.0, "high": 101.0, "low": 97.5, "close": 100.0, "volume": 2_000_000.0},
+        {"time": "2026-01-09", "open": 101.0, "high": 106.0, "low": 100.5, "close": 105.0, "volume": 2_100_000.0},
     ]

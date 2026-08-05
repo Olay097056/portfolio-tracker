@@ -50,7 +50,10 @@ def test_get_trending_reports_a_list_as_unavailable_when_its_own_fetch_fails(cli
 
 
 def test_get_chart_returns_points_and_zones_for_a_ticker(client):
-    points = [{"time": "2026-01-02", "close": 100.0}, {"time": "2026-01-05", "close": 101.5}]
+    points = [
+        {"time": "2026-01-02", "open": 99.0, "high": 100.5, "low": 98.5, "close": 100.0, "volume": 1_000_000.0},
+        {"time": "2026-01-05", "open": 100.8, "high": 102.0, "low": 100.5, "close": 101.5, "volume": 1_200_000.0},
+    ]
     zones = [{"price": 95.0, "kind": "support", "strength": 3, "source": "auto"}]
 
     with patch("app.routers.market.get_chart_data", return_value={"points": points, "zones": zones}):
@@ -91,7 +94,7 @@ def test_get_chart_accepts_all_seven_ranges(client):
 
 
 def test_get_chart_preserves_integer_time_for_intraday_points(client):
-    points = [{"time": 1735808400, "close": 100.0}]
+    points = [{"time": 1735808400, "open": 99.8, "high": 100.2, "low": 99.5, "close": 100.0, "volume": 50_000.0}]
 
     with patch("app.routers.market.get_chart_data", return_value={"points": points, "zones": []}):
         response = client.get("/market/chart?ticker=VTI&range=1D")

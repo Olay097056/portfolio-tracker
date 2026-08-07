@@ -25,7 +25,9 @@ import {
   deleteAllZones,
   getScreenerRefreshStatus,
   startScreenerRefresh,
+  analyzeAiNarrative,
 } from './client';
+import type { AiSignalMetrics } from '../utils/aiTechnicalSignal';
 
 function mockFetchOnce(body: unknown, init: { status?: number } = {}) {
   const status = init.status ?? 200;
@@ -433,5 +435,37 @@ describe('api client', () => {
 
     await expect(startScreenerRefresh()).rejects.toBeInstanceOf(ApiError);
     await expect(startScreenerRefresh()).rejects.toThrow('FINNHUB_API_KEY is not set');
+  });
+
+  it('analyzeAiNarrative sends current_price/rsi14_prev/price_prev, omitting sector/market_trend (no source for them yet)', async () => {
+    mockFetchOnce({ sentiment: 'bullish', narrative: 'x', conflicting_signals: null, caveats: [] });
+
+    const metrics: AiSignalMetrics = {
+      rsi14: 58.6,
+      volumeRatio: 1.2,
+      distanceFromSma50Pct: 4.1,
+      bbWidthPct: 10.5,
+      isSqueeze: false,
+      nearestSupport: null,
+      nearestResistance: null,
+      macd: { macdLine: 1, signalLine: 0.5, histogram: 0.5, crossover: 'BULLISH', isBullishCrossover: true, isBearishCrossover: false },
+      movingAverages: { sma20: 100, sma50: 95, sma200: 90, maCrossState: 'GOLDEN_CROSS', isBullishAlignment: true, distanceFromSma50Pct: 4.1 },
+      atr14: 2.1,
+      tradingSetup: { entryZone: { min: 100, max: 101, formatted: '$100.00 - $101.00' }, targetPrice: { price: 110, upsidePct: 9, formatted: '' }, stopLoss: { price: 95, downsidePct: 5, formatted: '' }, riskRewardRatio: { ratio: 2, formatted: '1 : 2.00' } },
+      confidenceScore: { score: 65, ratingBadge: 'BULLISH', badgeColor: '#34d399', badgeBg: '', pillars: { rsiContribution: 0, macdContribution: 0, sma50DistanceContribution: 0, volumeRatioContribution: 0, bbWidthContribution: 0, supportContribution: 0, resistanceContribution: 0 } },
+      currentPrice: 571.48,
+      rsi14Prev: 54.2,
+      pricePrev: 558.1,
+    };
+
+    await analyzeAiNarrative('SMH', metrics);
+
+    const [, init] = vi.mocked(fetch).mock.calls[0];
+    const body = JSON.parse(init!.body as string);
+    expect(body.metrics.current_price).toBe(571.48);
+    expect(body.metrics.rsi14_prev).toBe(54.2);
+    expect(body.metrics.price_prev).toBe(558.1);
+    expect(body.metrics.sector).toBeUndefined();
+    expect(body.metrics.market_trend).toBeUndefined();
   });
 });

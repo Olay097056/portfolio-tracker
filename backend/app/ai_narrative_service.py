@@ -50,29 +50,79 @@ def _format_zone(label: str, zone) -> str:
     return f"{label}: {zone.price:.2f} (ห่าง {zone.distance_pct:+.1f}%)"
 
 
+NO_DATA_LABEL = "ไม่มีข้อมูลในรอบนี้"
+
+
+def _or_no_data(value, suffix: str = "") -> str:
+    """Null-safe indicator formatting for the prompt -- previously a bare None/null could get
+    interpolated straight into the Thai text (e.g. 'Volume Ratio: Nonex'), which reads like a
+    real value to a model that's been told not to invent numbers of its own."""
+    return NO_DATA_LABEL if value is None else f"{value}{suffix}"
+
+
+def _trend_line(label: str, current, previous, prefix: str = "", suffix: str = "") -> str:
+    """A '{label}: {current} ({direction}จาก {previous} เมื่อสัปดาห์ก่อน)' line when both values
+    exist, degrading to the plain current-value line (or NO_DATA_LABEL) otherwise -- never
+    inventing a previous value or a direction that isn't backed by real prior data."""
+    if current is None:
+        return f"{label}: {NO_DATA_LABEL}"
+    if previous is None:
+        return f"{label}: {prefix}{current}{suffix} (ข้อมูลก่อนหน้าไม่มี)"
+    if current > previous:
+        direction = "สูงขึ้น"
+    elif current < previous:
+        direction = "ลดลง"
+    else:
+        direction = "ทรงตัว"
+    return f"{label}: {prefix}{current}{suffix} ({direction}จาก {prefix}{previous}{suffix} เมื่อสัปดาห์ก่อน)"
+
+
+MAX_CONFLICTS_IN_PROMPT = 2  # cap so the model isn't asked to weave 4+ conflicts into one narrative
+
+
 def _detect_conflicts(m: AiSignalMetricsIn) -> list[str]:
     """Deterministic, rule-based conflict detection -- the thing this feature exists to surface
     (ticket 02), computed here instead of trusted to the LLM's own judgment. Live re-testing
     (same day as the switch away from llama3.2:3b, see MODEL's comment) found neither 3B model
     reliably caught a textbook RSI-overbought/bullish-momentum conflict on its own, so this list
     is authoritative for the response's `conflicting_signals` field -- the model is told about
-    these explicitly in the prompt and asked to explain them, not to go find them."""
-    conflicts: list[str] = []
+    these explicitly in the prompt and asked to explain them, not to go find them.
+
+    Priority (1=highest): trend-vs-momentum conflicts (rules 1-2) > confidence-vs-indicator
+    conflicts (rules 3-4) > squeeze/resistance-proximity conflicts (rules A-B). When more than
+    MAX_CONFLICTS_IN_PROMPT fire at once, only the highest-priority ones are kept -- asking the
+    model to hold 4+ conflicting threads in one narrative degrades the same way a longer,
+    less-focused prompt already did once (see MODEL's comment)."""
     ma = m.moving_averages
     macd = m.macd
     trend_bullish = ma.is_bullish_alignment or ma.ma_cross_state == "GOLDEN_CROSS" or macd.is_bullish_crossover
     trend_bearish = ma.ma_cross_state == "DEATH_CROSS" or macd.is_bearish_crossover
 
-    if m.rsi14 is not None and m.rsi14 > 70 and trend_bullish:
-        conflicts.append(f"RSI ({m.rsi14:.1f}) เข้าเขต Overbought แล้ว แต่สัญญาณเทรนด์/โมเมนตัม (MA, MACD) ยังเป็นบวก — เสี่ยงย่อตัวระยะสั้นแม้เทรนด์หลักยังดี")
-    if m.rsi14 is not None and m.rsi14 < 30 and trend_bearish:
-        conflicts.append(f"RSI ({m.rsi14:.1f}) เข้าเขต Oversold แล้ว แต่สัญญาณเทรนด์/โมเมนตัมยังเป็นลบ — อาจมีโอกาสดีดตัวทางเทคนิคแม้เทรนด์หลักยังไม่กลับตัว")
-    if m.confidence_score.score < 40 and trend_bullish:
-        conflicts.append(f"คะแนนความเชื่อมั่นจากระบบ ({m.confidence_score.score}/100) บ่งชี้ความเสี่ยงด้านลบ แต่ตัวชี้วัดเทรนด์/โมเมนตัมรายตัวยังดูเป็นบวก — ระบบเห็นความเสี่ยงที่ indicator รายตัวยังไม่สะท้อน")
-    if m.confidence_score.score >= 60 and trend_bearish:
-        conflicts.append(f"คะแนนความเชื่อมั่นจากระบบ ({m.confidence_score.score}/100) ดูเป็นบวก แต่สัญญาณเทรนด์/โมเมนตัมรายตัวกลับเป็นลบ")
+    # (priority, message) -- priority ties keep the order rules are listed here.
+    scored: list[tuple[int, str]] = []
 
-    return conflicts
+    if m.rsi14 is not None and m.rsi14 > 70 and trend_bullish:
+        scored.append((1, f"RSI ({m.rsi14:.1f}) เข้าเขต Overbought แล้ว แต่สัญญาณเทรนด์/โมเมนตัม (MA, MACD) ยังเป็นบวก — เสี่ยงย่อตัวระยะสั้นแม้เทรนด์หลักยังดี"))
+    if m.rsi14 is not None and m.rsi14 < 30 and trend_bearish:
+        scored.append((1, f"RSI ({m.rsi14:.1f}) เข้าเขต Oversold แล้ว แต่สัญญาณเทรนด์/โมเมนตัมยังเป็นลบ — อาจมีโอกาสดีดตัวทางเทคนิคแม้เทรนด์หลักยังไม่กลับตัว"))
+    if m.confidence_score.score < 40 and trend_bullish:
+        scored.append((2, f"คะแนนความเชื่อมั่นจากระบบ ({m.confidence_score.score}/100) บ่งชี้ความเสี่ยงด้านลบ แต่ตัวชี้วัดเทรนด์/โมเมนตัมรายตัวยังดูเป็นบวก — ระบบเห็นความเสี่ยงที่ indicator รายตัวยังไม่สะท้อน"))
+    if m.confidence_score.score >= 60 and trend_bearish:
+        scored.append((2, f"คะแนนความเชื่อมั่นจากระบบ ({m.confidence_score.score}/100) ดูเป็นบวก แต่สัญญาณเทรนด์/โมเมนตัมรายตัวกลับเป็นลบ"))
+
+    # Rule A: strong squeeze + dead-center RSI -- accumulation with no directional lean yet,
+    # a different kind of "don't over-commit to a read" signal than the trend-vs-momentum rules.
+    if m.bb_width_pct is not None and m.bb_width_pct < 5 and m.is_squeeze and m.rsi14 is not None and 45 <= m.rsi14 <= 55:
+        scored.append((3, "Bollinger Band กำลัง Squeeze รุนแรง (BB Width < 5%) ร่วมกับ RSI อยู่กลางโซน (45-55) หมายความว่าราคากำลังสะสมพลังงานและยังไม่มีทิศทางชัดเจน อย่าด่วนสรุปว่า bullish หรือ bearish"))
+
+    # Rule B: bullish trend running straight into a very close resistance -- the trend reading
+    # and the proximity-to-resistance reading point at different near-term outcomes.
+    if m.nearest_resistance is not None and m.nearest_resistance.distance_pct < 2 and trend_bullish:
+        r = m.nearest_resistance
+        scored.append((3, f"ราคาอยู่ห่างแนวต้านใกล้สุดแค่ {r.distance_pct:.1f}% (แนวต้าน {r.label}) แม้เทรนด์จะเป็นบวก แต่กำลังเข้าใกล้โซนที่อาจมีแรงขายทำกำไร"))
+
+    scored.sort(key=lambda pair: pair[0])
+    return [message for _, message in scored[:MAX_CONFLICTS_IN_PROMPT]]
 
 
 def _build_prompt(ticker: str, m: AiSignalMetricsIn, conflicts: list[str]) -> str:
@@ -85,7 +135,14 @@ def _build_prompt(ticker: str, m: AiSignalMetricsIn, conflicts: list[str]) -> st
         "3. อธิบายความขัดแย้งที่ระบบตรวจพบแล้วด้านล่าง (ในหัวข้อ 'ความขัดแย้งที่ตรวจพบ') ให้ชัดว่าขัดแย้งกันยังไง "
         "ทำไมถึงน่ากังวลหรือน่าสนใจ ห้ามมองข้ามหรือกลบเกลื่อน — นี่คือข้อเท็จจริงที่ระบบคำนวณไว้แล้ว ไม่ใช่สิ่งที่คุณต้องไปหาเอง"
         if conflicts
-        else "3. ระบบตรวจสอบแล้วไม่พบสัญญาณขัดแย้งกันชัดเจนในรอบนี้ ไม่ต้องพยายามหาความขัดแย้งที่ไม่มีอยู่จริง"
+        else "3. ระบบตรวจสอบแล้วไม่พบสัญญาณขัดแย้งกันชัดเจนในรอบนี้ (ด้านล่างจะเห็นแค่ '- ไม่พบ') "
+        "ห้ามไปพยายามหาความขัดแย้งที่ไม่มีอยู่จริงมาเล่าเอง"
+    )
+
+    market_context = (
+        f"บริบทตลาด: {m.sector} กำลัง {m.market_trend}"
+        if m.sector is not None and m.market_trend is not None
+        else "บริบทตลาด: ไม่มีข้อมูลเพิ่มเติม"
     )
 
     lines = [
@@ -103,17 +160,25 @@ def _build_prompt(ticker: str, m: AiSignalMetricsIn, conflicts: list[str]) -> st
         "เขียนเป็นภาษาไทยธรรมชาติแบบคนคุยกัน อ่านเข้าใจง่าย ไม่ใช่ภาษาราชการหรือรายงานธุรกิจ "
         "ความยาวประมาณ 4-6 ย่อหน้า อธิบายละเอียดพอสมควร ไม่ต้องรีบสรุปสั้นๆ",
         "",
+        # Some indicators may be missing this round (short history, no zones placed, etc.) --
+        # they show up below as the literal text "ไม่มีข้อมูลในรอบนี้", never a fabricated number.
+        f"หมายเหตุ: ถ้าเห็นค่าใดๆ เขียนว่า '{NO_DATA_LABEL}' แปลว่าระบบไม่มีข้อมูลจริงๆ ห้ามเดาตัวเลขขึ้นมาเองแทนที่ "
+        "ให้พูดถึงมันว่า 'ไม่มีข้อมูล' ไปตรงๆ",
+        "",
+        market_context,
         f"หุ้น: {ticker}",
-        f"RSI(14): {m.rsi14 if m.rsi14 is not None else 'N/A'}",
-        f"MACD: เส้น MACD {macd.macd_line}, เส้น Signal {macd.signal_line}, Histogram {macd.histogram}, สถานะ {macd.crossover}",
-        f"Moving Average: SMA20={ma.sma20}, SMA50={ma.sma50}, SMA200={ma.sma200}, "
+        _trend_line("ราคา", m.current_price, m.price_prev, prefix="$"),
+        _trend_line("RSI(14)", m.rsi14, m.rsi14_prev),
+        f"MACD: เส้น MACD {_or_no_data(macd.macd_line)}, เส้น Signal {_or_no_data(macd.signal_line)}, "
+        f"Histogram {_or_no_data(macd.histogram)}, สถานะ {macd.crossover}",
+        f"Moving Average: SMA20={_or_no_data(ma.sma20)}, SMA50={_or_no_data(ma.sma50)}, SMA200={_or_no_data(ma.sma200)}, "
         f"สถานะ {ma.ma_cross_state}, Bullish Alignment={ma.is_bullish_alignment}, "
-        f"ห่างจาก SMA50 {ma.distance_from_sma50_pct}%",
-        f"Volume Ratio: {m.volume_ratio}x ของค่าเฉลี่ย 20 วัน",
-        f"Bollinger Band Width: {m.bb_width_pct}% ({'Squeeze' if m.is_squeeze else 'ไม่ใช่ Squeeze'})",
+        f"ห่างจาก SMA50 {_or_no_data(ma.distance_from_sma50_pct, '%')}",
+        f"Volume Ratio: {_or_no_data(m.volume_ratio, 'x')} ของค่าเฉลี่ย 20 วัน",
+        f"Bollinger Band Width: {_or_no_data(m.bb_width_pct, '%')} ({'Squeeze' if m.is_squeeze else 'ไม่ใช่ Squeeze'})",
         _format_zone("แนวรับใกล้สุด (S1)", m.nearest_support),
         _format_zone("แนวต้านใกล้สุด (R1)", m.nearest_resistance),
-        f"ATR(14): {m.atr14}",
+        f"ATR(14): {_or_no_data(m.atr14)}",
         f"คะแนนความเชื่อมั่นจากระบบ (fitted model): {cs.score}/100 — {cs.rating_badge}",
         f"Trading Setup ที่ระบบคำนวณไว้: {json.dumps(ts, ensure_ascii=False)}",
         "",

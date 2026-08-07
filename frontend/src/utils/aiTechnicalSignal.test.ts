@@ -330,5 +330,48 @@ describe('aiTechnicalSignal Utility', () => {
     expect(result.metrics.nearestSupport?.price).toBe(95);
     expect(result.metrics.nearestResistance?.price).toBe(150);
   });
+
+  describe('currentPrice / rsi14Prev / pricePrev (AI Analyst trend lines)', () => {
+    it('derives currentPrice and pricePrev (~5 trading days back) from the same points already fetched', () => {
+      const points = Array.from({ length: 30 }, (_, i) => ({
+        time: `2026-01-${i + 1}`,
+        open: 100 + i,
+        high: 105 + i,
+        low: 99 + i,
+        close: 102 + i,
+        volume: 1000 + i * 10,
+      }));
+
+      const result = generateAiTechnicalSignal('NVDA', points, []);
+
+      expect(result.metrics.currentPrice).toBe(131); // closes[29] = 102 + 29
+      expect(result.metrics.pricePrev).toBe(126); // closes[24] = 102 + 24, 5 trading days back
+      expect(result.metrics.rsi14Prev).not.toBeNull(); // 25 points is enough for calcRsi14
+    });
+
+    it('returns pricePrev/rsi14Prev as null (not fabricated) when there is not enough history for the offset', () => {
+      const points = Array.from({ length: 4 }, (_, i) => ({
+        time: `2026-01-${i + 1}`,
+        open: 100 + i,
+        high: 105 + i,
+        low: 99 + i,
+        close: 102 + i,
+        volume: 1000,
+      }));
+
+      const result = generateAiTechnicalSignal('NVDA', points, []);
+
+      expect(result.metrics.currentPrice).toBe(105); // still reports the current price
+      expect(result.metrics.pricePrev).toBeNull();
+      expect(result.metrics.rsi14Prev).toBeNull();
+    });
+
+    it('reports currentPrice/rsi14Prev/pricePrev as null in the empty-points fallback', () => {
+      const result = generateAiTechnicalSignal('TSLA', [], []);
+      expect(result.metrics.currentPrice).toBeNull();
+      expect(result.metrics.rsi14Prev).toBeNull();
+      expect(result.metrics.pricePrev).toBeNull();
+    });
+  });
 });
 

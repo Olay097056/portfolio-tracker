@@ -427,6 +427,12 @@ export function analyzeAiNarrative(ticker: string, metrics: AiSignalMetrics): Pr
         rating_badge: metrics.confidenceScore.ratingBadge,
         pillars: metrics.confidenceScore.pillars,
       },
+      current_price: metrics.currentPrice,
+      rsi14_prev: metrics.rsi14Prev,
+      price_prev: metrics.pricePrev,
+      // sector/market_trend intentionally omitted -- no sector or market-trend computation
+      // exists anywhere in this app yet (see ai_narrative_service.py's prompt comment); the
+      // backend already handles their absence with its own "no data" fallback text.
     },
   };
   return request<AiNarrativeResult>('/ai-narrative/analyze', { method: 'POST', body: JSON.stringify(body) });

@@ -55,7 +55,16 @@ export interface AiSignalMetrics {
   atr14: number | null;
   tradingSetup: TradingSetup;
   confidenceScore: ConfidenceScoreBreakdown;
+  // Current price + ~1 week (5 trading days) ago, for the AI Analyst's trend lines. Derived
+  // from the same already-fetched `points` history — never a new data source, so both are
+  // null whenever there isn't enough history yet (never a guessed/interpolated value).
+  currentPrice: number | null;
+  rsi14Prev: number | null;
+  pricePrev: number | null;
 }
+
+// ~1 week of weekday trading bars on a daily chart.
+const PREV_TREND_OFFSET_TRADING_DAYS = 5;
 
 export type AiSignalType = 'BULLISH' | 'BEARISH' | 'SQUEEZE' | 'NEUTRAL';
 
@@ -586,6 +595,9 @@ export function generateAiTechnicalSignal(
         atr14: null,
         tradingSetup: emptySetup,
         confidenceScore: emptyConfidence,
+        currentPrice: null,
+        rsi14Prev: null,
+        pricePrev: null,
       },
     };
   }
@@ -599,6 +611,13 @@ export function generateAiTechnicalSignal(
   const distanceFromSma50Pct = calcSma50DistancePct(closes);
   const bbWidthPct = calcBbWidthPct(closes);
   const isSqueeze = bbWidthPct !== null && bbWidthPct < 12.0;
+
+  // "~1 week ago" read of the same series, for the AI Analyst's trend lines. calcRsi14 already
+  // returns null on too-short input, so a thin history naturally yields rsi14Prev: null here too
+  // — no separate length check needed.
+  const hasPrevWindow = closes.length > PREV_TREND_OFFSET_TRADING_DAYS;
+  const rsi14Prev = hasPrevWindow ? calcRsi14(closes.slice(0, closes.length - PREV_TREND_OFFSET_TRADING_DAYS)) : null;
+  const pricePrev = hasPrevWindow ? closes[closes.length - 1 - PREV_TREND_OFFSET_TRADING_DAYS] : null;
 
   const macd = calcMacd(closes);
   const movingAverages = calcMovingAverages(closes);
@@ -697,6 +716,9 @@ export function generateAiTechnicalSignal(
     atr14,
     tradingSetup,
     confidenceScore,
+    currentPrice: latestClose ?? null,
+    rsi14Prev,
+    pricePrev,
   };
 
   return {

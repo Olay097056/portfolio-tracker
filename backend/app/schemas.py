@@ -338,6 +338,21 @@ class AiSignalMetricsIn(BaseModel):
     atr14: float | None = None
     trading_setup: dict
     confidence_score: ConfidenceScoreIn
+    # RSI/price ~1 week (5 trading days) earlier, for a trend line in the prompt. Optional
+    # because the frontend derives these from the same already-fetched price history it
+    # already has (aiTechnicalSignal.ts) -- absent only when there isn't enough history yet.
+    # current_price isn't renamed from an existing field -- no raw "current price" was in this
+    # schema at all before (trading_setup only carries derived entry/target/stop levels), and
+    # showing a price trend line needs a current value to compare price_prev against.
+    current_price: float | None = None
+    rsi14_prev: float | None = None
+    price_prev: float | None = None
+    # NOT currently sent by any frontend caller -- no sector or market-trend computation exists
+    # anywhere in this codebase yet (see ai_narrative_service.py's prompt comment). Accepted here
+    # so the backend prompt logic is ready the day a real source exists, but until then this is
+    # always None and the prompt always shows its "no data" fallback -- never fabricated.
+    sector: str | None = None
+    market_trend: str | None = None
 
 
 class AiNarrativeRequest(BaseModel):

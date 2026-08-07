@@ -312,4 +312,33 @@ The three tickets that lived here ("Full-market technical signals: background re
 - [ ] Each data-driven stock in a bucket shows its per-criterion pass/fail breakdown, not a score
 - [ ] The zero-qualify case is shown plainly (e.g. "0 stocks currently match these criteria") rather than an empty or broken-looking bucket
 - [ ] This flow depends on `screener_stocks` being populated; against an empty/unrefreshed table it correctly shows the zero-qualify state, never fabricated data
+
+## Super Investor Tracker (13F holdings)
+
+**What to build:** *(retroactive — this ticket documents work already built, tested, and shipped in commit `0551e83` before a spec/ticket existed for it; written now to match project convention.)* A new Tools sub-tab lists well-known professional investors (Buffett, Cathie Wood, Ray Dalio, Bill Gates, Michael Burry, Li Lu, and others fetched live) with their current top holdings, 1-year performance, and portfolio value, backed by a server-side proxy of konbalongtun.com's public 13F-holdings API (10-minute cache, static SEC-EDGAR-seeded fallback on fetch failure). A second sub-tab lists recent new-holding activity. Source: `docs/specs/2026-08-06-super-investor-tracker.md`.
+
+**Blocked by:** None — already shipped.
+
+- [x] `GET /api/investors` returns the tracked investors, each with a non-empty top-holdings list
+- [x] `search` query param filters by investor name, fund name, or a held ticker/company name
+- [x] `sort_by` query param sorts by performance, portfolio value, or name
+- [x] `GET /api/investors/{slug}` returns one investor's full profile; unknown slug returns 404
+- [x] `GET /api/investors/new-holdings` returns recent buy/increase/sell/decrease activity across tracked investors
+- [x] `GET /api/investors/status` and `POST /api/investors/refresh` expose the cache timestamp and let the user force a re-fetch
+- [x] If the live konbalongtun fetch fails (network error), the endpoint still returns 200 with real fallback data — never an empty or broken response (verified: `test_list_investors_network_fallback` mocks `urlopen` to raise, invalidates the cache first, asserts Warren Buffett is still present in the response)
+- [x] The Tools tab's card grid shows each investor's name, fund, 1-year performance, AUM, strategy blurb, and top 3 holdings, with a "View full portfolio" modal showing the complete holdings table (avg buy price, current price, gain %, converted to THB via the existing `fxRate`/`currency` props when applicable)
+- [x] Backend: 6/6 tests passing (`test_investors_router.py`)
+- [ ] Frontend: no test file exists for `InvestorTracker.tsx` — gap, not yet covered
+
+## Fix Super Investor Tracker: fabricated AUM stat + off-palette styling
+
+**What to build:** Two deviations found while writing the retroactive spec for the Super Investor Tracker, neither touched at the time: the KPI row's "combined AUM" figure is a hardcoded literal, not computed from real data; and the component was never migrated to the shared design tokens the rest of the app now uses. Source: `docs/specs/2026-08-06-super-investor-tracker.md` (Further Notes).
+
+**Blocked by:** Super Investor Tracker (13F holdings)
+
+- [ ] The "มูลค่าพอร์ตรวม (AUM)" KPI card computes its figure from the sum of the fetched investors' real `portfolio_value_num`, not the hardcoded literal `"$350.2B"`
+- [ ] `InvestorTracker.tsx`'s inline hex colors are replaced with the shared `--card-bg`/`--primary`/`--text`/etc. tokens, matching every other page from the UI redesign effort
+- [ ] The `fontFamily: 'Outfit, sans-serif'` references are removed (that font's `@import` no longer exists in `theme.css`) in favor of the app's actual Noto Sans Thai + Inter stack
+- [ ] A test file for `InvestorTracker.tsx` covers search, sort, the modal, and the fallback-data-still-renders case (mirroring the backend's own fallback test)
+- [ ] All existing tests still pass; `npx tsc -b` stays green
 - [ ] All existing Portfolio Builder tests pass; new tests cover the toggle, both modes' bucket composition, the criteria breakdown display, the methodology label, and the zero-qualify state

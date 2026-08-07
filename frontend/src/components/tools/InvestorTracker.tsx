@@ -15,6 +15,13 @@ function formatAumUsd(usd: number): string {
   return `$${usd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 }
 
+function mostCommon(values: string[]): string | null {
+  if (values.length === 0) return null;
+  const counts = new Map<string, number>();
+  for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+}
+
 export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTrackerProps) {
   const [investors, setInvestors] = useState<InvestorProfile[]>([]);
   const [newHoldings, setNewHoldings] = useState<NewHoldingActivity[]>([]);
@@ -104,6 +111,11 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
     : null;
   const totalAumUsd = investors.reduce((sum, inv) => sum + (inv.portfolio_value_num || 0), 0);
   const totalAumFormatted = formatAumUsd(totalAumUsd);
+  // Each investor's last_13f_filing is real, derived per-investor from their
+  // own holdings — they don't all share one quarter, so the KPI card shows
+  // whichever one is most common among the fetched investors, not a single
+  // universal fact.
+  const mostCommonFiling = mostCommon(investors.map((inv) => inv.last_13f_filing));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -215,11 +227,11 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
         </div>
 
         <div className="card" style={{ margin: 0, padding: '14px 18px', background: 'rgba(15, 23, 42, 0.85)', border: '1px solid var(--border)' }}>
-          <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>รายงาน 13F FILING ล่าสุด</span>
+          <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>13F FILING ที่พบบ่อยที่สุด</span>
           <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--primary)', marginTop: '4px' }}>
-            Q1 2026
+            {mostCommonFiling ? mostCommonFiling.replace(/SEC Form 13F \(?|\)$/g, '') : '—'}
           </div>
-          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>SEC Form 13F Quarter</span>
+          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>รอบที่นักลงทุนส่วนใหญ่รายงานล่าสุด — แต่ละกองทุนอาจต่างกัน</span>
         </div>
       </div>
 

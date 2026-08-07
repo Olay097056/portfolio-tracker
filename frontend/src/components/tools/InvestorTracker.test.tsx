@@ -49,6 +49,22 @@ describe('InvestorTracker', () => {
     expect(screen.queryByText('$350.2B')).not.toBeInTheDocument();
   });
 
+  it('shows the most common real filing period across fetched investors, not a fixed "Q1 2026"', async () => {
+    const investors = [
+      makeInvestor({ id: '1', slug: 'a', last_13f_filing: 'SEC Form 13F (Q3 2025)' }),
+      makeInvestor({ id: '2', slug: 'b', last_13f_filing: 'SEC Form 13F (Q3 2025)' }),
+      makeInvestor({ id: '3', slug: 'c', last_13f_filing: 'SEC Form 13F (Q1 2026)' }),
+    ];
+    vi.spyOn(client, 'listInvestors').mockResolvedValue(investors);
+    vi.spyOn(client, 'listNewHoldings').mockResolvedValue(newHoldings);
+    vi.spyOn(client, 'getInvestorsStatus').mockResolvedValue({ last_fetched_at: '', fetch_timestamp: 0, investors_count: 3, data_provider: 'test' });
+
+    render(<InvestorTracker />);
+
+    // Q3 2025 appears twice, Q1 2026 once — the majority wins.
+    expect(await screen.findByText('Q3 2025')).toBeInTheDocument();
+  });
+
   it('re-fetches with the search term when the user types in the search box', async () => {
     const listInvestorsSpy = vi.spyOn(client, 'listInvestors').mockResolvedValue([makeInvestor({})]);
     vi.spyOn(client, 'listNewHoldings').mockResolvedValue(newHoldings);

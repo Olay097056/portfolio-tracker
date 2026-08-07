@@ -41,6 +41,33 @@ def test_list_new_holdings(client):
     assert "ticker" in data[0]
 
 
+def test_last_13f_filing_reflects_each_investor_s_own_holdings_not_one_fixed_quarter(client):
+    """Every investor previously showed the literal 'SEC Form 13F (Q1 2026)' —
+    a fixed guess, not derived from real data. It's now the mode of that
+    investor's own holdings' activity_period, so different funds can (and do)
+    show different quarters."""
+    response = client.get("/api/investors")
+    assert response.status_code == 200
+    data = response.json()
+
+    filings = {inv["slug"]: inv["last_13f_filing"] for inv in data}
+    assert len(set(filings.values())) > 1, f"expected real per-investor variation, got: {filings}"
+
+    # A concrete, verifiable fact: Bill Gates' own holdings' most common
+    # activity_period is Q3 2025, not Q1 2026.
+    bill_gates = next((inv for inv in data if inv["slug"] == "bill-gates"), None)
+    assert bill_gates is not None
+    assert bill_gates["last_13f_filing"] == "SEC Form 13F (Q3 2025)"
+
+
+def test_data_provider_credits_konbalongtun_not_only_sec_edgar(client):
+    response = client.get("/api/investors")
+    assert response.status_code == 200
+    data = response.json()
+    for inv in data:
+        assert "Konbalongtun" in inv["data_provider"]
+
+
 def test_list_investors_network_fallback(client, monkeypatch):
     import urllib.request
     def mock_urlopen(*args, **kwargs):

@@ -2,11 +2,23 @@
 import json
 import time
 import urllib.request
+from collections import Counter
 from typing import Literal
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/investors", tags=["investors"])
+
+
+def _most_recent_filing_label(holdings: "list[TopHolding]") -> str:
+    """Derive a 'last 13F filing' label from real per-holding activity_period
+    values instead of a fixed guess — different funds file for different
+    quarters, so this must vary per investor, not be one hardcoded string."""
+    periods = [h.activity_period for h in holdings if h.activity_period]
+    if not periods:
+        return "SEC Form 13F (period unavailable)"
+    mode_period = Counter(periods).most_common(1)[0][0]
+    return f"SEC Form 13F ({mode_period})"
 
 
 class TopHolding(BaseModel):
@@ -72,8 +84,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=307000000000.0,
         description="นักลงทุนแบบเน้นคุณค่า (Value Investor) ที่ได้รับการยอมรับว่าประสบความสำเร็จที่สุดในโลก เน้นการถือหุ้นบริษัทที่มีพื้นฐานแกร่งและมีความได้เปรียบในการแข่งขันในระยะยาว",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/warren-buffett.png",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_0_0",
@@ -279,8 +291,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=27000000000.0,
         description="ผู้ก่อตั้งกองทุน Hedge Fund ที่ใหญ่ที่สุดในโลก เน้นการลงทุนแบบมหภาค (Global Macro) และเจ้าของแนวคิดการจัดพอร์ตแบบ All Weather ที่ทนทานต่อทุกสภาวะเศรษฐกิจ",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/ray-dalio.jpeg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_1_0",
@@ -486,8 +498,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=32200000000.000004,
         description="ผู้ก่อตั้ง Microsoft พอร์ตการลงทุนเน้นความหลากหลายและความยั่งยืน เพื่อรักษาเงินต้นและนำผลตอบแทนไปใช้ในงานสาธารณกุศลระดับโลก",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/bill-gates.jpg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q3 2025)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_2_0",
@@ -693,8 +705,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=14100000000.0,
         description="นักลงทุนสายเติบโต (Growth Investor) ที่เน้นลงทุนในบริษัทที่มีนวัตกรรมเปลี่ยนโลก (Disruptive Innovation) เช่น เทคโนโลยี AI, จีโนมิกส์ และหุ่นยนต์",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/cathie-wood.jpeg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_3_0",
@@ -900,8 +912,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=15000000000.0,
         description="นักลงทุนสาย Activist ที่เน้นเข้าถือหุ้นสัดส่วนใหญ่ในบริษัทเพื่อเข้าไปมีบทบาทในการบริหารและปลดล็อกมูลค่า มีพอร์ตการลงทุนที่มีความเข้มข้นสูง (Concentrated)",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/bill-ackman.jpg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_4_0",
@@ -1107,8 +1119,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=12900000000.0,
         description="ผู้เชี่ยวชาญตัวจริงด้านการวิเคราะห์ Economic Moat (อดีตผู้บริหาร Morningstar) เน้นลงทุนอย่างเข้มข้นในบริษัทที่มีความได้เปรียบถาวร",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/pat-dorsey.jpg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_5_0",
@@ -1314,8 +1326,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=4260000000.0,
         description="เน้นการลงทุนแบบ Focused Value ถือหุ้นคุณภาพดีในราคาที่เหมาะสม (Quality at the right price) และถือครองเป็นระยะเวลานานเพื่อการเติบโต",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/david-rainey.jpg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_6_0",
@@ -1521,8 +1533,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=40600000000.0,
         description="นักลงทุนแบบ Value ที่ชอบหุ้นกลุ่มสินค้าอุปโภคบริโภคระดับโลก (Global Brands) ที่มีอำนาจการตั้งราคา และยอมรับกำไรที่ลดลงชั่วคราวจากการลงทุนเพื่อเติบโตได้",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/tom-russo.jpeg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_7_0",
@@ -1728,8 +1740,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=22400000000.0,
         description="กองทุนที่เน้นลงทุนในหุ้นยุโรปและหุ้นโลกคุณภาพสูง (Quality Growth) โดยมองหาบริษัทที่มีความได้เปรียบในการแข่งขันที่ยั่งยืนและผู้บริหารที่เก่งกาจ",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/ako-capital.jpeg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_8_0",
@@ -1935,8 +1947,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=3430000000.0,
         description="กองทุนป้องกันความเสี่ยง (Hedge Fund) สัญชาติอเมริกันที่เน้นลงทุนในโครงสร้างพื้นฐานและเทคโนโลยีที่เกี่ยวข้องกับ AI และ AGI (Artificial General Intelligence)",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/leopold-aschenbrenner.webp",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_9_0",
@@ -2142,8 +2154,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=4150000000.0000005,
         description="ผู้เชี่ยวชาญด้านหนี้เสีย (Distressed Debt) และวัฏจักรตลาด เขียน Memo ที่นักลงทุนทั่วโลกต้องอ่าน เน้นเรื่องการจัดการความเสี่ยงและจิตวิทยามวลชน",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/howard-marks.jpeg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_10_0",
@@ -2349,8 +2361,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=18100000000.0,
         description="ผู้บริหาร Markel (ฉายา Baby Berkshire) ใช้กลยุทธ์คล้าย Buffett คือนำเงินจากธุรกิจประกันมาลงทุนในหุ้นคุณภาพดีและถือยาวเพื่อการทบต้น",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/tom-gayner.jpg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q2 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_11_0",
@@ -2556,8 +2568,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=3580000000.0,
         description="นักลงทุนแบบเน้นคุณค่าเชื้อสายจีน-อเมริกัน ผู้ที่ Charlie Munger ไว้วางใจให้ดูแลเงินทุน เน้นลงทุนในบริษัทเอเชียและจีนที่มีธรรมาภิบาลดีและราคาต่ำกว่ามูลค่า",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/li-lu.jpeg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_12_0",
@@ -2763,8 +2775,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=8430000000.0,
         description="พ่อมดการเงินผู้โด่งดังจากการโจมตีค่าเงินปอนด์ และทฤษฎี Reflexivity ที่เชื่อว่ามุมมองของนักลงทุนส่งผลกระทบย้อนกลับไปเปลี่ยนพื้นฐานของสินทรัพย์ได้",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/george-soros.jpg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_13_0",
@@ -2970,8 +2982,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=2009999999.9999998,
         description="ฉายา 'Warren Buffett แห่งแคนาดา' บริหาร Fairfax โดยใช้โมเดลธุรกิจประกันภัยนำเงินมาลงทุนต่อในหุ้นแบบ Value Investing และมักมีการป้องกันความเสี่ยง (Hedging) พอร์ต",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/prem-watsa.jpeg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_14_0",
@@ -3177,8 +3189,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=332000000.0,
         description="นักลงทุนที่ยึด Warren Buffett เป็นต้นแบบ เน้นกลยุทธ์ 'หัวก้อยผมชนะ ถ้าออกก้อยผมเสียนิดเดียว' (Low risk, high uncertainty) และถือหุ้นน้อยตัว",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/mohnish-pabrai.jpeg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_15_0",
@@ -3384,8 +3396,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=1270000000.0,
         description="บริษัทจัดการกองทุนที่สืบทอดแนวทางของ Benjamin Graham อย่างเคร่งครัด เน้นซื้อหุ้นทั่วโลกที่ราคาต่ำกว่ามูลค่าทรัพย์สินสุทธิและมีความเสี่ยงต่ำ",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/tweedy-browne.jpeg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_16_0",
@@ -3591,8 +3603,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=7230000000.0,
         description="ผู้จัดการกองทุน Hedge Fund ที่เก่งกาจเรื่องหนี้สินและหุ้นที่มีปัญหา (Distressed) รวมถึงการอ่านเกมเศรษฐกิจมหภาคเพื่อเข้าลงทุนในจังหวะวิกฤตได้อย่างแม่นยำ",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/david-tepper.png",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_17_0",
@@ -3798,8 +3810,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=5700000000.0,
         description="ผู้เขียนหนังสือ 'Margin of Safety' เน้นการลงทุนแบบ Value ที่ระมัดระวังความเสี่ยงสูง มักถือเงินสดเยอะเพื่อรอจังหวะที่ตลาดไม่มีประสิทธิภาพหรือเกิดวิกฤต",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/seth-klarman.jpeg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_18_0",
@@ -4005,8 +4017,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=3170000000.0,
         description="ตำนานนักลงทุนสาย Macro อดีตมือขวาของ George Soros มีสถิติการลงทุนที่ยอดเยี่ยมยาวนาน ไม่ยึดติดกับทฤษฎี และปรับเปลี่ยนกลยุทธ์ตามตลาดได้อย่างรวดเร็ว",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/stanley-druckenmiller.jpeg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_19_0",
@@ -4212,8 +4224,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=158000000000.0,
         description="บริษัทจัดการกองทุนที่เน้นการลงทุนระยะยาวในหุ้นที่มีโอกาสเติบโตสูงในราคาที่สมเหตุสมผล (GARP) โดยเฉพาะในกลุ่มเทคโนโลยีและการแพทย์ มีอัตราการหมุนเวียนพอร์ตต่ำ",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/joel-fried.jpg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_20_0",
@@ -4419,8 +4431,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=650000000.0,
         description="สถาบันที่เน้นแนวทาง 'Safe and Cheap' มองหาหุ้นที่มีสินทรัพย์หนุนหลังดีและราคาถูกมาก (Deep Value) รวมถึงหนี้สินที่มีปัญหา (Distressed)",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/matthew-fine.jpg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_21_0",
@@ -4626,8 +4638,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=11400000000.0,
         description="ผู้บุกเบิกการลงทุนแบบ Value ในหุ้นขนาดเล็ก (Small-cap Value) โดยมองหาเพชรในตม: บริษัทเล็กที่มีงบดุลแข็งแกร่งแต่ตลาดยังมองไม่เห็น",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/chuck-royce.jpeg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_22_0",
@@ -4833,8 +4845,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=2440000000.0,
         description="สร้างชื่อจากการทำกำไรมหาศาลในช่วงวิกฤต Subprime (The Greatest Trade Ever) ปัจจุบันเชี่ยวชาญด้าน Merger Arbitrage และเหตุการณ์พิเศษ",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/john-paulson.jpg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q3 2025)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_23_0",
@@ -5040,8 +5052,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=23800000000.0,
         description="นักลงทุนจากตระกูลนักลงทุนชื่อดัง เน้นหุ้นกลุ่มการเงินและบริษัทที่มีความทนทาน เชี่ยวชาญการถือครองระยะยาวแบบ Value Investing",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/chris-davis.jpg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_24_0",
@@ -5247,8 +5259,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=277000000.0,
         description="คู่หูของ Warren Buffett เน้นหลักการลงทุนใน 'บริษัทที่ยอดเยี่ยมในราคาที่เหมาะสม' และใช้โมเดลทางความคิดที่หลากหลาย (Mental Models) ในการวิเคราะห์",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/charlie-munger.jpg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2024)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_25_0",
@@ -5322,8 +5334,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=60200000000.0,
         description="กองทุนที่เน้นการลงทุนแบบอนุรักษ์นิยม (Conservative Value) มักถือครองทองคำเพื่อป้องกันความเสี่ยงและเน้นการรักษาเงินต้นเป็นสำคัญ",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/matthew-mcLennan.jpg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_26_0",
@@ -5529,8 +5541,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=15000000000.0,
         description="สาวกของ Benjamin Graham ที่ยึดมั่นในหลักการ Value Investing แบบดั้งเดิม คือการค้นหาและซื้อหุ้นทั่วโลกในราคาที่มีส่วนลดจากมูลค่าจริงมากๆ",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/charles-brandes.jpeg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_27_0",
@@ -5736,8 +5748,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=415000000.0,
         description="ตำนานผู้ชนะตลาด S&P 500 ติดต่อกัน 15 ปี เป็น Value Investor ที่เปิดกว้างและกล้าลงทุนในหุ้นเทคโนโลยี (Amazon) และ Bitcoin ตั้งแต่ยุคแรก",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/bill-miller.jpeg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_28_0",
@@ -5943,8 +5955,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=61400000000.0,
         description="ผู้เชี่ยวชาญด้านการเทรดระยะสั้นและการเก็งกำไรจากการไหลของข้อมูล (Information Arbitrage) ผู้ก่อตั้ง Point72 (เดิมคือ SAC Capital)",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/steven-cohen.jpg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_29_0",
@@ -6150,8 +6162,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=4810000000.0,
         description="นักลงทุนที่เน้นถือหุ้นจำนวนน้อยตัว (High Concentration) โดยจะลงทุนเฉพาะในธุรกิจที่เขาเข้าใจอย่างถ่องแท้และมั่นใจในความปลอดภัยของเงินต้น",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/glenn-greenberg.png",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_30_0",
@@ -6357,8 +6369,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=11000000000.0,
         description="ผู้คิดค้นแนวคิด Private Market Value (PMV) หรือมูลค่ากิจการในตลาดปิด เชี่ยวชาญเป็นพิเศษในการลงทุนหุ้นกลุ่มสื่อและโทรคมนาคม",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/mario-gabelli.jpeg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_31_0",
@@ -6564,8 +6576,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=2680000000.0,
         description="นักลงทุนแบบ Value ที่โดดเด่นเรื่องการเปิดโปงและ Short หุ้นบริษัทที่มีการตกแต่งบัญชีหรือทุจริต (เช่น Lehman Brothers) ผสมผสานกับการวิเคราะห์พื้นฐานลึกซึ้ง",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/david-einhorn.jpeg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q4 2023)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_32_0",
@@ -6771,8 +6783,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=304000000.0,
         description="ผู้จัดการกองทุนยอดฝีมือที่เก็บตัวเงียบ เน้นลงทุนแบบผสมผสานทั้งหุ้น หุ้นกู้ และสินทรัพย์อื่นๆ ที่ราคาต่ำกว่ามูลค่า โดยไม่จำกัดประเภท",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/robert-bruce .jpeg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2025)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_33_0",
@@ -6978,8 +6990,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=43500000000.0,
         description="ผู้ร่วมก่อตั้ง GMO เชี่ยวชาญประวัติศาสตร์ฟองสบู่ทางการเงิน มักมีมุมมองระมัดระวัง (Bearish) และเน้นการลงทุนที่คำนึงถึงการเปลี่ยนแปลงสภาพภูมิอากาศ",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/jeremy-grantham.jpg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_34_0",
@@ -7185,8 +7197,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=337000000000.0,
         description="นักลงทุนที่เน้นการวิเคราะห์ข้อมูลเชิงปริมาณและปัจจัยมหภาค เป็นผู้บุกเบิกการใช้ค่า P/S Ratio และเขียนหนังสือเกี่ยวกับการลงทุนที่ขายดีระดับโลก",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/ken-fisher.jpg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_35_0",
@@ -7392,8 +7404,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=8960000000.0,
         description="สถาบันการเงินและวาณิชธนกิจระดับโลกที่มีพอร์ตการลงทุนที่หลากหลายในหลายอุตสาหกรรม เน้นการสร้างมูลค่าเพิ่มจากการลงทุนในกิจการต่างๆ",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/richard-handler.jpg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_36_0",
@@ -7599,8 +7611,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=8010000000.0,
         description="นักลงทุนแบบอนุรักษ์นิยม เน้นบริษัทที่มีคุณภาพสูง กระแสเงินสดแข็งแกร่ง หนี้ต่ำ และผู้บริหารที่เป็นมิตรกับผู้ถือหุ้น",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/donald-yacktman.jpeg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_37_0",
@@ -7806,8 +7818,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=1510000000.0,
         description="นักลงทุนสาย Deep Value ที่กล้าสวนกระแสอย่างรุนแรง มักเข้าซื้อหุ้นกลุ่มการเงินหรือสินทรัพย์ที่คนอื่นกลัวหรือเกลียดในราคาที่ถูกมาก",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/bruce-berkowitz.jpg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_38_0",
@@ -8013,8 +8025,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=155000000000.0,
         description="ผู้ก่อตั้ง Citadel กองทุน Hedge Fund ยักษ์ใหญ่ที่ใช้กลยุทธ์หลากหลาย (Multi-strategy) และเทคโนโลยีขั้นสูงในการซื้อขายหลักทรัพย์ความเร็วสูง",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/ken-griffin.jpg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_39_0",
@@ -8220,8 +8232,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=460000000.0,
         description="เพื่อนสนิทของ Mohnish Pabrai เน้นการลงทุนแบบ Value ที่ใส่ใจเรื่องสภาพแวดล้อมในการทำงาน จริยธรรม และจิตวิทยาเพื่อการตัดสินใจที่ดีขึ้น",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/guy-spier.jpeg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q2 2020)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_40_0",
@@ -8427,8 +8439,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=9730000000.0,
         description="ผู้ก่อตั้ง Ariel Investments เน้นการลงทุนแบบ Value ที่อดทน (Patient Investing) ในหุ้นขนาดกลางและเล็ก และเป็นผู้บุกเบิกนักลงทุนผิวสีในวอลล์สตรีท",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/john-w-rogers-jr.jpeg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_41_0",
@@ -8634,8 +8646,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=5630000000.0,
         description="ศิษย์เอกของ Seth Klarman เป็นนักลงทุนแบบ Value ที่เก็บตัวเงียบ เน้นลงทุนในสินทรัพย์หลากหลายประเภทที่ราคาต่ำกว่ามูลค่าพื้นฐาน",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/david-abrams.jpg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_42_0",
@@ -8841,8 +8853,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=35500000000.0,
         description="นักลงทุนแบบ Deep Value ที่มักเข้าซื้อหุ้นบริษัทที่กำลังประสบปัญหาชั่วคราวหรือราคาตกลงมาต่ำมากเมื่อเทียบกับมูลค่าทางบัญชีและศักยภาพกำไรปกติ",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/richard-pzena.jpg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_43_0",
@@ -9048,8 +9060,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=1000000000.0,
         description="BlackRock, Inc. ซึ่งเป็นบริษัทจัดการสินทรัพย์ (Asset Management) ที่ใหญ่ที่สุดในโลกจากสหรัฐอเมริกา",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/stock-logo/BLK.svg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_44_0",
@@ -9255,8 +9267,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=36400000000.0,
         description="ผู้คิดค้น 'Magic Formula' สูตรการลงทุนที่ผสมผสานการซื้อของถูก (Low P/E) และบริษัทที่มีประสิทธิภาพสูง (High ROIC) เข้าด้วยกัน",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/joel-greenblatt.jpeg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_45_0",
@@ -9462,8 +9474,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=71500000000.0,
         description="นักคณิตศาสตร์ระดับตำนานผู้ก่อตั้งกองทุนสาย Quantitative (Quant) ที่ใช้โมเดลคณิตศาสตร์และอัลกอริทึมซับซ้อนในการทำกำไรจากตลาด (Medallion Fund)",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/jim-simons.jpg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_46_0",
@@ -9669,8 +9681,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=14900000000.0,
         description="ฉายา 'Warren Buffett แห่งอังกฤษ' เน้นกลยุทธ์: ซื้อบริษัทที่ดีเยี่ยม, อย่าจ่ายแพงเกินไป, และอย่าวู่วามขาย (Do nothing)",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/terry-smith.jpeg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q1 2026)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_47_0",
@@ -9876,8 +9888,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=6090000.0,
         description="ราชาแห่งการ Short Sell เชี่ยวชาญการแกะงบการเงินเพื่อหาบริษัทที่มีการทุจริต ฟองสบู่ หรือโมเดลธุรกิจที่ล้มเหลว (สร้างชื่อจาก Enron)",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/jim-chanos.jpeg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q4 2022)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_48_0",
@@ -10083,8 +10095,8 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
         portfolio_value_num=40200000000.0,
         description="หนึ่งใน 'Tiger Cubs' ที่ประสบความสำเร็จสูง เน้นการเลือกหุ้นรายตัว (Stock Picking) ทั้งฝั่งซื้อ (Long) และฝั่งขาย (Short) ตามปัจจัยพื้นฐาน",
         avatar_url="https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod/investors/andreas-halvorsen.jpeg",
-        last_13f_filing="Q1 2026",
-        data_provider="Official SEC EDGAR API",
+        last_13f_filing="SEC Form 13F (Q4 2025)",
+        data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
         top_holdings=[
             TopHolding(
                 id="h_49_0",
@@ -10421,8 +10433,8 @@ def fetch_live_investors_multi_provider() -> list[InvestorProfile]:
                             portfolio_value_num=numeric_aum,
                             description=str(inv.get("description") or ""),
                             avatar_url=avatar,
-                            last_13f_filing="SEC Form 13F (Q1 2026)",
-                            data_provider="Official U.S. SEC EDGAR API",
+                            last_13f_filing=_most_recent_filing_label(holdings),
+                            data_provider="Official U.S. SEC EDGAR API & Konbalongtun Network",
                             top_holdings=holdings,
                         )
                     )

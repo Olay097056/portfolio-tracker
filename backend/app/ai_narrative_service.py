@@ -60,9 +60,17 @@ def _or_no_data(value, suffix: str = "") -> str:
     return NO_DATA_LABEL if value is None else f"{value}{suffix}"
 
 
+PREV_TREND_WINDOW_LABEL = "5 วันทำการก่อนหน้า"
+# Says "5 trading days" (what the code actually guarantees), not "a week" -- live-checked
+# 2026-08-07 with a synthetic holiday gap in the window: 5 trading bars spanned 9 calendar days,
+# not 7, so "a week ago" would be a real (if minor) misstatement on any week with a market
+# holiday. Coupled to aiTechnicalSignal.ts's PREV_TREND_OFFSET_TRADING_DAYS constant (=5) --
+# update both together if that offset ever changes.
+
+
 def _trend_line(label: str, current, previous, prefix: str = "", suffix: str = "") -> str:
-    """A '{label}: {current} ({direction}จาก {previous} เมื่อสัปดาห์ก่อน)' line when both values
-    exist, degrading to the plain current-value line (or NO_DATA_LABEL) otherwise -- never
+    """A '{label}: {current} ({direction}จาก {previous} {PREV_TREND_WINDOW_LABEL})' line when both
+    values exist, degrading to the plain current-value line (or NO_DATA_LABEL) otherwise -- never
     inventing a previous value or a direction that isn't backed by real prior data."""
     if current is None:
         return f"{label}: {NO_DATA_LABEL}"
@@ -74,7 +82,7 @@ def _trend_line(label: str, current, previous, prefix: str = "", suffix: str = "
         direction = "ลดลง"
     else:
         direction = "ทรงตัว"
-    return f"{label}: {prefix}{current}{suffix} ({direction}จาก {prefix}{previous}{suffix} เมื่อสัปดาห์ก่อน)"
+    return f"{label}: {prefix}{current}{suffix} ({direction}จาก {prefix}{previous}{suffix} {PREV_TREND_WINDOW_LABEL})"
 
 
 MAX_CONFLICTS_IN_PROMPT = 2  # cap so the model isn't asked to weave 4+ conflicts into one narrative

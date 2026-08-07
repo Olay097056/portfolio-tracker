@@ -186,8 +186,8 @@ def test_prompt_shows_price_and_rsi_trend_when_previous_values_present():
         get_ai_narrative("NVDA", metrics)
 
     prompt = mock_call.call_args[0][0]
-    assert "สูงขึ้นจาก $558.1 เมื่อสัปดาห์ก่อน" in prompt
-    assert "สูงขึ้นจาก 54.2 เมื่อสัปดาห์ก่อน" in prompt
+    assert "สูงขึ้นจาก $558.1 5 วันทำการก่อนหน้า" in prompt
+    assert "สูงขึ้นจาก 54.2 5 วันทำการก่อนหน้า" in prompt
 
 
 def test_prompt_says_previous_data_unavailable_rather_than_omit_or_fabricate_it():

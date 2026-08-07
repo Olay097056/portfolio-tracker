@@ -5,6 +5,7 @@ import type { ChartRange, NextEarnings, Zone } from '../api/types';
 import { DcaCalculator } from '../components/DcaCalculator';
 import { PositionWidget } from '../components/PositionWidget';
 import { PriceChart } from '../components/PriceChart';
+import { TradingViewWidget } from '../components/TradingViewWidget';
 import { StressTestCalculator } from '../components/StressTestCalculator';
 import { WatchlistPanel } from '../components/WatchlistPanel';
 import { ZoneList } from '../components/ZoneList';
@@ -34,6 +35,12 @@ const RANGES: { value: ChartRange; label: string }[] = [
 ];
 
 const POPULAR_SHORTCUTS = ['AAPL', 'NVDA', 'TSLA', 'MSFT', 'VTI', 'SPY', 'SMH'];
+
+// TradingView's widget replaced the app's own chart as the Dashboard's default view (user
+// request 2026-08-07) — it's a sealed embed, so this app's zone-drag-editing UI can't attach
+// to it. Rather than delete that feature, it's kept working and gated behind this flag: flip
+// to true to bring back the app's own candlestick chart + zone controls exactly as they were.
+const SHOW_ZONE_EDITING_UI = false;
 
 function formatSigned(value: number, decimals = 2): string {
   const sign = value > 0 ? '+' : '';
@@ -298,59 +305,76 @@ export function DashboardPage() {
                     )}
                   </div>
 
-                  {/* Range selector */}
-                  <div role="group" aria-label="Range" style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                    {RANGES.map((r) => (
-                      <button
-                        key={r.value}
-                        type="button"
-                        aria-pressed={r.value === range}
-                        onClick={() => setRange(r.value)}
-                        style={{ padding: '5px 12px', fontSize: '0.8rem', ...(r.value === range ? { borderColor: 'var(--primary)', color: 'var(--primary)', background: 'rgba(56,189,248,0.15)' } : {}) }}
-                      >{r.label}</button>
-                    ))}
-                  </div>
+                  {/* Range selector — hidden with the app's own chart (TradingView has its own
+                      built-in range/interval picker); `range` itself stays live at its '1Y'
+                      default so AI Signal/S-R Matrix/DCA still get real data, not a frozen value. */}
+                  {SHOW_ZONE_EDITING_UI && (
+                    <div role="group" aria-label="Range" style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                      {RANGES.map((r) => (
+                        <button
+                          key={r.value}
+                          type="button"
+                          aria-pressed={r.value === range}
+                          onClick={() => setRange(r.value)}
+                          style={{ padding: '5px 12px', fontSize: '0.8rem', ...(r.value === range ? { borderColor: 'var(--primary)', color: 'var(--primary)', background: 'rgba(56,189,248,0.15)' } : {}) }}
+                        >{r.label}</button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-                {/* ── wethaiinvest Chart Toolbar ── */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px', background: 'rgba(10,14,25,0.95)', border: '1px solid var(--border)', borderTop: 'none', borderBottom: 'none', flexWrap: 'wrap', gap: '10px', fontSize: '0.82rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer', color: 'var(--text-muted)' }}>
-                      <input type="checkbox" checked={showBollinger} onChange={(e) => setShowBollinger(e.target.checked)} />
-                      <span>Bollinger Bands</span>
-                    </label>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer', color: 'var(--text-muted)' }}>
-                      <input type="checkbox" checked={showVolume} onChange={(e) => setShowVolume(e.target.checked)} />
-                      <span>Volume</span>
-                    </label>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer', color: 'var(--text-muted)' }}>
-                      <input type="checkbox" checked={lockZones} onChange={(e) => setLockZones(e.target.checked)} />
-                      <span>🔓 ล๊อคเส้นแนวรับ-ต้าน</span>
-                    </label>
-                  </div>
-                  <span style={{ fontSize: '0.72rem', color: 'rgba(100,200,255,0.5)' }}>แท่งเทียน (Candlestick)</span>
+                {/* ── TradingView Chart (default view — replaced the app's own chart, user request 2026-08-07) ──
+                     Explicit height required here: TradingView's autosize:true rewrites the widget
+                     container's own height to "100%", and a percentage height only resolves against
+                     a parent with an explicit (not auto/content-based) height — without this, the
+                     chart collapses to a tiny fallback size instead of actually filling the space. */}
+                <div style={{ height: 720, border: '1px solid var(--border)', borderTop: 'none', borderRadius: SHOW_ZONE_EDITING_UI ? 0 : '0 0 12px 12px', overflow: 'hidden', background: '#0d1322' }}>
+                  <TradingViewWidget symbol={selectedTicker} height={720} />
                 </div>
 
-                {/* ── Candlestick Chart ── */}
-                <div style={{ border: '1px solid var(--border)', borderTop: 'none', borderRadius: '0 0 12px 12px', overflow: 'hidden', background: '#0d1322' }}>
-                  <PriceChart
-                    key={chartIdentityKey(selectedTicker, range)}
-                    points={points}
-                    loading={loading}
-                    error={error}
-                    zones={zones}
-                    showBollinger={showBollinger}
-                    showVolume={showVolume}
-                    onZoneDragMove={(zone, price) => setDragPreview({ zone, price })}
-                    onZoneDragEnd={(zone, price) => {
-                      setDragPreview(null);
-                      void zoneEditing.dragZonePrice(zone, price);
-                    }}
-                    disabled={zoneEditing.busy || lockZones}
-                  />
-                </div>
+                {SHOW_ZONE_EDITING_UI && (
+                  <>
+                    {/* ── wethaiinvest Chart Toolbar ── */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px', background: 'rgba(10,14,25,0.95)', border: '1px solid var(--border)', borderTop: 'none', borderBottom: 'none', flexWrap: 'wrap', gap: '10px', fontSize: '0.82rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                          <input type="checkbox" checked={showBollinger} onChange={(e) => setShowBollinger(e.target.checked)} />
+                          <span>Bollinger Bands</span>
+                        </label>
+                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                          <input type="checkbox" checked={showVolume} onChange={(e) => setShowVolume(e.target.checked)} />
+                          <span>Volume</span>
+                        </label>
+                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                          <input type="checkbox" checked={lockZones} onChange={(e) => setLockZones(e.target.checked)} />
+                          <span>🔓 ล๊อคเส้นแนวรับ-ต้าน</span>
+                        </label>
+                      </div>
+                      <span style={{ fontSize: '0.72rem', color: 'rgba(100,200,255,0.5)' }}>แท่งเทียน (Candlestick)</span>
+                    </div>
 
-                {zoneEditing.error && <div role="alert" style={{ marginTop: '8px' }}>{zoneEditing.error}</div>}
+                    {/* ── Candlestick Chart (app's own — dormant behind SHOW_ZONE_EDITING_UI) ── */}
+                    <div style={{ border: '1px solid var(--border)', borderTop: 'none', borderRadius: '0 0 12px 12px', overflow: 'hidden', background: '#0d1322' }}>
+                      <PriceChart
+                        key={chartIdentityKey(selectedTicker, range)}
+                        points={points}
+                        loading={loading}
+                        error={error}
+                        zones={zones}
+                        showBollinger={showBollinger}
+                        showVolume={showVolume}
+                        onZoneDragMove={(zone, price) => setDragPreview({ zone, price })}
+                        onZoneDragEnd={(zone, price) => {
+                          setDragPreview(null);
+                          void zoneEditing.dragZonePrice(zone, price);
+                        }}
+                        disabled={zoneEditing.busy || lockZones}
+                      />
+                    </div>
+
+                    {zoneEditing.error && <div role="alert" style={{ marginTop: '8px' }}>{zoneEditing.error}</div>}
+                  </>
+                )}
 
                 {/* ── Dynamic AI Technical Signal Box ── */}
                 <div
@@ -605,15 +629,19 @@ export function DashboardPage() {
                   </div>
                 </div>
 
-                {/* ── Zone Controls Bar ── */}
+                {/* ── Widget Toggle Bar (zone-editing buttons moved out — see SHOW_ZONE_EDITING_UI below) ── */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginTop: '16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)' }}>Add Zone:</span>
-                    <button type="button" onClick={() => handleAddZone('support')} disabled={zoneEditing.busy || lockZones} style={{ borderColor: ZONE_STYLE.support.color, color: ZONE_STYLE.support.color, padding: '5px 14px' }}>S</button>
-                    <button type="button" onClick={() => handleAddZone('resistance')} disabled={zoneEditing.busy || lockZones} style={{ borderColor: ZONE_STYLE.resistance.color, color: ZONE_STYLE.resistance.color, padding: '5px 14px' }}>R</button>
-                    <button type="button" onClick={() => handleAddZone('freestyle')} disabled={zoneEditing.busy || lockZones} style={{ borderColor: ZONE_STYLE.freestyle.color, color: ZONE_STYLE.freestyle.color, padding: '5px 14px' }}>Freestyle</button>
+                    {SHOW_ZONE_EDITING_UI && (
+                      <>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)' }}>Add Zone:</span>
+                        <button type="button" onClick={() => handleAddZone('support')} disabled={zoneEditing.busy || lockZones} style={{ borderColor: ZONE_STYLE.support.color, color: ZONE_STYLE.support.color, padding: '5px 14px' }}>S</button>
+                        <button type="button" onClick={() => handleAddZone('resistance')} disabled={zoneEditing.busy || lockZones} style={{ borderColor: ZONE_STYLE.resistance.color, color: ZONE_STYLE.resistance.color, padding: '5px 14px' }}>R</button>
+                        <button type="button" onClick={() => handleAddZone('freestyle')} disabled={zoneEditing.busy || lockZones} style={{ borderColor: ZONE_STYLE.freestyle.color, color: ZONE_STYLE.freestyle.color, padding: '5px 14px' }}>Freestyle</button>
+                      </>
+                    )}
 
-                    <button type="button" onClick={() => setShowPositionWidget(!showPositionWidget)} style={{ marginLeft: '8px', borderColor: '#38bdf8', color: '#7dd3fc', fontSize: '0.8rem' }}>
+                    <button type="button" onClick={() => setShowPositionWidget(!showPositionWidget)} style={{ marginLeft: SHOW_ZONE_EDITING_UI ? '8px' : 0, borderColor: '#38bdf8', color: '#7dd3fc', fontSize: '0.8rem' }}>
                       {showPositionWidget ? 'ซ่อนพอร์ต' : '💼 จัดการพอร์ต'}
                     </button>
                     <button type="button" onClick={() => setShowSrMatrix(!showSrMatrix)} style={{ borderColor: 'var(--primary)', color: '#93c5fd', fontSize: '0.8rem' }}>
@@ -626,10 +654,12 @@ export function DashboardPage() {
                       {showStressTestWidget ? 'ซ่อน Risk Sim' : '🛡️ คำนวณความเสียหาย'}
                     </button>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {zoneEditing.busy && <span aria-live="polite" style={{ fontSize: '0.82rem', color: 'var(--primary)' }}>Working…</span>}
-                    <button type="button" onClick={handleRecomputeDefaults} disabled={zoneEditing.busy || lockZones} style={{ borderColor: 'var(--red)', color: 'var(--red)', fontSize: '0.8rem' }}>Recompute defaults</button>
-                  </div>
+                  {SHOW_ZONE_EDITING_UI && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      {zoneEditing.busy && <span aria-live="polite" style={{ fontSize: '0.82rem', color: 'var(--primary)' }}>Working…</span>}
+                      <button type="button" onClick={handleRecomputeDefaults} disabled={zoneEditing.busy || lockZones} style={{ borderColor: 'var(--red)', color: 'var(--red)', fontSize: '0.8rem' }}>Recompute defaults</button>
+                    </div>
+                  )}
                 </div>
 
                 {/* ── Widget 5: จัดการพอร์ต (Position Widget) ── */}
@@ -687,10 +717,12 @@ export function DashboardPage() {
                   </div>
                 )}
 
-                {/* ── Zone List Table ── */}
-                <div className="card" style={{ marginTop: '16px' }}>
-                  <ZoneList zones={displayZones} onEditPrice={zoneEditing.editZonePrice} onDelete={zoneEditing.removeZone} disabled={zoneEditing.busy || lockZones} />
-                </div>
+                {SHOW_ZONE_EDITING_UI && (
+                  /* ── Zone List Table ── */
+                  <div className="card" style={{ marginTop: '16px' }}>
+                    <ZoneList zones={displayZones} onEditPrice={zoneEditing.editZonePrice} onDelete={zoneEditing.removeZone} disabled={zoneEditing.busy || lockZones} />
+                  </div>
+                )}
               </>
             )}
           </div>

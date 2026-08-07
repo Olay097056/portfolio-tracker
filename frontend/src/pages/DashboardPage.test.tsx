@@ -79,7 +79,46 @@ describe('DashboardPage', () => {
     await waitFor(() => expect(client.getChartData).toHaveBeenCalledWith('AAPL', '1Y'));
   });
 
-  it('remounts the chart (fresh createChart, old instance removed) when the selected ticker changes', async () => {
+  it('shows the TradingView widget for the selected ticker as the default chart', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }], zones: [] });
+
+    render(<DashboardPage />);
+    await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+
+    const container = await screen.findByTestId('tradingview-widget-container');
+    const script = container.querySelector('script');
+    expect(JSON.parse(script!.text).symbol).toBe('AAPL');
+  });
+
+  it('does not render the app\'s own zone-editing UI by default (dormant behind SHOW_ZONE_EDITING_UI)', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+    vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }], zones: [] });
+
+    render(<DashboardPage />);
+    await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+    await screen.findByTestId('tradingview-widget-container');
+
+    expect(screen.queryByTestId('price-chart')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'S' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'R' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Freestyle' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Recompute defaults' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Bollinger Bands')).not.toBeInTheDocument();
+    // Unrelated widget toggles that share the same toolbar row must still be present.
+    expect(screen.getByRole('button', { name: /S\/R Matrix/ })).toBeInTheDocument();
+  });
+
+  // The 14 tests below cover the app's own PriceChart + zone-editing UI (drag zones,
+  // S/R/Freestyle buttons, Zone List), now dormant behind DashboardPage.tsx's
+  // SHOW_ZONE_EDITING_UI flag (TradingView replaced it as the default chart — user
+  // request 2026-08-07). Skipped, not deleted: the feature still works, just isn't
+  // rendered. Flip the flag back to `true` and remove `.skip` to re-enable.
+  it.skip('remounts the chart (fresh createChart, old instance removed) when the selected ticker changes', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([
       { id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' },
@@ -117,7 +156,7 @@ describe('DashboardPage', () => {
     expect(firstRemove).toHaveBeenCalledTimes(1);
   });
 
-  it('never draws the outgoing ticker stale data onto the freshly-remounted chart when the new ticker fetch fails', async () => {
+  it.skip('never draws the outgoing ticker stale data onto the freshly-remounted chart when the new ticker fetch fails', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([
       { id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' },
@@ -163,7 +202,7 @@ describe('DashboardPage', () => {
     expect(secondSetData).not.toHaveBeenCalled();
   });
 
-  it('shows a range button row once a ticker is selected, defaulting to 1 year', async () => {
+  it.skip('shows a range button row once a ticker is selected, defaulting to 1 year', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }], zones: [] });
@@ -179,7 +218,7 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('button', { name: '5 years' })).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('refetches with the new range when a range button is clicked', async () => {
+  it.skip('refetches with the new range when a range button is clicked', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }], zones: [] });
@@ -202,7 +241,7 @@ describe('DashboardPage', () => {
   // outgoing range's stale data). Neither test alone proves both halves are correct: if the
   // points-reset half regressed, this test would still pass since it only checks that remounting
   // happens, not what data the new instance receives.
-  it('remounts the chart when only the range changes for the same ticker', async () => {
+  it.skip('remounts the chart when only the range changes for the same ticker', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }], zones: [] });
@@ -241,7 +280,7 @@ describe('DashboardPage', () => {
   // would pass vacuously (with no real coverage) if only the key/remount half were reverted: a
   // chart that never remounts also never gets a second chart instance for the
   // `secondSetData.not.toHaveBeenCalled()` assertion below to check.
-  it('never draws the previous range stale data onto the freshly-remounted chart when the new range fetch fails', async () => {
+  it.skip('never draws the previous range stale data onto the freshly-remounted chart when the new range fetch fails', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData')
@@ -299,7 +338,7 @@ describe('DashboardPage', () => {
     expect(screen.queryByText(/no tickers to chart/i)).not.toBeInTheDocument();
   });
 
-  it('passes zones from the fetch through to the chart', async () => {
+  it.skip('passes zones from the fetch through to the chart', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     const createPriceLine = vi.fn();
@@ -322,7 +361,7 @@ describe('DashboardPage', () => {
     await waitFor(() => expect(createPriceLine).toHaveBeenCalledWith(expect.objectContaining({ price: 95 })));
   });
 
-  it('shows S, R, and Freestyle buttons and a zone list once a ticker is selected', async () => {
+  it.skip('shows S, R, and Freestyle buttons and a zone list once a ticker is selected', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }], zones: [] });
@@ -338,7 +377,7 @@ describe('DashboardPage', () => {
     expect(screen.getByText(/no support\/resistance zones/i)).toBeInTheDocument();
   });
 
-  it('clicking S adds a support zone at the last point\'s close price and refetches', async () => {
+  it.skip('clicking S adds a support zone at the last point\'s close price and refetches', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData')
@@ -362,7 +401,7 @@ describe('DashboardPage', () => {
     await waitFor(() => expect(client.getChartData).toHaveBeenCalledTimes(2));
   });
 
-  it('Recompute defaults does nothing without confirmation and clears zones when confirmed', async () => {
+  it.skip('Recompute defaults does nothing without confirmation and clears zones when confirmed', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData').mockResolvedValue({
@@ -385,7 +424,7 @@ describe('DashboardPage', () => {
     await waitFor(() => expect(deleteAllSpy).toHaveBeenCalledWith('AAPL', '1Y'));
   });
 
-  it('disables the S/R/Freestyle/Recompute buttons while a zone mutation is in flight, then re-enables them', async () => {
+  it.skip('disables the S/R/Freestyle/Recompute buttons while a zone mutation is in flight, then re-enables them', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }], zones: [] });
@@ -418,7 +457,7 @@ describe('DashboardPage', () => {
     expect(screen.queryByText(/working/i)).not.toBeInTheDocument();
   });
 
-  it('a second click on S while the first is still in flight does not fire a second freeze call', async () => {
+  it.skip('a second click on S while the first is still in flight does not fire a second freeze call', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }], zones: [] });
@@ -447,7 +486,7 @@ describe('DashboardPage', () => {
     expect(freezeSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('deleting a zone from the list calls deleteZone and refetches', async () => {
+  it.skip('deleting a zone from the list calls deleteZone and refetches', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData').mockResolvedValue({
@@ -466,7 +505,7 @@ describe('DashboardPage', () => {
     await waitFor(() => expect(deleteSpy).toHaveBeenCalledWith(1));
   });
 
-  it('dragging a zone updates the zone list price live, then commits via dragZonePrice on mouseup', async () => {
+  it.skip('dragging a zone updates the zone list price live, then commits via dragZonePrice on mouseup', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData').mockResolvedValue({
@@ -504,7 +543,7 @@ describe('DashboardPage', () => {
     await waitFor(() => expect(updateSpy).toHaveBeenCalledWith(1, 160));
   });
 
-  it('disables chart dragging while a zone mutation is already in flight', async () => {
+  it.skip('disables chart dragging while a zone mutation is already in flight', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData').mockResolvedValue({
@@ -546,7 +585,7 @@ describe('DashboardPage', () => {
     resolveDelete!();
   });
 
-  it('dragging an auto zone freezes the whole zone set with the dragged zone at its new price', async () => {
+  it.skip('dragging an auto zone freezes the whole zone set with the dragged zone at its new price', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData').mockResolvedValue({
@@ -638,7 +677,7 @@ describe('DashboardPage', () => {
     await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
     fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
 
-    await waitFor(() => expect(screen.getByRole('group', { name: /range/i })).toBeInTheDocument());
+    await screen.findByTestId('tradingview-widget-container');
     expect(screen.queryByText(/%\)/)).not.toBeInTheDocument();
   });
 

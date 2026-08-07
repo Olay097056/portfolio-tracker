@@ -279,3 +279,37 @@ Work the **frontier**: Ticket 1 can start immediately; Ticket 2 needs Ticket 1 d
 - [x] Passive Income's "Reachable in N years" / "Not reachable within 30 years" message colored `--green`/`--red`
 - [x] "Create portfolio" button styled with `--primary`, matching "Add to Watchlist"
 - [x] All existing tests pass; new tests cover card presence, zebra-table class presence, reachable/not-reachable color, and the Create-portfolio button color
+
+## REVERTED — Full-market technical signals + Momentum/Pre-Squeeze/ETF Comparison
+
+The three tickets that lived here ("Full-market technical signals: background refresh pipeline + Data tab card", "Momentum Scanner reads from the full-market technical signals cache", "Pre-Squeeze Scanner reads from the full-market technical signals cache") were completed — background refresh pipeline, `technical_signals` table, Data tab card, and Momentum Scanner rewired to it, all built and tested — and then reverted. The user removed the Momentum Scanner, Pre-Squeeze Scanner, and ETF Comparison tools from the project entirely. Everything built solely to serve them was removed to match: `technical_signals` table/model, its refresh manager/router/CLI script and their tests, the `useTechnicalSignals`/`usePriceSignalsScan` hooks, the Data tab's second card, the now-dead `getSignalAlertBadges` export, and the three component files themselves (already deleted before this cleanup pass). `docs/adr/0007-momentum-and-pre-squeeze-scan-the-full-screener-universe.md` is left in place as a historical record of the (now-reverted) decision, not deleted. Left untouched: the Stock Screener itself, the pre-existing `/watchlist/scan/price-signals` backend endpoint and `app/signals.py`/`app/history_service.py` (now only used by that endpoint's own tests — flagged to the user as a further possible cleanup, not done here since it predates this session's Momentum/Pre-Squeeze work), and the orphaned (harmless, empty) `technical_signals` SQLite table, which nothing drops automatically.
+
+## Portfolio Builder criteria & dynamic bucket logic
+
+**What to build:** Nothing changes for the user yet — this is prefactoring. A new pure-logic module defines, for each of the three presets (Aggressive Growth, Dividend Income, Conservative), a named list of transparent pass/fail criteria evaluated against real `ScreenerStock` fields (never a composite score, per ADR 0005), plus a function that builds a "Core-Satellite" or "Pure Stock Picks" bucket list from whichever stocks currently pass. Source: `docs/specs/2026-08-05-screener-scanner-and-portfolio-builder-integration.md`.
+
+**Blocked by:** None — can start immediately.
+
+- [ ] Growth criteria: PEG present and < 2, ROE > 15%, profit margin > 0 — labeled as inspired by growth-investing principles (PEG heuristic)
+- [ ] Dividend criteria: yield present and between 2%–7%, profit margin > 5%, D/E present and < 2, market cap > $2B — labeled as inspired by dividend-growth investing, screening out common dividend-trap signals
+- [ ] Conservative criteria: beta present and < 1, P/E present and between 0–25, D/E present and < 1, market cap > $10B — labeled as inspired by defensive-investor criteria
+- [ ] A stock with a missing field required by a criterion fails that criterion (shown as unavailable), never silently passes
+- [ ] Each stock's evaluation returns per-criterion pass/fail, never a single aggregate score
+- [ ] `buildDynamicBucket(presetId, screenerStocks, mode)` returns, for `core-satellite`, the existing ETF Core bucket(s) reweighted plus one new Satellite bucket of qualifying stocks (up to 5, highest market cap first) splitting the remaining allocation evenly; for `pure`, no ETF bucket and up to 8 qualifying stocks (highest market cap first) splitting 100% evenly
+- [ ] When fewer stocks qualify than the target count, the bucket uses however many qualify — never padded with fabricated placeholder rows
+- [ ] When zero stocks qualify, the bucket is empty and this is representable by the caller (not an error)
+- [ ] Full unit test coverage per criterion (field at, above, and below threshold; missing field), per preset, and per `buildDynamicBucket` mode including the fewer-than-target and zero-qualify cases
+
+## Portfolio Builder Core-Satellite / Pure Stock Picks UI
+
+**What to build:** Portfolio Builder's preset picker gains a per-preset toggle between "Core-Satellite" (default) and "Pure Stock Picks", wired to the criteria module from ticket 3. Selecting a preset shows the resulting buckets (ETF Core + data-driven Satellite, or Pure stock picks), each stock's per-criterion pass/fail breakdown, and the preset's "inspired by…" methodology line. Source: `docs/specs/2026-08-05-screener-scanner-and-portfolio-builder-integration.md`.
+
+**Blocked by:** Portfolio Builder criteria & dynamic bucket logic
+
+- [ ] Each of the three presets shows a Core-Satellite / Pure Stock Picks toggle, defaulting to Core-Satellite
+- [ ] Switching modes re-derives the bucket list via `buildDynamicBucket` and re-runs the existing `buildPortfolioPlan` unchanged against the resulting buckets
+- [ ] The methodology label ("inspired by…") is shown once per preset
+- [ ] Each data-driven stock in a bucket shows its per-criterion pass/fail breakdown, not a score
+- [ ] The zero-qualify case is shown plainly (e.g. "0 stocks currently match these criteria") rather than an empty or broken-looking bucket
+- [ ] This flow depends on `screener_stocks` being populated; against an empty/unrefreshed table it correctly shows the zero-qualify state, never fabricated data
+- [ ] All existing Portfolio Builder tests pass; new tests cover the toggle, both modes' bucket composition, the criteria breakdown display, the methodology label, and the zero-qualify state

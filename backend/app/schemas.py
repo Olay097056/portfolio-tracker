@@ -347,6 +347,13 @@ class AiSignalMetricsIn(BaseModel):
     current_price: float | None = None
     rsi14_prev: float | None = None
     price_prev: float | None = None
+    # Real "market context" that needs no sector mapping (chosen over sector/market_trend below,
+    # per user roadmap discussion 2026-08-07): 52-week high/low computed from the frontend's own
+    # already-fetched price history, and how far the current price sits from each.
+    week52_high: float | None = None
+    week52_low: float | None = None
+    distance_from_52w_high_pct: float | None = None
+    distance_from_52w_low_pct: float | None = None
     # NOT currently sent by any frontend caller -- no sector or market-trend computation exists
     # anywhere in this codebase yet (see ai_narrative_service.py's prompt comment). Accepted here
     # so the backend prompt logic is ready the day a real source exists, but until then this is

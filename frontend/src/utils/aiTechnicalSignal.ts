@@ -61,6 +61,16 @@ export interface AiSignalMetrics {
   currentPrice: number | null;
   rsi14Prev: number | null;
   pricePrev: number | null;
+  // 52-week high/low and how far the current price sits from each — real "market context" that
+  // needs no sector mapping, computed from the high/low of whatever's in `points`. This is only
+  // a true 52-week window because DashboardPage.tsx currently fixes `range` at '1Y' (the range
+  // selector UI is dormant behind SHOW_ZONE_EDITING_UI) -- if that's ever re-enabled with the
+  // range selector visible again, a shorter/longer range would make this label inaccurate for
+  // whatever range the user picked, and it would need to read the actual range back in.
+  week52High: number | null;
+  week52Low: number | null;
+  distanceFrom52wHighPct: number | null;
+  distanceFrom52wLowPct: number | null;
 }
 
 // ~1 week of weekday trading bars on a daily chart.
@@ -598,6 +608,10 @@ export function generateAiTechnicalSignal(
         currentPrice: null,
         rsi14Prev: null,
         pricePrev: null,
+        week52High: null,
+        week52Low: null,
+        distanceFrom52wHighPct: null,
+        distanceFrom52wLowPct: null,
       },
     };
   }
@@ -618,6 +632,19 @@ export function generateAiTechnicalSignal(
   const hasPrevWindow = closes.length > PREV_TREND_OFFSET_TRADING_DAYS;
   const rsi14Prev = hasPrevWindow ? calcRsi14(closes.slice(0, closes.length - PREV_TREND_OFFSET_TRADING_DAYS)) : null;
   const pricePrev = hasPrevWindow ? closes[closes.length - 1 - PREV_TREND_OFFSET_TRADING_DAYS] : null;
+
+  // "52-week" high/low from the fetched range's own high/low bars -- real per-ticker data, no
+  // sector mapping needed. See the AiSignalMetrics field comment for the range-fixed-at-1Y caveat.
+  const week52High = points.length > 0 ? Math.max(...points.map((p) => p.high)) : null;
+  const week52Low = points.length > 0 ? Math.min(...points.map((p) => p.low)) : null;
+  const distanceFrom52wHighPct =
+    week52High !== null && week52High > 0 && latestClose !== undefined && !isNaN(latestClose)
+      ? Math.round(((week52High - latestClose) / week52High) * 100 * 100) / 100
+      : null;
+  const distanceFrom52wLowPct =
+    week52Low !== null && week52Low > 0 && latestClose !== undefined && !isNaN(latestClose)
+      ? Math.round(((latestClose - week52Low) / week52Low) * 100 * 100) / 100
+      : null;
 
   const macd = calcMacd(closes);
   const movingAverages = calcMovingAverages(closes);
@@ -719,6 +746,10 @@ export function generateAiTechnicalSignal(
     currentPrice: latestClose ?? null,
     rsi14Prev,
     pricePrev,
+    week52High,
+    week52Low,
+    distanceFrom52wHighPct,
+    distanceFrom52wLowPct,
   };
 
   return {

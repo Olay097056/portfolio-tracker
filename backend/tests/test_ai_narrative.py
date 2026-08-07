@@ -210,6 +210,30 @@ def test_prompt_includes_market_context_when_both_sector_and_trend_provided():
     assert "บริบทตลาด: Technology กำลัง ขาขึ้น" in prompt
 
 
+def test_prompt_includes_52_week_context_when_present():
+    metrics = _sample_metrics().model_copy(
+        update={"week52_high": 620.0, "week52_low": 400.0, "distance_from_52w_high_pct": 7.8, "distance_from_52w_low_pct": 42.9}
+    )
+    fake_response = '{"sentiment": "neutral", "narrative": "x", "caveats": []}'
+    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response) as mock_call:
+        get_ai_narrative("NVDA", metrics)
+
+    prompt = mock_call.call_args[0][0]
+    assert "52-week High: $620.00" in prompt
+    assert "ห่างจากจุดสูงสุด 7.8%" in prompt
+    assert "52-week Low: $400.00" in prompt
+    assert "สูงกว่าจุดต่ำสุด 42.9%" in prompt
+
+
+def test_prompt_52_week_context_falls_back_to_no_data_when_absent():
+    fake_response = '{"sentiment": "neutral", "narrative": "x", "caveats": []}'
+    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response) as mock_call:
+        get_ai_narrative("NVDA", _sample_metrics())
+
+    prompt = mock_call.call_args[0][0]
+    assert f"52-week High/Low: {ai_narrative_service.NO_DATA_LABEL}" in prompt
+
+
 def test_prompt_market_context_falls_back_to_no_data_when_absent():
     fake_response = '{"sentiment": "neutral", "narrative": "x", "caveats": []}'
     with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response) as mock_call:

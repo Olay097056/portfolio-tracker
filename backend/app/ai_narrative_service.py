@@ -145,6 +145,20 @@ def _build_prompt(ticker: str, m: AiSignalMetricsIn, conflicts: list[str]) -> st
         else "บริบทตลาด: ไม่มีข้อมูลเพิ่มเติม"
     )
 
+    # Real per-ticker context (52-week high/low), chosen over sector/market_trend above per user
+    # roadmap discussion 2026-08-07: this needs no sector mapping and is never wrong for a
+    # ticker outside some incomplete static list -- it's just the high/low of data already
+    # fetched for this exact ticker.
+    week52_line = (
+        f"52-week High: ${m.week52_high:.2f} (ราคาปัจจุบันห่างจากจุดสูงสุด {m.distance_from_52w_high_pct:.1f}%), "
+        f"52-week Low: ${m.week52_low:.2f} (ราคาปัจจุบันสูงกว่าจุดต่ำสุด {m.distance_from_52w_low_pct:.1f}%)"
+        if m.week52_high is not None
+        and m.week52_low is not None
+        and m.distance_from_52w_high_pct is not None
+        and m.distance_from_52w_low_pct is not None
+        else f"52-week High/Low: {NO_DATA_LABEL}"
+    )
+
     lines = [
         "คุณคือนักลงทุนหุ้นที่มีประสบการณ์ กำลังอธิบายสถานการณ์ของหุ้นตัวนี้ให้เพื่อนนักลงทุนฟังแบบละเอียด "
         "ไม่ใช่เขียนรายงานสั้นๆ ห้วนๆ แบบทางการ",
@@ -152,8 +166,8 @@ def _build_prompt(ticker: str, m: AiSignalMetricsIn, conflicts: list[str]) -> st
         "อ่านตัวเลข indicator ที่คำนวณไว้แล้วด้านล่าง (ห้ามคิดตัวเลขใหม่เอง ใช้เฉพาะตัวเลขที่ให้มา) "
         "แล้วอธิบายตามลำดับนี้:",
         "1. เกริ่นภาพรวมก่อนว่าตอนนี้หุ้นตัวนี้อยู่ในสถานการณ์แบบไหน",
-        "2. ไล่อธิบายทีละสัญญาณ (เทรนด์/Moving Average, โมเมนตัม/MACD, RSI, วอลุ่ม, แนวรับ-แนวต้าน) "
-        "ว่าแต่ละตัวบอกอะไร ทำไมถึงสำคัญกับการตัดสินใจ ไม่ใช่แค่ท่องตัวเลข",
+        "2. ไล่อธิบายทีละสัญญาณ (เทรนด์/Moving Average, โมเมนตัม/MACD, RSI, วอลุ่ม, แนวรับ-แนวต้าน, "
+        "ตำแหน่งราคาในรอบ 52 สัปดาห์) ว่าแต่ละตัวบอกอะไร ทำไมถึงสำคัญกับการตัดสินใจ ไม่ใช่แค่ท่องตัวเลข",
         conflict_step,
         "4. สรุปมุมมองรวมพร้อมเหตุผลว่าทำไมถึงสรุปแบบนั้น",
         "",
@@ -166,6 +180,7 @@ def _build_prompt(ticker: str, m: AiSignalMetricsIn, conflicts: list[str]) -> st
         "ให้พูดถึงมันว่า 'ไม่มีข้อมูล' ไปตรงๆ",
         "",
         market_context,
+        week52_line,
         f"หุ้น: {ticker}",
         _trend_line("ราคา", m.current_price, m.price_prev, prefix="$"),
         _trend_line("RSI(14)", m.rsi14, m.rsi14_prev),

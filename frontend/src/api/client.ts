@@ -430,6 +430,10 @@ export function analyzeAiNarrative(ticker: string, metrics: AiSignalMetrics): Pr
       current_price: metrics.currentPrice,
       rsi14_prev: metrics.rsi14Prev,
       price_prev: metrics.pricePrev,
+      week52_high: metrics.week52High,
+      week52_low: metrics.week52Low,
+      distance_from_52w_high_pct: metrics.distanceFrom52wHighPct,
+      distance_from_52w_low_pct: metrics.distanceFrom52wLowPct,
       // sector/market_trend intentionally omitted -- no sector or market-trend computation
       // exists anywhere in this app yet (see ai_narrative_service.py's prompt comment); the
       // backend already handles their absence with its own "no data" fallback text.

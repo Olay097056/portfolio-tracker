@@ -347,6 +347,12 @@ describe('aiTechnicalSignal Utility', () => {
       expect(result.metrics.currentPrice).toBe(131); // closes[29] = 102 + 29
       expect(result.metrics.pricePrev).toBe(126); // closes[24] = 102 + 24, 5 trading days back
       expect(result.metrics.rsi14Prev).not.toBeNull(); // 25 points is enough for calcRsi14
+
+      // high = 105+i (max at i=29 -> 134), low = 99+i (min at i=0 -> 99).
+      expect(result.metrics.week52High).toBe(134);
+      expect(result.metrics.week52Low).toBe(99);
+      expect(result.metrics.distanceFrom52wHighPct).toBeCloseTo(2.24, 2); // (134-131)/134
+      expect(result.metrics.distanceFrom52wLowPct).toBeCloseTo(32.32, 2); // (131-99)/99
     });
 
     it('returns pricePrev/rsi14Prev as null (not fabricated) when there is not enough history for the offset', () => {
@@ -371,6 +377,10 @@ describe('aiTechnicalSignal Utility', () => {
       expect(result.metrics.currentPrice).toBeNull();
       expect(result.metrics.rsi14Prev).toBeNull();
       expect(result.metrics.pricePrev).toBeNull();
+      expect(result.metrics.week52High).toBeNull();
+      expect(result.metrics.week52Low).toBeNull();
+      expect(result.metrics.distanceFrom52wHighPct).toBeNull();
+      expect(result.metrics.distanceFrom52wLowPct).toBeNull();
     });
   });
 });

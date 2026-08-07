@@ -456,6 +456,10 @@ describe('api client', () => {
       currentPrice: 571.48,
       rsi14Prev: 54.2,
       pricePrev: 558.1,
+      week52High: 620.0,
+      week52Low: 400.0,
+      distanceFrom52wHighPct: 7.8,
+      distanceFrom52wLowPct: 42.9,
     };
 
     await analyzeAiNarrative('SMH', metrics);
@@ -465,6 +469,10 @@ describe('api client', () => {
     expect(body.metrics.current_price).toBe(571.48);
     expect(body.metrics.rsi14_prev).toBe(54.2);
     expect(body.metrics.price_prev).toBe(558.1);
+    expect(body.metrics.week52_high).toBe(620.0);
+    expect(body.metrics.week52_low).toBe(400.0);
+    expect(body.metrics.distance_from_52w_high_pct).toBe(7.8);
+    expect(body.metrics.distance_from_52w_low_pct).toBe(42.9);
     expect(body.metrics.sector).toBeUndefined();
     expect(body.metrics.market_trend).toBeUndefined();
   });

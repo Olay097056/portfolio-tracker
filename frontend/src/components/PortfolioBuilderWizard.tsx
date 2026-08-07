@@ -64,9 +64,6 @@ export function PortfolioBuilderWizard() {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       if (portfolio) {
-        // A holding failed after the portfolio itself was created — a portfolio with only some
-        // of its planned holdings is a broken half-state, not a usable partial result, so roll
-        // it back (cascade-deletes any holdings already created) rather than leaving it behind.
         try {
           await deletePortfolio(portfolio.id);
           setError(`${message} — the partially created portfolio was removed. You can try again.`);
@@ -78,7 +75,6 @@ export function PortfolioBuilderWizard() {
       } else {
         setError(message);
       }
-      // clear the preview on failure so a retry can't blindly re-call createPortfolio and create a duplicate — force a fresh Preview first
       setLines(null);
     } finally {
       setCreating(false);
@@ -86,73 +82,157 @@ export function PortfolioBuilderWizard() {
   }
 
   return (
-    <div className="card">
-      <h3>Portfolio Builder</h3>
-      {error && <div role="alert">{error}</div>}
-      {created && <div>Portfolio created.</div>}
+    <div className="card glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div>
+        <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>🏗️ Automated Portfolio Builder Wizard</h3>
+        <p style={{ margin: '4px 0 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+          Select a standard pre-built investment strategy and instantly generate precise stock share allocations based on your capital.
+        </p>
+      </div>
 
-      <fieldset>
-        <legend>Goal</legend>
-        {PORTFOLIO_BUILDER_PRESETS.map((p) => (
-          <label key={p.id}>
-            <input
-              type="radio"
-              name="portfolio-builder-preset"
-              value={p.id}
-              checked={presetId === p.id}
-              onChange={() => {
-                setPresetId(p.id);
-                setLines(null);
+      {error && <div role="alert" className="badge badge-red" style={{ padding: '10px 14px', fontSize: '0.88rem' }}>{error}</div>}
+      {created && <div className="badge badge-green" style={{ padding: '10px 14px', fontSize: '0.88rem' }}>Portfolio created successfully! Check Portfolios tab.</div>}
+
+      <fieldset style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '16px', background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(8px)' }}>
+        <legend style={{ padding: '0 8px', fontWeight: 700, fontSize: '0.9rem', color: '#f8fafc' }}>Goal Strategy</legend>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+          {PORTFOLIO_BUILDER_PRESETS.map((p) => (
+            <label
+              key={p.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '12px 14px',
+                borderRadius: '10px',
+                background: presetId === p.id ? 'rgba(99,102,241,0.22)' : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${presetId === p.id ? 'rgba(129,140,248,0.5)' : 'rgba(255,255,255,0.08)'}`,
+                cursor: 'pointer',
+                fontWeight: presetId === p.id ? 700 : 500,
+                transition: 'all 0.2s ease',
               }}
-            />
-            {p.name}
-          </label>
-        ))}
+            >
+              <input
+                type="radio"
+                name="portfolio-builder-preset"
+                value={p.id}
+                checked={presetId === p.id}
+                onChange={() => {
+                  setPresetId(p.id);
+                  setLines(null);
+                }}
+              />
+              {p.name}
+            </label>
+          ))}
+        </div>
       </fieldset>
-      <p>{preset.description}</p>
 
-      <label htmlFor="pb-name">Portfolio name</label>
-      <input id="pb-name" value={name} onChange={(e) => setName(e.target.value)} />
+      <div style={{ padding: '14px 18px', borderRadius: '10px', background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.3)', backdropFilter: 'blur(8px)' }}>
+        <div style={{ fontWeight: 700, fontSize: '0.92rem', color: '#818cf8', marginBottom: '4px' }}>{preset.name} Strategy</div>
+        <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: '1.45' }}>{preset.description}</p>
+      </div>
 
-      <label htmlFor="pb-capital">Capital (THB)</label>
-      <input
-        id="pb-capital"
-        type="number"
-        value={capitalThb}
-        onChange={(e) => {
-          setCapitalThb(e.target.value);
-          setLines(null);
-        }}
-      />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+        <div>
+          <label htmlFor="pb-name" style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: 600 }}>
+            Portfolio name
+          </label>
+          <input
+            id="pb-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. My Freedom Growth Fund"
+            className="glass-input"
+            style={{ width: '100%', padding: '8px 12px' }}
+          />
+        </div>
 
-      <button type="button" onClick={handlePreview}>
-        Preview allocation
-      </button>
+        <div>
+          <label htmlFor="pb-capital" style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: 600 }}>
+            Capital (THB)
+          </label>
+          <input
+            id="pb-capital"
+            type="number"
+            value={capitalThb}
+            onChange={(e) => {
+              setCapitalThb(e.target.value);
+              setLines(null);
+            }}
+            placeholder="e.g. 100000"
+            className="glass-input"
+            style={{ width: '100%', padding: '8px 12px' }}
+          />
+        </div>
+      </div>
+
+      <div>
+        <button
+          type="button"
+          onClick={handlePreview}
+          className="glass-btn-primary"
+          style={{
+            padding: '10px 24px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+          }}
+        >
+          Preview allocation
+        </button>
+      </div>
 
       {lines && (
-        <div>
-          <table className="zebra-table">
-            <tbody>
-              {lines.map((line) => (
-                <tr key={line.ticker}>
-                  <td>{line.ticker}</td>
-                  <td>{line.bucketLabel}</td>
-                  <td>{line.shares.toFixed(4)} shares</td>
-                  <td>฿{line.capitalThb.toFixed(0)}</td>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '10px' }}>
+          <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>📋 Recommended Portfolio Allocation Breakdown</h4>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="zebra-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                  <th style={{ padding: '10px 12px' }}>Ticker</th>
+                  <th style={{ padding: '10px 12px' }}>Category</th>
+                  <th style={{ padding: '10px 12px' }}>Allocation %</th>
+                  <th style={{ padding: '10px 12px' }}>Calculated Shares</th>
+                  <th style={{ padding: '10px 12px' }}>Price (USD)</th>
+                  <th style={{ padding: '10px 12px' }}>Capital (THB)</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <button
-            type="button"
-            onClick={handleCreate}
-            disabled={creating || !name.trim()}
-            style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}
-          >
-            Create portfolio
-          </button>
+              </thead>
+              <tbody>
+                {lines.map((line) => (
+                  <tr key={line.ticker} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: '0.88rem' }}>
+                    <td style={{ padding: '10px 12px', fontWeight: 700, color: '#f8fafc' }}>{line.ticker}</td>
+                    <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>{line.bucketLabel}</td>
+                    <td style={{ padding: '10px 12px', fontWeight: 600, color: '#38bdf8' }}>{line.targetAllocationPct.toFixed(0)}%</td>
+                    <td style={{ padding: '10px 12px', fontWeight: 700, color: '#fcd34d' }}>{line.shares.toFixed(4)} shares</td>
+                    <td style={{ padding: '10px 12px' }}>${line.priceUsd.toFixed(2)}</td>
+                    <td style={{ padding: '10px 12px' }}>฿{line.capitalThb.toFixed(0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div>
+            <button
+              type="button"
+              onClick={handleCreate}
+              disabled={creating || !name.trim()}
+              style={{
+                padding: '10px 24px',
+                borderRadius: '8px',
+                color: 'var(--primary)',
+                borderColor: 'var(--primary)',
+                opacity: creating || !name.trim() ? 0.5 : 1,
+                cursor: creating || !name.trim() ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {creating ? 'Creating Portfolio...' : 'Create portfolio'}
+            </button>
+
+          </div>
         </div>
       )}
     </div>
   );
+
 }

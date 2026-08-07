@@ -71,4 +71,22 @@ describe('calculateDcaProjection', () => {
 
     expect(result).toEqual([]);
   });
+
+  it('calculates gross annual dividend and 15% withheld tax correctly for each year', () => {
+    const result = calculateDcaProjection({
+      initialInvestmentThb: 100000,
+      monthlyContributionThb: 10000,
+      years: 2,
+      dividendYieldPct: 10,
+      priceGrowthRatePct: 0,
+      reinvestDividends: true,
+      taxRatePct: 15,
+    });
+
+    expect(result[0].annualContributionThb).toBe(220000); // 100k + 12*10k
+    expect(result[0].grossAnnualDividendThb).toBeGreaterThan(0);
+    expect(result[0].annualTaxWithheldThb).toBeCloseTo(result[0].grossAnnualDividendThb * 0.15, 2);
+    expect(result[0].netAnnualDividendThb).toBeCloseTo(result[0].grossAnnualDividendThb * 0.85, 2);
+  });
 });
+

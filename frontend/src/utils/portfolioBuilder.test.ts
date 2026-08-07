@@ -62,4 +62,19 @@ describe('buildPortfolioPlan', () => {
 
     expect(lines).toEqual([]);
   });
+
+  it('calculates exact targetAllocationPct per ticker', () => {
+    const lines = buildPortfolioPlan({
+      preset,
+      capitalThb: 100000,
+      usdThbRate: 30,
+      pricesUsd: { AAA: 100, BBB: 200, CCC: 50 },
+    });
+
+    const aaa = lines.find((l) => l.ticker === 'AAA');
+    const ccc = lines.find((l) => l.ticker === 'CCC');
+    expect(aaa?.targetAllocationPct).toBe(30); // 60% bucket split between 2 tickers
+    expect(ccc?.targetAllocationPct).toBe(40); // 40% bucket for 1 ticker
+  });
 });
+

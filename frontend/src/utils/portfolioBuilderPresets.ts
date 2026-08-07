@@ -13,34 +13,35 @@ export interface PortfolioBuilderPreset {
 
 export const PORTFOLIO_BUILDER_PRESETS: PortfolioBuilderPreset[] = [
   {
-    id: 'beginner',
-    name: 'Beginner — Simple Starter',
+    id: 'growth',
+    name: 'Aggressive Growth',
     description:
-      'A simple two-fund starting point: mostly broad US market exposure with a bond cushion to smooth out volatility. Good for a first portfolio you do not want to fuss over.',
+      'High growth portfolio tilted heavily toward tech, innovation, and broad US market index ETFs. Designed for long-term capital appreciation and high risk tolerance.',
     buckets: [
-      { label: 'Total US Market', targetAllocationPct: 70, tickers: ['VTI', 'SPY'] },
-      { label: 'Bonds', targetAllocationPct: 30, tickers: ['BND'] },
+      { label: 'US Tech & Growth', targetAllocationPct: 60, tickers: ['QQQ', 'VUG'] },
+      { label: 'Total US Market', targetAllocationPct: 40, tickers: ['VTI', 'SPY'] },
+    ],
+  },
+  {
+    id: 'dividend',
+    name: 'Dividend Income',
+    description:
+      'Cash flow focused portfolio investing in dividend growth leaders, high-yield equities, and covered-call option ETFs for robust monthly passive income.',
+    buckets: [
+      { label: 'Dividend Quality Growth', targetAllocationPct: 40, tickers: ['SCHD'] },
+      { label: 'High Dividend Yield', targetAllocationPct: 30, tickers: ['VYM'] },
+      { label: 'Option & Monthly Income', targetAllocationPct: 30, tickers: ['JEPI'] },
     ],
   },
   {
     id: 'conservative',
-    name: 'Conservative — Capital Preservation',
+    name: 'Conservative',
     description:
-      'Bond-heavy for stability, with modest US and international equity exposure for some growth. Suited to a lower risk tolerance or a shorter time horizon.',
+      'Bond-heavy portfolio focused on capital preservation, volatility control, and steady income with modest US and international stock exposure.',
     buckets: [
-      { label: 'Bonds', targetAllocationPct: 50, tickers: ['BND'] },
+      { label: 'Bonds & Fixed Income', targetAllocationPct: 50, tickers: ['BND'] },
       { label: 'Total US Market', targetAllocationPct: 30, tickers: ['VTI', 'SPY'] },
-      { label: 'International', targetAllocationPct: 20, tickers: ['VXUS'] },
-    ],
-  },
-  {
-    id: 'growth',
-    name: 'Growth — Long-Term Aggressive',
-    description:
-      'Tilted toward growth and technology exposure alongside broad US market coverage. Suited to a higher risk tolerance and a long investment horizon.',
-    buckets: [
-      { label: 'US Growth', targetAllocationPct: 50, tickers: ['QQQ', 'VUG'] },
-      { label: 'Total US Market', targetAllocationPct: 50, tickers: ['VTI', 'SPY'] },
+      { label: 'International Markets', targetAllocationPct: 20, tickers: ['VXUS'] },
     ],
   },
 ];

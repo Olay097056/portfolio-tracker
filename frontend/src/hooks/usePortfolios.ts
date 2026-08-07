@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { createPortfolio, deletePortfolio, listPortfolios, updatePortfolio } from '../api/client';
-import type { Portfolio, PortfolioCreateInput, PortfolioUpdateInput } from '../api/types';
+import { createPortfolio, deletePortfolio, listPortfolios, rebalancePortfolioTargets, updatePortfolio } from '../api/client';
+import type { Portfolio, PortfolioCreateInput, PortfolioTargetUpdate, PortfolioUpdateInput } from '../api/types';
 
 function toMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
@@ -70,5 +70,19 @@ export function usePortfolios() {
     [refetch],
   );
 
-  return { portfolios, loading, error, create, update, remove };
+  const rebalanceTargets = useCallback(
+    async (updates: PortfolioTargetUpdate[]) => {
+      try {
+        await rebalancePortfolioTargets(updates);
+        setError(null);
+        await refetch();
+      } catch (err) {
+        setError(toMessage(err));
+        throw err;
+      }
+    },
+    [refetch],
+  );
+
+  return { portfolios, loading, error, create, update, remove, rebalanceTargets, refresh: refetch };
 }

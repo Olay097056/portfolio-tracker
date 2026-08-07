@@ -88,6 +88,8 @@ describe('useDashboardTickers', () => {
       create: vi.fn(),
       update: vi.fn(),
       remove: vi.fn(),
+      rebalanceTargets: vi.fn(),
+      refresh: vi.fn(),
     });
 
     const { result, rerender } = renderHook(() => useDashboardTickers());
@@ -101,6 +103,8 @@ describe('useDashboardTickers', () => {
       create: vi.fn(),
       update: vi.fn(),
       remove: vi.fn(),
+      rebalanceTargets: vi.fn(),
+      refresh: vi.fn(),
     });
     rerender();
 

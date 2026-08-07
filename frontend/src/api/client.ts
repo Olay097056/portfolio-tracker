@@ -15,6 +15,7 @@ import type {
   Portfolio,
   PortfolioCreateInput,
   PortfolioSummary,
+  PortfolioTargetUpdate,
   PortfolioUpdateInput,
   PriceSignalRow,
   RefreshStatus,
@@ -75,6 +76,13 @@ export function updatePortfolio(id: number, input: PortfolioUpdateInput): Promis
 
 export function deletePortfolio(id: number): Promise<void> {
   return request<void>(`/portfolios/${id}`, { method: 'DELETE' });
+}
+
+export function rebalancePortfolioTargets(updates: PortfolioTargetUpdate[]): Promise<Portfolio[]> {
+  return request<Portfolio[]>('/portfolios/rebalance-targets', {
+    method: 'PATCH',
+    body: JSON.stringify({ updates }),
+  });
 }
 
 export function listHoldings(portfolioId: number): Promise<Holding[]> {

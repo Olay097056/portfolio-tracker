@@ -16,7 +16,7 @@ import { PortfolioHoldings } from '../components/PortfolioHoldings';
 import { usePortfolios } from '../hooks/usePortfolios';
 
 export function PortfoliosPage() {
-  const { portfolios, loading, error, create, remove, refresh } = usePortfolios();
+  const { portfolios, loading, error, create, update, remove, rebalanceTargets, refresh } = usePortfolios();
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [selectedPortfolioTab, setSelectedPortfolioTab] = useState<number | 'ALL'>('ALL');
 
@@ -498,7 +498,10 @@ export function PortfoliosPage() {
           <div key={portfolio.id} className="card" style={{ background: 'rgba(15, 23, 42, 0.85)', border: '1px solid var(--border)', marginBottom: '20px' }}>
             <PortfolioCard
               portfolio={portfolio}
+              allPortfolios={portfolios}
               onDelete={remove}
+              onUpdate={update}
+              onRebalance={rebalanceTargets}
               onToggleHoldings={toggleHoldings}
               expanded={expandedId === portfolio.id || selectedPortfolioTab === portfolio.id}
               currencyMultiplier={multiplier}

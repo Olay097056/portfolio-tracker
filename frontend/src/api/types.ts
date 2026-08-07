@@ -19,6 +19,11 @@ export interface PortfolioUpdateInput {
   target_allocation_pct?: number | null;
 }
 
+export interface PortfolioTargetUpdate {
+  id: number;
+  target_allocation_pct: number;
+}
+
 export interface Holding {
   id: number;
   portfolio_id: number;

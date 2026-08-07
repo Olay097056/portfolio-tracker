@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import type { WatchlistItemCreateInput } from '../api/types';
+import { TickerAutocomplete } from './TickerAutocomplete';
 
 interface AddWatchlistItemFormProps {
   onSubmit: (input: WatchlistItemCreateInput) => void | Promise<void>;
@@ -30,7 +31,12 @@ export function AddWatchlistItemForm({ onSubmit }: AddWatchlistItemFormProps) {
   return (
     <form onSubmit={handleSubmit}>
       <label htmlFor="watchlist-ticker">Ticker</label>
-      <input id="watchlist-ticker" value={ticker} onChange={(e) => setTicker(e.target.value)} />
+      <TickerAutocomplete
+        id="watchlist-ticker"
+        value={ticker}
+        onChange={setTicker}
+        onSelect={(item) => setTicker(item.symbol)}
+      />
 
       <label htmlFor="watchlist-category">Category (optional)</label>
       <input id="watchlist-category" value={category} onChange={(e) => setCategory(e.target.value)} />

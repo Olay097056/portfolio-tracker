@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { SCREENER_STOCKS, type ScreenerStock } from '../../data/screenerStocks';
+import { TickerAutocomplete } from '../TickerAutocomplete';
 import {
   DEFAULT_FILTERS,
   PRESET_STRATEGIES,
@@ -761,20 +762,21 @@ export function StockScreener({ currency = 'USD', fxRate = 33.38 }: StockScreene
           แสดง {startItem} - {endItem} จาก {totalItems} หุ้น
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <input
+          <TickerAutocomplete
             id="screener-search-input"
-            type="text"
             placeholder="ค้นหาชื่อหุ้น หรือ บริษัท"
             aria-label="ค้นหาชื่อหุ้น หรือ บริษัท"
             value={filters.searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
+            onChange={handleSearchChange}
+            onSelect={(item) => handleSearchChange(item.symbol)}
             className="glass-input"
             style={{
+              width: '100%',
               padding: '8px 14px',
-              width: '260px',
               borderRadius: '10px',
               fontSize: '0.88rem',
             }}
+            wrapperStyle={{ width: '260px' }}
           />
         </div>
       </div>

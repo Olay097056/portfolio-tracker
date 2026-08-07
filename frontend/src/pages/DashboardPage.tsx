@@ -6,6 +6,7 @@ import { DcaCalculator } from '../components/DcaCalculator';
 import { PositionWidget } from '../components/PositionWidget';
 import { PriceChart } from '../components/PriceChart';
 import { TradingViewWidget } from '../components/TradingViewWidget';
+import { TickerAutocomplete } from '../components/TickerAutocomplete';
 import { StressTestCalculator } from '../components/StressTestCalculator';
 import { WatchlistPanel } from '../components/WatchlistPanel';
 import { ZoneList } from '../components/ZoneList';
@@ -245,13 +246,14 @@ export function DashboardPage() {
                 <form onSubmit={handleCustomSearch} style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexGrow: 1, maxWidth: '360px' }}>
                   <label htmlFor="search-stock-input" style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-muted)' }}>Search Any Stock / ETF Symbol</label>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <input
+                    <TickerAutocomplete
                       id="search-stock-input"
-                      type="text"
                       placeholder="e.g. AAPL, NVDA, SMH..."
                       value={customInput}
-                      onChange={(e) => setCustomInput(e.target.value)}
-                      style={{ flexGrow: 1, padding: '10px 14px', textTransform: 'uppercase' }}
+                      onChange={setCustomInput}
+                      onSelect={(item) => handleSelectTicker(item.symbol)}
+                      style={{ width: '100%', padding: '10px 14px', textTransform: 'uppercase' }}
+                      wrapperStyle={{ flexGrow: 1 }}
                     />
                     <button type="submit" style={{ padding: '10px 18px', background: 'linear-gradient(135deg,#38bdf8 0%,#0284c7 100%)', color: '#fff', border: 'none', fontWeight: 600 }}>Search</button>
                   </div>

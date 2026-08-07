@@ -13,6 +13,7 @@ import type { MarketData, PortfolioSummary } from '../api/types';
 import { AddPortfolioForm } from '../components/AddPortfolioForm';
 import { PortfolioCard } from '../components/PortfolioCard';
 import { PortfolioHoldings } from '../components/PortfolioHoldings';
+import { TickerAutocomplete } from '../components/TickerAutocomplete';
 import { usePortfolios } from '../hooks/usePortfolios';
 
 export function PortfoliosPage() {
@@ -700,12 +701,12 @@ export function PortfoliosPage() {
               {(txType === 'BUY' || txType === 'SELL' || txType === 'DIVIDEND') && (
                 <div style={{ marginBottom: '12px' }}>
                   <label htmlFor="txTickerInput" style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>ชื่อหุ้น (Ticker Symbol)</label>
-                  <input
+                  <TickerAutocomplete
                     id="txTickerInput"
-                    type="text"
                     placeholder="เช่น AAPL, NVDA, JEPQ"
                     value={txTicker}
-                    onChange={(e) => setTxTicker(e.target.value)}
+                    onChange={setTxTicker}
+                    onSelect={(item) => setTxTicker(item.symbol)}
                     required={txType === 'BUY' || txType === 'SELL'}
                     style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', color: '#fff', textTransform: 'uppercase' }}
                   />

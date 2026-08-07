@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getInvestorProfile, getInvestorsStatus, listInvestors, listNewHoldings, refreshInvestorsApi } from '../../api/client';
 import type { InvestorProfile, NewHoldingStock } from '../../api/types';
+import { TickerAutocomplete } from '../TickerAutocomplete';
 
 const NEW_HOLDINGS_PAGE_SIZE = 20;
 
@@ -310,11 +311,11 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
       {activeSubTab === 'portfolios' && (
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ flex: 1, minWidth: '240px' }}>
-            <input
-              type="text"
+            <TickerAutocomplete
               placeholder="🔍 ค้นหานักลงทุน, ชื่อกองทุน หรือ Ticker หุ้น (เช่น Buffett, Cathie, AAPL)..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={setSearchTerm}
+              onSelect={(item) => setSearchTerm(item.symbol)}
               style={{
                 width: '100%',
                 padding: '10px 14px',
@@ -372,13 +373,17 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
               <path d="m21 21-4.34-4.34" />
               <circle cx="11" cy="11" r="8" />
             </svg>
-            <input
-              type="text"
+            <TickerAutocomplete
+              theme="light"
               className="nh-search-input"
               placeholder="ค้นหาชื่อหุ้น..."
               value={nhSearch}
-              onChange={(e) => {
-                setNhSearch(e.target.value);
+              onChange={(v) => {
+                setNhSearch(v);
+                setNhPage(1);
+              }}
+              onSelect={(item) => {
+                setNhSearch(item.symbol);
                 setNhPage(1);
               }}
             />

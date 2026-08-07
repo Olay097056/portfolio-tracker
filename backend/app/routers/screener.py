@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 import json
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, and_, select
 from sqlalchemy.orm import Session
@@ -31,6 +31,68 @@ def start_screener_refresh(req: RefreshRequest = RefreshRequest()):
 @router.get("/refresh-status")
 def get_screener_refresh_status():
     return screener_refresh_manager.get_status()
+
+
+class StockSearchResult(BaseModel):
+    symbol: str
+    company_name: str
+
+
+# Shared lightweight typeahead used by every "type a ticker" input across the app
+# (Add Holding, Watchlist, DCA/Passive Income calculators, Dashboard symbol search,
+# Investor Tracker's two search bars, the Batch Transaction ticker field, Stock
+# Screener's own search box) -- one endpoint instead of each field re-implementing
+# its own symbol matching.
+#
+# Always searches BOTH the real screener_stocks DB rows AND FALLBACK_STOCKS, merged
+# and deduped (DB wins on overlap) -- NOT the "DB if populated, else fallback" branch
+# POST /stocks above uses. That branch is right for a screener *table* (either show
+# the live-refreshed universe or the static demo one, never mix). It's wrong here:
+# the real screener_stocks table (populated 2026-08-07, ~986 rows) turned out to skew
+# small/mid-cap and has zero ETFs and zero of this app's own well-known tickers --
+# AAPL, MSFT, NVDA, VOO, SCHD, QQQ, the exact symbols this app's own DCA/Passive
+# Income "Quick Pills" already reference. DB-only would make the typeahead miss the
+# most commonly searched tickers in the app; the 51-stock FALLBACK_STOCKS set exists
+# specifically to cover those, so it's included unconditionally, not just as a
+# last-resort when the DB is completely empty.
+@router.get("/search", response_model=list[StockSearchResult])
+def search_stocks(
+    q: str = Query(..., min_length=1, description="Ticker prefix or company name substring"),
+    limit: int = Query(8, ge=1, le=20),
+    db: Session = Depends(get_db),
+):
+    query = q.strip()
+    if not query:
+        return []
+
+    q_upper = query.upper()
+    q_lower = query.lower()
+    seen: set[str] = set()
+    merged: list[StockSearchResult] = []
+
+    try:
+        stmt = (
+            select(ScreenerStock)
+            .where(or_(ScreenerStock.symbol.ilike(f"{query}%"), ScreenerStock.company_name.ilike(f"%{query}%")))
+            .order_by(ScreenerStock.market_cap.desc().nullslast())
+            .limit(limit)
+        )
+        for row in db.execute(stmt).scalars().all():
+            seen.add(row.symbol.upper())
+            merged.append(StockSearchResult(symbol=row.symbol, company_name=row.company_name or row.symbol))
+    except Exception:
+        pass
+
+    fallback_matches = [
+        s for s in FALLBACK_STOCKS
+        if s["symbol"].upper() not in seen
+        and (s["symbol"].upper().startswith(q_upper) or q_lower in s["company_name"].lower())
+    ]
+    # Symbol-prefix matches (someone typing a ticker) rank above name-substring matches.
+    fallback_matches.sort(key=lambda s: 0 if s["symbol"].upper().startswith(q_upper) else 1)
+    merged.extend(StockSearchResult(symbol=s["symbol"], company_name=s["company_name"]) for s in fallback_matches)
+
+    return merged[:limit]
 
 class SortParams(BaseModel):
     field: Optional[str] = "marketCap"

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getMarketData } from '../../api/client';
 import type { MarketData } from '../../api/types';
 import { calculateRequiredPortfolio } from '../../utils/passiveIncome';
+import { TickerAutocomplete } from '../TickerAutocomplete';
 
 export interface PassiveIncomeCalculatorProps {
   currency?: 'THB' | 'USD';
@@ -89,10 +90,11 @@ export function PassiveIncomeCalculator({ currency = 'USD', fxRate: _fxRate = 33
           <label htmlFor="ff-ticker" style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: 600 }}>
             Ticker (Optional Auto-fill)
           </label>
-          <input
+          <TickerAutocomplete
             id="ff-ticker"
             value={ticker}
-            onChange={(e) => setTicker(e.target.value)}
+            onChange={setTicker}
+            onSelect={(item) => setTicker(item.symbol)}
             placeholder="e.g. SCHD, JEPI, VYM"
             className="glass-input"
             style={{ width: '100%', padding: '8px 12px' }}

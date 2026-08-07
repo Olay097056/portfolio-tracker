@@ -20,6 +20,7 @@ import type {
   PriceSignalRow,
   RefreshStatus,
   ScanPeriod,
+  StockSearchResult,
   TickerPosition,
   TrendingData,
   WatchlistItem,
@@ -294,6 +295,14 @@ export function getScreenerRefreshStatus(): Promise<RefreshStatus> {
 
 export function startScreenerRefresh(limit?: number): Promise<RefreshStatus> {
   return startRefresh('/api/screener/refresh', { limit: limit ?? null });
+}
+
+// Shared ticker-autocomplete typeahead -- see components/TickerAutocomplete.tsx.
+export function searchStocks(query: string, limit: number = 8): Promise<StockSearchResult[]> {
+  const trimmed = query.trim();
+  if (!trimmed) return Promise.resolve([]);
+  const params = new URLSearchParams({ q: trimmed, limit: String(limit) });
+  return request<StockSearchResult[]>(`/api/screener/search?${params.toString()}`);
 }
 
 // --- DCA Calculator API Types & Endpoints ---

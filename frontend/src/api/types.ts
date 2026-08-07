@@ -1,4 +1,12 @@
 // frontend/src/api/types.ts
+
+// Shared ticker-autocomplete typeahead (GET /api/screener/search), used by every
+// "type a ticker" input across the app -- see components/TickerAutocomplete.tsx.
+export interface StockSearchResult {
+  symbol: string;
+  company_name: string;
+}
+
 export interface Portfolio {
   id: number;
   name: string;

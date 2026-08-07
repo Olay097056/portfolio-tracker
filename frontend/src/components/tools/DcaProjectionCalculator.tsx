@@ -7,6 +7,7 @@ import {
   type DcaTickerItem,
 } from '../../api/client';
 import { calculateDcaProjectionFull, type DcaFullProjectionResult } from '../../utils/dcaProjection';
+import { TickerAutocomplete } from '../TickerAutocomplete';
 
 export interface DcaProjectionCalculatorProps {
   currency?: 'THB' | 'USD';
@@ -355,10 +356,11 @@ export function DcaProjectionCalculator({ currency = 'USD', fxRate = 33.38 }: Dc
             <label htmlFor="dca-proj-ticker" style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0' }}>
               Ticker (Optional Auto-fill)
             </label>
-            <input
+            <TickerAutocomplete
               id="dca-proj-ticker"
               value={ticker}
-              onChange={(e) => setTicker(e.target.value)}
+              onChange={setTicker}
+              onSelect={(item) => handleSelectTicker(item.symbol)}
               placeholder="e.g. VOO, SCHD, NVDA"
               className="glass-input"
               style={{ width: '100%', padding: '8px 12px' }}

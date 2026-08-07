@@ -1,6 +1,7 @@
 // frontend/src/components/AddHoldingForm.tsx
 import { useState, type FormEvent } from 'react';
 import type { HoldingCreateInput } from '../api/types';
+import { TickerAutocomplete } from './TickerAutocomplete';
 
 interface AddHoldingFormProps {
   onSubmit: (input: HoldingCreateInput) => void | Promise<void>;
@@ -31,12 +32,13 @@ export function AddHoldingForm({ onSubmit }: AddHoldingFormProps) {
     <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '120px', flexGrow: 1 }}>
         <label htmlFor="holding-ticker" style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-muted)' }}>Ticker</label>
-        <input
+        <TickerAutocomplete
           id="holding-ticker"
           placeholder="e.g. AAPL"
           value={ticker}
-          onChange={(e) => setTicker(e.target.value.toUpperCase())}
-          style={{ padding: '7px 10px', fontSize: '0.85rem', textTransform: 'uppercase' }}
+          onChange={(v) => setTicker(v.toUpperCase())}
+          onSelect={(item) => setTicker(item.symbol)}
+          style={{ padding: '7px 10px', fontSize: '0.85rem', textTransform: 'uppercase', width: '100%' }}
         />
       </div>
 

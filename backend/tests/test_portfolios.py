@@ -198,3 +198,47 @@ def test_rebalance_targets_leaves_portfolios_outside_the_batch_untouched(client)
 
     assert client.get(f"/portfolios/{dime['id']}").json()["target_allocation_pct"] == 100
     assert client.get(f"/portfolios/{untouched['id']}").json()["target_allocation_pct"] == 50
+
+
+def test_adjust_cash_deposit(client):
+    """POST /portfolios/{id}/cash was never covered by a test — it had a
+    NameError (Transaction never imported) that made every deposit/withdraw
+    fail with a 500 in real use, undetected until now."""
+    portfolio = client.post("/portfolios", json={"name": "DIME"}).json()
+
+    response = client.post(f"/portfolios/{portfolio['id']}/cash", json={"type": "CASH_DEPOSIT", "amount": 125, "note": "Payday"})
+    assert response.status_code == 200
+    assert response.json()["cash_usd"] == 125
+
+    tx_response = client.get(f"/portfolios/{portfolio['id']}/transactions")
+    assert tx_response.status_code == 200
+    txs = tx_response.json()
+    assert len(txs) == 1
+    assert txs[0]["type"] == "CASH_DEPOSIT"
+    assert txs[0]["amount_usd"] == 125
+    assert txs[0]["note"] == "Payday"
+
+
+def test_adjust_cash_withdraw(client):
+    portfolio = client.post("/portfolios", json={"name": "DIME", "cash_usd": 500}).json()
+
+    response = client.post(f"/portfolios/{portfolio['id']}/cash", json={"type": "CASH_WITHDRAW", "amount": 200})
+    assert response.status_code == 200
+    assert response.json()["cash_usd"] == 300
+
+    txs = client.get(f"/portfolios/{portfolio['id']}/transactions").json()
+    assert len(txs) == 1
+    assert txs[0]["type"] == "CASH_WITHDRAW"
+    assert txs[0]["amount_usd"] == 200
+
+
+def test_adjust_cash_withdraw_rejects_insufficient_balance(client):
+    portfolio = client.post("/portfolios", json={"name": "DIME", "cash_usd": 50}).json()
+
+    response = client.post(f"/portfolios/{portfolio['id']}/cash", json={"type": "CASH_WITHDRAW", "amount": 200})
+    assert response.status_code == 400
+    assert "insufficient" in response.json()["detail"].lower()
+
+    # Balance and transaction log both unchanged after the rejected withdrawal.
+    assert client.get(f"/portfolios/{portfolio['id']}").json()["cash_usd"] == 50
+    assert client.get(f"/portfolios/{portfolio['id']}/transactions").json() == []

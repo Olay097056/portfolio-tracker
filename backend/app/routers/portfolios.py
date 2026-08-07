@@ -117,6 +117,7 @@ def portfolio_summary(portfolio_id: int, db: Session = Depends(get_db)):
 
 @router.post("/{portfolio_id}/cash", response_model=PortfolioOut)
 def adjust_cash(portfolio_id: int, payload: CashAdjustmentCreate, db: Session = Depends(get_db)):
+    from app.models import Transaction
     portfolio = get_or_404(db, Portfolio, portfolio_id, "Portfolio not found")
     if payload.type == "CASH_DEPOSIT":
         portfolio.cash_usd += payload.amount

@@ -342,3 +342,45 @@ The three tickets that lived here ("Full-market technical signals: background re
 - [ ] A test file for `InvestorTracker.tsx` covers search, sort, the modal, and the fallback-data-still-renders case (mirroring the backend's own fallback test)
 - [ ] All existing tests still pass; `npx tsc -b` stays green
 - [ ] All existing Portfolio Builder tests pass; new tests cover the toggle, both modes' bucket composition, the criteria breakdown display, the methodology label, and the zero-qualify state
+
+## Portfolio card donut chart + legend
+
+**What to build:** Each portfolio card's collapsed view replaces its plain "Total value / Unrealized P&L" text row with an SVG donut chart (no new dependency) showing each holding's share of the portfolio by value, with total value / unrealized P&L $ / unrealized P&L % overlaid in the center, and a color-coded ticker legend beside it. Uses `usePortfolioSummary`'s existing `current_pct` data — no backend change. "Show holdings" still expands the existing detailed per-holding table unchanged. Source: `docs/specs/2026-08-07-portfolio-donut-chart-and-edit.md`.
+
+**Blocked by:** None — can start immediately.
+
+- [ ] New `PortfolioDonutChart.tsx` draws one arc per holding via `stroke-dasharray`/`stroke-dashoffset` on stacked `<circle>` elements, sized to that holding's `current_pct`, colored from a fixed `HOLDING_COLORS` 8-color palette (`#3b82f6` blue, `#8b5cf6` violet, `#06b6d4` cyan, `#f97316` orange, `#ec4899` pink, `#14b8a6` teal, `#6366f1` indigo, `#94a3b8` slate — deliberately no red/green/amber, already reserved for P&L sign and rebalance severity elsewhere in this app) assigned by holdings-array index, cycling past 8 holdings rather than erroring
+- [ ] Total value, unrealized P&L $, and unrealized P&L % are overlaid in the chart's center, reusing `PortfolioCard.tsx`'s existing computed `totalVal`/`pnlVal` (not recomputed)
+- [ ] A legend beside the chart shows one colored-dot + ticker row per holding, using the same `HOLDING_COLORS` index as the chart so colors always match
+- [ ] A zero-holdings portfolio renders a flat gray ring (100%, no split) with the total value centered and no legend rows — never a blank or broken chart
+- [ ] This replaces the collapsed card's plain-text `Total value:` / `Unrealized P&L:` row; "Show holdings" still expands `PortfolioHoldings.tsx`'s existing detailed table unchanged
+- [ ] Unit tests cover: arc proportions for a known holdings fixture, palette cycling beyond 8 holdings, the zero-holdings flat-ring state, and legend-to-segment 1:1 correspondence
+
+## Edit portfolio (rename + target %, single portfolio)
+
+**What to build:** An "Edit" button on each portfolio card opens a modal to rename the portfolio and change its target allocation %, pre-filled with current values, saving via the existing `PATCH /portfolios/{id}` endpoint and `usePortfolios().update` (already implemented, currently unused by any UI). Source: `docs/specs/2026-08-07-portfolio-donut-chart-and-edit.md`.
+
+**Blocked by:** None — can start immediately.
+
+- [ ] `PortfolioCard.tsx` gets a new "Edit" button alongside its existing "Show holdings" / "Delete" buttons
+- [ ] New `EditPortfolioModal.tsx` opens pre-filled with the portfolio's current name and target allocation %
+- [ ] Name is required (non-empty); target allocation % uses the same validation as `AddPortfolioForm`'s existing field
+- [ ] Saving calls `usePortfolios().update(id, { name, target_allocation_pct })`, closes the modal, and the card reflects the new name/target immediately
+- [ ] Cancelling discards changes without calling the API
+- [ ] Unit tests cover: pre-filled values, required-name validation, successful save calling `update` with the right payload, and cancel not calling the API
+
+## Cascade rebalance targets across portfolios
+
+**What to build:** Inside `EditPortfolioModal`, a collapsed "▼ Edit other portfolios' allocation" section expands to list every other portfolio with its own editable target % input and a running "Total: X%" readout that turns red when ≠100%. Saving with this section expanded calls a new atomic backend endpoint instead of the single-portfolio `PATCH`, so a partial failure can't leave portfolios' targets summing to something other than 100%. Source: `docs/specs/2026-08-07-portfolio-donut-chart-and-edit.md`.
+
+**Blocked by:** Edit portfolio (rename + target %, single portfolio)
+
+- [ ] New backend endpoint `PATCH /portfolios/rebalance-targets` accepts `{ updates: [{ id, target_allocation_pct }] }` (new schemas `PortfolioTargetUpdate` / `PortfolioRebalanceIn` in `schemas.py`)
+- [ ] Server validates every submitted `id` exists (404 if not) and the submitted targets sum to 100% within ±0.01 tolerance (400 with a clear message if not) — validated before any row is written
+- [ ] All target updates commit in a single DB transaction — either every portfolio's target changes or none do; a test asserts DB state is unchanged after a rejected (400/404) request, not just the response code
+- [ ] Portfolios not included in `updates` keep their existing target unchanged — the endpoint doesn't require every portfolio to be present in the batch
+- [ ] `EditPortfolioModal`'s "▼ Edit other portfolios' allocation" toggle expands to show every other portfolio with an editable target % input and a running total that turns red when ≠100%
+- [ ] Saving with the section collapsed still uses the existing single-portfolio `PATCH /portfolios/{id}` (name + this portfolio's target only) — the rebalance endpoint is only called when the section was expanded
+- [ ] Saving with the section expanded fires the rebalance call with every portfolio's current-or-edited target (including the one being renamed), plus a separate single `PATCH /portfolios/{id}` for the name if it changed — the rebalance payload never includes name
+- [ ] Backend tests: happy path (sums to 100, all rows updated), sum-not-100 rejected with 400 and no rows changed, unknown id in batch rejected with 404 and no rows changed
+- [ ] Frontend tests: toggle expand/collapse, running total color at/away-from 100%, collapsed-save calls single PATCH, expanded-save calls rebalance endpoint

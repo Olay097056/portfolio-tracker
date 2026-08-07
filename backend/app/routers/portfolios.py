@@ -13,6 +13,7 @@ from app.schemas import (
     HoldingMoveCreate,
     PortfolioCreate,
     PortfolioOut,
+    PortfolioRebalanceIn,
     PortfolioSummaryOut,
     PortfolioUpdate,
     TransactionCreate,
@@ -50,6 +51,35 @@ def create_portfolio(payload: PortfolioCreate, db: Session = Depends(get_db)):
 @router.get("", response_model=list[PortfolioOut])
 def list_portfolios(db: Session = Depends(get_db)):
     return db.execute(select(Portfolio)).scalars().all()
+
+
+@router.patch("/rebalance-targets", response_model=list[PortfolioOut])
+def rebalance_targets(payload: PortfolioRebalanceIn, db: Session = Depends(get_db)):
+    # Registered before /{portfolio_id} on purpose: PATCH /{portfolio_id} is a
+    # single-segment wildcard that would otherwise shadow this literal path
+    # ("rebalance-targets" would match portfolio_id and fail int validation
+    # with a 422 before ever reaching this route).
+    ids = [update.id for update in payload.updates]
+    portfolios = db.execute(select(Portfolio).where(Portfolio.id.in_(ids))).scalars().all()
+    found_ids = {portfolio.id for portfolio in portfolios}
+    missing_ids = [portfolio_id for portfolio_id in ids if portfolio_id not in found_ids]
+    if missing_ids:
+        raise HTTPException(status_code=404, detail=f"Portfolio id(s) not found: {missing_ids}")
+
+    total_pct = sum(update.target_allocation_pct for update in payload.updates)
+    if abs(total_pct - 100.0) > 0.01:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Submitted target allocations total {total_pct:.2f}%, which must sum to 100%",
+        )
+
+    by_id = {portfolio.id: portfolio for portfolio in portfolios}
+    for update in payload.updates:
+        by_id[update.id].target_allocation_pct = update.target_allocation_pct
+    db.commit()
+    for portfolio in portfolios:
+        db.refresh(portfolio)
+    return portfolios
 
 
 @router.get("/{portfolio_id}", response_model=PortfolioOut)

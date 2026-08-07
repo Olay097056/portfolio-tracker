@@ -136,3 +136,65 @@ def test_portfolio_summaries_are_isolated_across_portfolios(client):
     # Verify get_prices was called with the correct per-portfolio ticker lists.
     mock_get_prices.assert_any_call(["AAPL"])
     mock_get_prices.assert_any_call(["SMH"])
+
+
+def test_rebalance_targets_happy_path(client):
+    dime = client.post("/portfolios", json={"name": "DIME", "target_allocation_pct": 70}).json()
+    spec = client.post("/portfolios", json={"name": "Speculative", "target_allocation_pct": 30}).json()
+
+    response = client.patch(
+        "/portfolios/rebalance-targets",
+        json={"updates": [{"id": dime["id"], "target_allocation_pct": 60}, {"id": spec["id"], "target_allocation_pct": 40}]},
+    )
+    assert response.status_code == 200
+    by_id = {p["id"]: p for p in response.json()}
+    assert by_id[dime["id"]]["target_allocation_pct"] == 60
+    assert by_id[spec["id"]]["target_allocation_pct"] == 40
+
+    # Persisted, not just returned.
+    assert client.get(f"/portfolios/{dime['id']}").json()["target_allocation_pct"] == 60
+    assert client.get(f"/portfolios/{spec['id']}").json()["target_allocation_pct"] == 40
+
+
+def test_rebalance_targets_rejects_sum_not_100_and_changes_nothing(client):
+    dime = client.post("/portfolios", json={"name": "DIME", "target_allocation_pct": 70}).json()
+    spec = client.post("/portfolios", json={"name": "Speculative", "target_allocation_pct": 30}).json()
+
+    response = client.patch(
+        "/portfolios/rebalance-targets",
+        json={"updates": [{"id": dime["id"], "target_allocation_pct": 60}, {"id": spec["id"], "target_allocation_pct": 30}]},
+    )
+    assert response.status_code == 400
+    assert "100" in response.json()["detail"]
+
+    # Neither portfolio's target changed — atomicity, not just the response code.
+    assert client.get(f"/portfolios/{dime['id']}").json()["target_allocation_pct"] == 70
+    assert client.get(f"/portfolios/{spec['id']}").json()["target_allocation_pct"] == 30
+
+
+def test_rebalance_targets_rejects_unknown_id_and_changes_nothing(client):
+    dime = client.post("/portfolios", json={"name": "DIME", "target_allocation_pct": 70}).json()
+    client.post("/portfolios", json={"name": "Speculative", "target_allocation_pct": 30})
+
+    response = client.patch(
+        "/portfolios/rebalance-targets",
+        json={"updates": [{"id": dime["id"], "target_allocation_pct": 60}, {"id": 999999, "target_allocation_pct": 40}]},
+    )
+    assert response.status_code == 404
+
+    # DIME's target is unchanged even though it was a valid id in the same batch.
+    assert client.get(f"/portfolios/{dime['id']}").json()["target_allocation_pct"] == 70
+
+
+def test_rebalance_targets_leaves_portfolios_outside_the_batch_untouched(client):
+    dime = client.post("/portfolios", json={"name": "DIME", "target_allocation_pct": 50}).json()
+    untouched = client.post("/portfolios", json={"name": "Untouched", "target_allocation_pct": 50}).json()
+
+    response = client.patch(
+        "/portfolios/rebalance-targets",
+        json={"updates": [{"id": dime["id"], "target_allocation_pct": 100}]},
+    )
+    assert response.status_code == 200
+
+    assert client.get(f"/portfolios/{dime['id']}").json()["target_allocation_pct"] == 100
+    assert client.get(f"/portfolios/{untouched['id']}").json()["target_allocation_pct"] == 50

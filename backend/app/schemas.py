@@ -28,6 +28,15 @@ class PortfolioOut(BaseModel):
     created_at: datetime
 
 
+class PortfolioTargetUpdate(BaseModel):
+    id: int
+    target_allocation_pct: float
+
+
+class PortfolioRebalanceIn(BaseModel):
+    updates: list[PortfolioTargetUpdate]
+
+
 class CashAdjustmentCreate(BaseModel):
     type: Literal["CASH_DEPOSIT", "CASH_WITHDRAW"]
     amount: float

@@ -66,18 +66,40 @@ class InvestorProfile(BaseModel):
     top_holdings: list[TopHolding]
 
 
-class NewHoldingActivity(BaseModel):
-    id: str
-    investor_name: str
+# Mirrors konbalongtun.com/new-holdings's own response shape almost 1:1 (grouped by
+# stock, each with a buyers[] list) -- this feed is consumed by a card-grid UI built to
+# match that page's real layout (light theme, avatar stack, "N คนซื้อ" badge), so the
+# backend shape needs to carry what that layout needs (buyer avatars, per-buyer avg buy
+# price / gain%), not the flattened one-row-per-action shape a table would use.
+class NewHoldingBuyer(BaseModel):
     investor_slug: str
+    investor_name: str
+    investor_avatar_url: str | None = None
+    portfolio_percent: float
+    avg_buy_price: float | None = None
+    gain_percent: float | None = None
+    activity_period: str
+
+
+class NewHoldingStock(BaseModel):
     ticker: str
     company_name: str
-    action_type: Literal["BUY_NEW", "INCREASE", "SELL_FULL", "DECREASE"]
-    action_label: str
-    shares_changed_pct: float
-    portfolio_percent: float
-    filing_date: str
-    quarter: str
+    logo_url: str | None = None
+    # Optional, not a guessed fallback: the live feed always includes it, but the
+    # offline static fallback below has no way to know today's real price without
+    # inventing one, so it's left null there rather than faked.
+    current_price: float | None = None
+    activity_period: str
+    buyers: list[NewHoldingBuyer]
+    buyers_count: int
+
+
+class NewHoldingsPageOut(BaseModel):
+    items: list[NewHoldingStock]
+    total_items: int
+    total_pages: int
+    current_page: int
+    limit: int
 
 
 SEC_CIK_REGISTRY = {
@@ -10311,71 +10333,66 @@ INVESTORS_DATABASE: list[InvestorProfile] = [
 ]
 
 
-NEW_HOLDINGS_ACTIVITIES: list[NewHoldingActivity] = [
-    NewHoldingActivity(
-        id="act_1",
-        investor_name="Cathie Wood",
-        investor_slug="cathie-wood",
+# Offline fallback only (network down + empty cache) -- real data always comes from
+# fetch_live_new_holdings_stocks() below. Every buyer here really did open one of these
+# as a new position per past 13F filings; current_price is left null rather than guessed
+# (see NewHoldingStock.current_price comment).
+NEW_HOLDINGS_STOCKS_FALLBACK: list[NewHoldingStock] = [
+    NewHoldingStock(
         ticker="PATH",
         company_name="UiPath Inc",
-        action_type="BUY_NEW",
-        action_label="เข้าซื้อหุ้นใหม่",
-        shares_changed_pct=100.0,
-        portfolio_percent=5.9,
-        filing_date="2026-05-15",
-        quarter="Q1 2026",
+        activity_period="Q1 2026",
+        buyers=[
+            NewHoldingBuyer(
+                investor_slug="cathie-wood",
+                investor_name="Cathie Wood",
+                portfolio_percent=5.9,
+                activity_period="Q1 2026",
+            ),
+        ],
+        buyers_count=1,
     ),
-    NewHoldingActivity(
-        id="act_2",
-        investor_name="Michael Burry",
-        investor_slug="michael-burry",
+    NewHoldingStock(
         ticker="BIDU",
         company_name="Baidu Inc",
-        action_type="BUY_NEW",
-        action_label="เข้าซื้อหุ้นใหม่",
-        shares_changed_pct=100.0,
-        portfolio_percent=6.4,
-        filing_date="2026-05-14",
-        quarter="Q1 2026",
+        activity_period="Q1 2026",
+        buyers=[
+            NewHoldingBuyer(
+                investor_slug="michael-burry",
+                investor_name="Michael Burry",
+                portfolio_percent=6.4,
+                activity_period="Q1 2026",
+            ),
+        ],
+        buyers_count=1,
     ),
-    NewHoldingActivity(
-        id="act_3",
-        investor_name="Ray Dalio",
-        investor_slug="ray-dalio",
+    NewHoldingStock(
         ticker="NVDA",
         company_name="NVIDIA Corporation",
-        action_type="INCREASE",
-        action_label="เพิ่มสัดส่วน +140.5%",
-        shares_changed_pct=140.5,
-        portfolio_percent=3.9,
-        filing_date="2026-05-14",
-        quarter="Q1 2026",
+        activity_period="Q1 2026",
+        buyers=[
+            NewHoldingBuyer(
+                investor_slug="ray-dalio",
+                investor_name="Ray Dalio",
+                portfolio_percent=3.9,
+                activity_period="Q1 2026",
+            ),
+        ],
+        buyers_count=1,
     ),
-    NewHoldingActivity(
-        id="act_4",
-        investor_name="Warren Buffett",
-        investor_slug="warren-buffett",
-        ticker="CVX",
-        company_name="Chevron Corp",
-        action_type="INCREASE",
-        action_label="เพิ่มสัดส่วน +5.4%",
-        shares_changed_pct=5.4,
-        portfolio_percent=6.3,
-        filing_date="2026-05-15",
-        quarter="Q1 2026",
-    ),
-    NewHoldingActivity(
-        id="act_5",
-        investor_name="Cathie Wood",
-        investor_slug="cathie-wood",
+    NewHoldingStock(
         ticker="PLTR",
         company_name="Palantir Technologies Inc",
-        action_type="INCREASE",
-        action_label="เพิ่มสัดส่วน +34.2%",
-        shares_changed_pct=34.2,
-        portfolio_percent=5.2,
-        filing_date="2026-05-15",
-        quarter="Q1 2026",
+        activity_period="Q1 2026",
+        buyers=[
+            NewHoldingBuyer(
+                investor_slug="cathie-wood",
+                investor_name="Cathie Wood",
+                portfolio_percent=5.2,
+                activity_period="Q1 2026",
+            ),
+        ],
+        buyers_count=1,
     ),
 ]
 
@@ -10515,7 +10532,7 @@ def force_refresh_investors():
     _NEW_HOLDINGS_CACHE_TIMESTAMP = 0.0
     _CACHED_NEW_HOLDINGS = []
     investors = fetch_live_investors_multi_provider()
-    fetch_live_new_holdings_multi_provider()
+    fetch_live_new_holdings_stocks()
     last_fetched_str = time.strftime("%d/%m/%Y %H:%M:%S", time.localtime(_CACHE_TIMESTAMP if _CACHE_TIMESTAMP > 0 else time.time()))
     return {
         "status": "refreshed",
@@ -10526,16 +10543,29 @@ def force_refresh_investors():
     }
 
 
+_CDN_BASE = "https://konbalongtun.sgp1.cdn.digitaloceanspaces.com/prod"
+
+
+def _cdn_url(path: str) -> str | None:
+    """konbalongtun serves logos/avatars as CDN-relative paths ('/investors/x.jpg');
+    prefix with their real CDN base the same way fetch_live_investors_multi_provider()
+    already does for investor avatars and holding logos."""
+    path = str(path or "")
+    if path.startswith("/"):
+        return f"{_CDN_BASE}{path}"
+    return path or None
+
+
 _NEW_HOLDINGS_CACHE_TIMESTAMP = 0.0
-_CACHED_NEW_HOLDINGS: list[NewHoldingActivity] = []
+_CACHED_NEW_HOLDINGS: list[NewHoldingStock] = []
 
 
-def fetch_live_new_holdings_multi_provider() -> list[NewHoldingActivity]:
+def fetch_live_new_holdings_stocks() -> list[NewHoldingStock]:
     """Same cache/fallback shape as fetch_live_investors_multi_provider() above, but hits
-    konbalongtun's /new-holdings endpoint instead. That API groups by stock -- each item has
-    a buyers[] list of investors who newly opened that position -- so this flattens it into
-    one NewHoldingActivity row per (stock, buyer) pair, which is the shape the existing
-    /new-holdings response model and frontend table already expect."""
+    konbalongtun's /new-holdings endpoint, which groups by stock (each with a buyers[]
+    list of investors who newly opened that position) -- kept in that grouped shape here
+    since the frontend card grid mirrors konbalongtun's own new-holdings page layout,
+    which needs per-stock buyer avatars, not a flattened one-row-per-action table."""
     global _NEW_HOLDINGS_CACHE_TIMESTAMP, _CACHED_NEW_HOLDINGS
     now = time.time()
     if _CACHED_NEW_HOLDINGS and (now - _NEW_HOLDINGS_CACHE_TIMESTAMP < 600):
@@ -10551,7 +10581,7 @@ def fetch_live_new_holdings_multi_provider() -> list[NewHoldingActivity]:
             if response.status == 200:
                 raw_json = json.loads(response.read().decode("utf-8"))
                 items = raw_json.get("data", raw_json) if isinstance(raw_json, dict) else raw_json
-                parsed: list[NewHoldingActivity] = []
+                parsed: list[NewHoldingStock] = []
 
                 for s_idx, stock in enumerate(items):
                     company_name = str(stock.get("name") or "Unknown")
@@ -10561,32 +10591,45 @@ def fetch_live_new_holdings_multi_provider() -> list[NewHoldingActivity]:
                         if "/stock-logo/" in logo
                         else ""
                     )
-                    if not ticker or ticker.startswith("COMPANY-ICON"):
-                        ticker = company_name.split()[0].upper()
+                    # A "COMPANY-ICON-<hash>" logo is a generic placeholder, not a real
+                    # ticker-branded logo -- konbalongtun's own UI falls back to a plain
+                    # letter avatar for these too (confirmed by inspecting their DOM), so
+                    # this drops the logo_url in that case rather than showing a fake ticker.
+                    has_real_logo = bool(ticker) and not ticker.startswith("COMPANY-ICON")
+                    if not has_real_logo:
+                        ticker = company_name.split()[0].upper() if company_name else f"STK{s_idx}"
 
+                    buyers: list[NewHoldingBuyer] = []
                     for b_idx, buyer in enumerate(stock.get("buyers", [])):
-                        quarter = str(buyer.get("activityPeriod") or stock.get("activityPeriod") or "")
-                        parsed.append(
-                            NewHoldingActivity(
-                                id=f"nh_{s_idx}_{b_idx}",
-                                investor_name=str(buyer.get("investorName") or "Investor"),
+                        buyers.append(
+                            NewHoldingBuyer(
                                 investor_slug=str(buyer.get("investorSlug") or f"investor-{b_idx}"),
-                                ticker=ticker,
-                                company_name=company_name,
-                                # This feed only ever lists brand-new positions -- there's no
-                                # increase/decrease/sell-full data here, so BUY_NEW is correct
-                                # by construction, not a guess.
-                                action_type="BUY_NEW",
-                                action_label="เข้าซื้อหุ้นใหม่",
-                                # A brand-new position is definitionally a 0% -> full-position
-                                # change; the API doesn't expose a numeric shares-changed field
-                                # for this feed, so 100% is the only value consistent with "new".
-                                shares_changed_pct=100.0,
+                                investor_name=str(buyer.get("investorName") or "Investor"),
+                                investor_avatar_url=_cdn_url(buyer.get("investorAvatar")),
                                 portfolio_percent=float(buyer.get("portfolioPercent") or 0.0),
-                                filing_date=_quarter_filing_deadline(quarter),
-                                quarter=quarter,
+                                avg_buy_price=(
+                                    float(buyer["avgBuyPrice"]) if buyer.get("avgBuyPrice") is not None else None
+                                ),
+                                gain_percent=(
+                                    float(buyer["gainPercent"]) if buyer.get("gainPercent") is not None else None
+                                ),
+                                activity_period=str(buyer.get("activityPeriod") or stock.get("activityPeriod") or ""),
                             )
                         )
+
+                    parsed.append(
+                        NewHoldingStock(
+                            ticker=ticker,
+                            company_name=company_name,
+                            logo_url=_cdn_url(logo) if has_real_logo else None,
+                            current_price=(
+                                float(stock["currentPrice"]) if stock.get("currentPrice") is not None else None
+                            ),
+                            activity_period=str(stock.get("activityPeriod") or ""),
+                            buyers=buyers,
+                            buyers_count=int(stock.get("buyersCount") or len(buyers)),
+                        )
+                    )
 
                 if parsed:
                     _CACHED_NEW_HOLDINGS = parsed
@@ -10598,12 +10641,33 @@ def fetch_live_new_holdings_multi_provider() -> list[NewHoldingActivity]:
     if _CACHED_NEW_HOLDINGS:
         return _CACHED_NEW_HOLDINGS
 
-    return NEW_HOLDINGS_ACTIVITIES
+    return NEW_HOLDINGS_STOCKS_FALLBACK
 
 
-@router.get("/new-holdings", response_model=list[NewHoldingActivity])
-def list_new_holdings():
-    return fetch_live_new_holdings_multi_provider()
+@router.get("/new-holdings", response_model=NewHoldingsPageOut)
+def list_new_holdings(
+    page: int = Query(1, ge=1, description="1-indexed page number"),
+    limit: int = Query(20, ge=1, le=100, description="Items per page (konbalongtun's own UI uses 20)"),
+    search: str | None = Query(None, description="Filter by ticker or company name"),
+):
+    stocks = fetch_live_new_holdings_stocks()
+
+    if search:
+        query = search.strip().lower()
+        stocks = [s for s in stocks if query in s.ticker.lower() or query in s.company_name.lower()]
+
+    total_items = len(stocks)
+    total_pages = max(1, (total_items + limit - 1) // limit)
+    start = (page - 1) * limit
+    page_items = stocks[start : start + limit]
+
+    return NewHoldingsPageOut(
+        items=page_items,
+        total_items=total_items,
+        total_pages=total_pages,
+        current_page=page,
+        limit=limit,
+    )
 
 
 @router.get("/{slug}", response_model=InvestorProfile)

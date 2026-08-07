@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { getInvestorProfile, getInvestorsStatus, listInvestors, listNewHoldings, refreshInvestorsApi } from '../../api/client';
-import type { InvestorProfile, NewHoldingActivity } from '../../api/types';
+import type { InvestorProfile, NewHoldingStock } from '../../api/types';
+
+const NEW_HOLDINGS_PAGE_SIZE = 20;
 
 interface InvestorTrackerProps {
   currency?: 'USD' | 'THB';
@@ -22,9 +24,26 @@ function mostCommon(values: string[]): string | null {
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
 }
 
+// Mirrors konbalongtun's own pagination widget exactly: 1, 2, 3 … last, with the current
+// page's neighbors folded in. Confirmed against their live site 2026-08-07 that they elide
+// down to "1 2 3 … 5" even at only 5 total pages (skip straight past page 4) -- not just a
+// generic "collapse once it gets long" pattern, so the threshold here is <= 3, not <= 5.
+function buildPageNumbers(current: number, total: number): (number | '...')[] {
+  if (total <= 3) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages = new Set<number>([1, 2, 3, total, current]);
+  if (current > 1) pages.add(current - 1);
+  if (current < total) pages.add(current + 1);
+  const sorted = [...pages].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
+  const result: (number | '...')[] = [];
+  for (let i = 0; i < sorted.length; i++) {
+    if (i > 0 && sorted[i] - sorted[i - 1] > 1) result.push('...');
+    result.push(sorted[i]);
+  }
+  return result;
+}
+
 export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTrackerProps) {
   const [investors, setInvestors] = useState<InvestorProfile[]>([]);
-  const [newHoldings, setNewHoldings] = useState<NewHoldingActivity[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +52,17 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
   const [sortBy, setSortBy] = useState<'performance' | 'portfolio_value' | 'name'>('performance');
   const [activeSubTab, setActiveSubTab] = useState<'portfolios' | 'new-holdings'>('portfolios');
   const [displayLimit, setDisplayLimit] = useState<number>(50);
+
+  // New Holdings tab: its own paginated/searchable feed, independent of the Portfolios
+  // tab's search/sort (mirrors konbalongtun.com/new-holdings, which paginates server-side
+  // at 20 items/page rather than dumping everything into one long list).
+  const [newHoldings, setNewHoldings] = useState<NewHoldingStock[]>([]);
+  const [nhLoading, setNhLoading] = useState<boolean>(false);
+  const [nhSearch, setNhSearch] = useState<string>('');
+  const [nhPage, setNhPage] = useState<number>(1);
+  const [nhTotalItems, setNhTotalItems] = useState<number>(0);
+  const [nhTotalPages, setNhTotalPages] = useState<number>(1);
+  const [selectedStock, setSelectedStock] = useState<NewHoldingStock | null>(null);
 
   // Live Sync & Timestamp State
   const [lastFetchedAt, setLastFetchedAt] = useState<string>('');
@@ -50,12 +80,10 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
 
     Promise.all([
       listInvestors(searchTerm, sortBy).catch(() => []),
-      listNewHoldings().catch(() => []),
       getInvestorsStatus().catch(() => null),
-    ]).then(([invList, holdingsList, statusData]) => {
+    ]).then(([invList, statusData]) => {
       if (!isMounted) return;
       setInvestors(invList);
-      setNewHoldings(holdingsList);
       if (statusData?.last_fetched_at) {
         setLastFetchedAt(statusData.last_fetched_at);
       }
@@ -70,6 +98,30 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
       isMounted = false;
     };
   }, [searchTerm, sortBy]);
+
+  // New Holdings feed: separate effect keyed on its own page/search so switching the
+  // Portfolios tab's search/sort doesn't re-fetch this, and vice versa.
+  useEffect(() => {
+    let isMounted = true;
+    setNhLoading(true);
+    listNewHoldings(nhPage, NEW_HOLDINGS_PAGE_SIZE, nhSearch || undefined)
+      .then((data) => {
+        if (!isMounted) return;
+        setNewHoldings(data.items);
+        setNhTotalItems(data.total_items);
+        setNhTotalPages(data.total_pages);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setNewHoldings([]);
+      })
+      .finally(() => {
+        if (isMounted) setNhLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [nhPage, nhSearch]);
 
   // Open Investor Detail Modal
   function handleOpenInvestorModal(slug: string) {
@@ -91,16 +143,30 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
     refreshInvestorsApi()
       .then((status) => {
         setLastFetchedAt(status.last_fetched_at);
-        return Promise.all([listInvestors(searchTerm, sortBy), listNewHoldings().catch(() => [])]);
+        return Promise.all([
+          listInvestors(searchTerm, sortBy),
+          listNewHoldings(1, NEW_HOLDINGS_PAGE_SIZE, nhSearch || undefined).catch(() => null),
+        ]);
       })
-      .then(([invList, holdingsList]) => {
+      .then(([invList, nhData]) => {
         setInvestors(invList);
-        setNewHoldings(holdingsList);
+        if (nhData) {
+          setNewHoldings(nhData.items);
+          setNhTotalItems(nhData.total_items);
+          setNhTotalPages(nhData.total_pages);
+          setNhPage(1);
+        }
       })
       .catch(() => {})
       .finally(() => {
         setRefreshing(false);
       });
+  }
+
+  // A single letter, for a stock/investor with no real logo/avatar -- matches
+  // konbalongtun's own fallback behavior (confirmed by inspecting their live DOM).
+  function initialOf(name: string): string {
+    return name.trim().charAt(0).toUpperCase() || '?';
   }
 
   const multiplier = currency === 'THB' ? fxRate : 1;
@@ -199,7 +265,10 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
         </div>
       </div>
 
-      {/* ── Top Summary KPI Cards (Konbalongtun Style) ── */}
+      {/* ── Top Summary KPI Cards (Konbalongtun Style) ── Portfolios-tab stats only; the
+          New Holdings tab replaces this whole area with its own konbalongtun-matching
+          hero banner below, since konbalongtun's real new-holdings page has no such KPIs. */}
+      {activeSubTab === 'portfolios' && (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
         <div className="card" style={{ margin: 0, padding: '14px 18px', background: 'rgba(15, 23, 42, 0.85)', border: '1px solid var(--border)' }}>
           <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>กองทุนเซียนหุ้นที่ติดตาม</span>
@@ -235,6 +304,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
           <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>รอบที่นักลงทุนส่วนใหญ่รายงานล่าสุด — แต่ละกองทุนอาจต่างกัน</span>
         </div>
       </div>
+      )}
 
       {/* ── Search & Filter Control Bar ── */}
       {activeSubTab === 'portfolios' && (
@@ -282,7 +352,160 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
 
       {error && <div role="alert" style={{ marginBottom: '12px' }}>{error}</div>}
 
-      {loading ? (
+      {activeSubTab === 'new-holdings' ? (
+        /* ── New Holdings: mirrors konbalongtun.com/new-holdings's real layout ── */
+        <div>
+          <div className="nh-hero">
+            <div className="nh-hero-inner">
+              <span className="nh-hero-badge">🚀 สินทรัพย์ใหม่</span>
+              <h1 className="nh-hero-title">หุ้นใหม่ในพอร์ตนักลงทุนระดับโลก</h1>
+              <p className="nh-hero-subtitle">
+                รวมหุ้นที่ถูกเพิ่มเข้าพอร์ตใหม่ (New holding)
+                <br />
+                กดที่หุ้นเพื่อดูว่าใครเข้าซื้อ สัดส่วนในพอร์ต และราคาเฉลี่ยที่ซื้อ
+              </p>
+            </div>
+          </div>
+
+          <div className="nh-search-wrap">
+            <svg className="nh-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m21 21-4.34-4.34" />
+              <circle cx="11" cy="11" r="8" />
+            </svg>
+            <input
+              type="text"
+              className="nh-search-input"
+              placeholder="ค้นหาชื่อหุ้น..."
+              value={nhSearch}
+              onChange={(e) => {
+                setNhSearch(e.target.value);
+                setNhPage(1);
+              }}
+            />
+          </div>
+
+          {nhLoading ? (
+            <div className="nh-empty">กำลังโหลดข้อมูลหุ้นเข้าใหม่…</div>
+          ) : newHoldings.length === 0 ? (
+            <div className="nh-empty">ไม่พบหุ้นที่ตรงกับคำค้นหา</div>
+          ) : (
+            <>
+              <div className="nh-grid">
+                {newHoldings.map((stock) => {
+                  const visibleBuyers = stock.buyers.slice(0, 4);
+                  const extraBuyers = stock.buyers_count - visibleBuyers.length;
+                  return (
+                    <div
+                      key={stock.ticker + stock.company_name}
+                      className="nh-card"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelectedStock(stock)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') setSelectedStock(stock);
+                      }}
+                    >
+                      <div className="nh-card-top">
+                        <div className="nh-card-logo">
+                          {stock.logo_url ? (
+                            <img src={stock.logo_url} alt={stock.company_name} />
+                          ) : (
+                            <div className="nh-card-logo-fallback">{initialOf(stock.company_name)}</div>
+                          )}
+                        </div>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <h3 className="nh-card-name">{stock.company_name}</h3>
+                          <p className="nh-card-price">
+                            ราคาปัจจุบัน {stock.current_price != null ? `$${stock.current_price.toLocaleString()}` : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="nh-card-bottom">
+                        <div className="nh-avatar-stack">
+                          <div className="nh-avatar-stack-imgs">
+                            {visibleBuyers.map((buyer, idx) => (
+                              buyer.investor_avatar_url ? (
+                                <img
+                                  key={buyer.investor_slug}
+                                  className="nh-avatar"
+                                  src={buyer.investor_avatar_url}
+                                  alt={buyer.investor_name}
+                                  title={buyer.investor_name}
+                                  style={{ zIndex: visibleBuyers.length - idx }}
+                                />
+                              ) : (
+                                <div
+                                  key={buyer.investor_slug}
+                                  className="nh-avatar-fallback"
+                                  title={buyer.investor_name}
+                                  style={{ zIndex: visibleBuyers.length - idx }}
+                                >
+                                  {initialOf(buyer.investor_name)}
+                                </div>
+                              )
+                            ))}
+                          </div>
+                          {extraBuyers > 0 && <span className="nh-avatar-more">+{extraBuyers}</span>}
+                        </div>
+                        <span className="nh-buyers-badge">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                            <path d="M16 3.128a4 4 0 0 1 0 7.744" />
+                            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                            <circle cx="9" cy="7" r="4" />
+                          </svg>
+                          {stock.buyers_count} คนซื้อ
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="nh-pagination">
+                <p className="nh-pagination-info">
+                  แสดง <strong>{(nhPage - 1) * NEW_HOLDINGS_PAGE_SIZE + 1} - {Math.min(nhPage * NEW_HOLDINGS_PAGE_SIZE, nhTotalItems)}</strong> จาก <strong>{nhTotalItems}</strong> หุ้น
+                </p>
+                <div className="nh-pagination-btns">
+                  <button
+                    type="button"
+                    className="nh-page-btn"
+                    disabled={nhPage <= 1}
+                    onClick={() => setNhPage((p) => Math.max(1, p - 1))}
+                    aria-label="Previous page"
+                  >
+                    ‹
+                  </button>
+                  {buildPageNumbers(nhPage, nhTotalPages).map((p, idx) =>
+                    p === '...' ? (
+                      <span key={`ellipsis-${idx}`} className="nh-page-ellipsis">…</span>
+                    ) : (
+                      <button
+                        key={p}
+                        type="button"
+                        className={`nh-page-btn${p === nhPage ? ' active' : ''}`}
+                        onClick={() => setNhPage(p)}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+                  <button
+                    type="button"
+                    className="nh-page-btn"
+                    disabled={nhPage >= nhTotalPages}
+                    onClick={() => setNhPage((p) => Math.min(nhTotalPages, p + 1))}
+                    aria-label="Next page"
+                  >
+                    ›
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      ) : loading ? (
         <div className="card" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
           Loading super investor tracker profiles…
         </div>
@@ -479,58 +702,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
             </div>
           </div>
         </div>
-      ) : (
-        /* ── New Holdings Feed Section ── */
-        <div className="card" style={{ background: 'rgba(15, 23, 42, 0.85)', border: '1px solid var(--border)' }}>
-          <h4 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', fontWeight: 700, color: 'var(--primary)' }}>
-            🆕 หุ้นเข้าใหม่และรายการเคลื่อนไหวล่าสุด (13F Filing Feed)
-          </h4>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border)', textTransform: 'uppercase', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                  <th style={{ textAlign: 'left', padding: '10px' }}>นักลงทุน</th>
-                  <th style={{ textAlign: 'center', padding: '10px' }}>การเคลื่อนไหว</th>
-                  <th style={{ textAlign: 'left', padding: '10px' }}>หุ้น (Ticker)</th>
-                  <th style={{ textAlign: 'right', padding: '10px' }}>สัดส่วนในพอร์ต</th>
-                  <th style={{ textAlign: 'right', padding: '10px' }}>ไตรมาส / วันที่</th>
-                </tr>
-              </thead>
-              <tbody>
-                {newHoldings.map((item) => (
-                  <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                    <td style={{ padding: '10px', fontWeight: 700, color: 'var(--text)' }}>{item.investor_name}</td>
-                    <td style={{ padding: '10px', textAlign: 'center' }}>
-                      <span
-                        className={`badge ${
-                          item.action_type === 'BUY_NEW'
-                            ? 'badge-green'
-                            : item.action_type === 'INCREASE'
-                            ? 'badge-blue'
-                            : 'badge-red'
-                        }`}
-                        style={{ fontSize: '0.75rem', padding: '3px 8px' }}
-                      >
-                        {item.action_label}
-                      </span>
-                    </td>
-                    <td style={{ padding: '10px' }}>
-                      <span style={{ fontWeight: 800, color: 'var(--primary)' }}>{item.ticker}</span>
-                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginLeft: '6px' }}>{item.company_name}</span>
-                    </td>
-                    <td style={{ padding: '10px', textAlign: 'right', fontWeight: 700, color: 'var(--yellow)' }}>
-                      {item.portfolio_percent}%
-                    </td>
-                    <td style={{ padding: '10px', textAlign: 'right', color: 'var(--text-muted)' }}>
-                      {item.quarter} ({item.filing_date})
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      ) : null}
 
       {/* ── Modal: Investor Detail Drawer / Modal ── */}
       {selectedInvestorSlug && (
@@ -594,6 +766,72 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
                 </div>
               </div>
             ) : null}
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: New Holding stock's buyer breakdown -- "กดที่หุ้นเพื่อดูว่าใครเข้าซื้อ
+          สัดส่วนในพอร์ต และราคาเฉลี่ยที่ซื้อ" per konbalongtun's own card copy. Light theme
+          to stay visually consistent with the card grid it opens from. ── */}
+      {selectedStock && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
+          <div className="card nh-modal-card" style={{ width: '100%', maxWidth: '650px', maxHeight: '85vh', overflowY: 'auto', padding: '24px', borderRadius: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div className="nh-card-logo" style={{ height: 44, width: 44 }}>
+                  {selectedStock.logo_url ? (
+                    <img src={selectedStock.logo_url} alt={selectedStock.company_name} />
+                  ) : (
+                    <div className="nh-card-logo-fallback">{initialOf(selectedStock.company_name)}</div>
+                  )}
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>{selectedStock.company_name}</h3>
+                  <span style={{ fontSize: '0.85rem', color: '#4f46e5', fontWeight: 700 }}>{selectedStock.ticker}</span>
+                  {selectedStock.current_price != null && (
+                    <span style={{ fontSize: '0.8rem', color: '#64748b', marginLeft: '10px' }}>${selectedStock.current_price.toLocaleString()}</span>
+                  )}
+                </div>
+              </div>
+              <button type="button" onClick={() => setSelectedStock(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.3rem', cursor: 'pointer' }}>✕</button>
+            </div>
+
+            <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#4f46e5', marginBottom: '12px' }}>
+              👥 นักลงทุนที่เข้าซื้อ ({selectedStock.buyers_count} ราย)
+            </h4>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ textTransform: 'uppercase', fontSize: '0.72rem' }}>
+                    <th style={{ textAlign: 'left', padding: '8px' }}>นักลงทุน</th>
+                    <th style={{ textAlign: 'right', padding: '8px' }}>สัดส่วน %</th>
+                    <th style={{ textAlign: 'right', padding: '8px' }}>ราคาซื้อเฉลี่ย</th>
+                    <th style={{ textAlign: 'right', padding: '8px' }}>ผลตอบแทน</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedStock.buyers.map((buyer) => (
+                    <tr key={buyer.investor_slug}>
+                      <td style={{ padding: '8px', fontWeight: 700 }}>{buyer.investor_name}</td>
+                      <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700, color: '#4f46e5' }}>{buyer.portfolio_percent}%</td>
+                      <td style={{ padding: '8px', textAlign: 'right', color: '#64748b' }}>
+                        {buyer.avg_buy_price != null ? `$${buyer.avg_buy_price.toLocaleString()}` : 'ไม่มีข้อมูล'}
+                      </td>
+                      <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700, color: buyer.gain_percent != null && buyer.gain_percent >= 0 ? '#16a34a' : '#dc2626' }}>
+                        {buyer.gain_percent != null ? `${buyer.gain_percent >= 0 ? '+' : ''}${buyer.gain_percent}%` : 'N/A'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
+              <button type="button" onClick={() => setSelectedStock(null)} style={{ padding: '8px 20px', borderRadius: '6px', border: 'none', background: '#4f46e5', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                ปิด (Close)
+              </button>
+            </div>
           </div>
         </div>
       )}

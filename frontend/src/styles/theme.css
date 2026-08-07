@@ -416,3 +416,370 @@ tr:hover td {
   }
 }
 
+/* ── New Holdings card grid: deliberately mirrors konbalongtun.com/new-holdings's real
+   layout pixel-for-pixel (light theme, indigo→purple hero, white cards, avatar stack,
+   numbered pagination) rather than the app's own dark theme -- inspected their live DOM
+   2026-08-07 to match colors/spacing exactly. Scoped under .nh-* so it doesn't leak into
+   the rest of the (dark) app; !important mirrors this file's existing .glass-* convention
+   for overriding the global button/input element resets above. */
+.nh-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  background: linear-gradient(to bottom right, #4f46e5, #4f46e5, #7e22ce);
+  padding: 40px 32px;
+  margin-bottom: 20px;
+}
+
+.nh-hero::before,
+.nh-hero::after {
+  content: '';
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(48px);
+  pointer-events: none;
+}
+
+.nh-hero::before {
+  top: -64px;
+  right: -64px;
+  width: 256px;
+  height: 256px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.nh-hero::after {
+  bottom: -96px;
+  left: -64px;
+  width: 288px;
+  height: 288px;
+  background: rgba(192, 132, 252, 0.2);
+}
+
+.nh-hero-inner {
+  position: relative;
+}
+
+.nh-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 6px 16px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #ffffff;
+  backdrop-filter: blur(8px);
+}
+
+.nh-hero-title {
+  margin: 16px 0 0 0;
+  max-width: 720px;
+  font-size: 1.9rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #ffffff;
+  background: none;
+  -webkit-background-clip: initial;
+  -webkit-text-fill-color: #ffffff;
+}
+
+.nh-hero-subtitle {
+  margin: 12px 0 0 0;
+  max-width: 560px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #e0e7ff;
+}
+
+.nh-search-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  margin-bottom: 24px;
+}
+
+.nh-search-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.nh-search-input {
+  width: 100% !important;
+  border-radius: 9999px !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+  padding: 12px 16px 12px 44px !important;
+  font-size: 0.875rem !important;
+  color: #1e293b !important;
+  outline: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.nh-search-input:focus {
+  border-color: #818cf8 !important;
+  box-shadow: 0 0 0 4px #e0e7ff !important;
+}
+
+.nh-search-input::placeholder {
+  color: #94a3b8;
+}
+
+.nh-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.nh-card {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  padding: 20px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.nh-card:hover {
+  transform: translateY(-4px);
+  border-color: #a5b4fc;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+.nh-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.nh-card-logo {
+  display: flex;
+  height: 56px;
+  width: 56px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #f8fafc;
+  padding: 6px;
+  box-shadow: inset 0 0 0 1px #f1f5f9;
+}
+
+.nh-card-logo img {
+  height: 100%;
+  width: 100%;
+  border-radius: 12px;
+  object-fit: contain;
+}
+
+.nh-card-logo-fallback {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #e2e8f0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+.nh-card-name {
+  margin: 0;
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.nh-card:hover .nh-card-name {
+  color: #4f46e5;
+}
+
+.nh-card-price {
+  margin: 4px 0 0 0;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.nh-card-bottom {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 16px;
+}
+
+.nh-avatar-stack {
+  display: flex;
+  align-items: center;
+}
+
+.nh-avatar-stack-imgs {
+  display: flex;
+}
+
+.nh-avatar,
+.nh-avatar-fallback {
+  height: 32px;
+  width: 32px;
+  border-radius: 9999px;
+  border: 2px solid #ffffff;
+  margin-left: -8px;
+}
+
+.nh-avatar-stack-imgs > *:first-child {
+  margin-left: 0;
+}
+
+.nh-avatar {
+  object-fit: cover;
+  display: block;
+}
+
+.nh-avatar-fallback {
+  background: #c7d2fe;
+  color: #4338ca;
+  font-size: 0.68rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nh-avatar-more {
+  margin-left: 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.nh-buyers-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 9999px;
+  background: #eef2ff;
+  padding: 4px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #4f46e5;
+}
+
+.nh-pagination {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 0 4px;
+}
+
+@media (min-width: 768px) {
+  .nh-pagination {
+    flex-direction: row;
+  }
+}
+
+.nh-pagination-info {
+  font-size: 0.85rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.nh-pagination-info strong {
+  color: #374151;
+}
+
+.nh-pagination-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nh-page-btn {
+  width: 40px !important;
+  height: 40px !important;
+  padding: 0 !important;
+  border-radius: 12px !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  border: 1px solid #e5e7eb !important;
+  background: #ffffff !important;
+  color: #4b5563 !important;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nh-page-btn:hover:not(:disabled) {
+  background: #f9fafb !important;
+  border-color: #d1d5db !important;
+  color: #4b5563 !important;
+  transform: none;
+  box-shadow: none;
+}
+
+.nh-page-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.nh-page-btn.active {
+  background: linear-gradient(to bottom right, #6366f1, #4f46e5) !important;
+  color: #ffffff !important;
+  border-color: #6366f1 !important;
+  box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.3);
+}
+
+.nh-page-ellipsis {
+  width: 32px;
+  text-align: center;
+  color: #9ca3af;
+}
+
+.nh-empty {
+  padding: 60px 20px;
+  text-align: center;
+  color: #64748b;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+}
+
+/* Detail modal for a single stock's buyers -- same light theme as the card grid it opens
+   from, not the app's dark modal, so the whole New Holdings flow stays visually consistent. */
+.nh-modal-card {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #1e293b;
+}
+
+.nh-modal-card th {
+  color: #64748b !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.nh-modal-card td {
+  border-bottom: 1px solid #f1f5f9 !important;
+  color: #1e293b;
+}
+

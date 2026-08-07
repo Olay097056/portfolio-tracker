@@ -251,16 +251,32 @@ export interface InvestorProfile {
   top_holdings: InvestorHolding[];
 }
 
-export interface NewHoldingActivity {
-  id: string;
-  investor_name: string;
+// Mirrors konbalongtun.com/new-holdings's own response shape (grouped by stock, each
+// with a buyers[] list) -- the card-grid UI is built to match that page's real layout.
+export interface NewHoldingBuyer {
   investor_slug: string;
+  investor_name: string;
+  investor_avatar_url: string | null;
+  portfolio_percent: number;
+  avg_buy_price: number | null;
+  gain_percent: number | null;
+  activity_period: string;
+}
+
+export interface NewHoldingStock {
   ticker: string;
   company_name: string;
-  action_type: 'BUY_NEW' | 'INCREASE' | 'SELL_FULL' | 'DECREASE';
-  action_label: string;
-  shares_changed_pct: number;
-  portfolio_percent: number;
-  filing_date: string;
-  quarter: string;
+  logo_url: string | null;
+  current_price: number | null;
+  activity_period: string;
+  buyers: NewHoldingBuyer[];
+  buyers_count: number;
+}
+
+export interface NewHoldingsPage {
+  items: NewHoldingStock[];
+  total_items: number;
+  total_pages: number;
+  current_page: number;
+  limit: number;
 }

@@ -9,7 +9,7 @@ import type {
   HoldingUpdateInput,
   InvestorProfile,
   MarketData,
-  NewHoldingActivity,
+  NewHoldingsPage,
   NextEarnings,
   PatternHistory,
   Portfolio,
@@ -455,8 +455,10 @@ export function getInvestorProfile(slug: string): Promise<InvestorProfile> {
   return request<InvestorProfile>(`/api/investors/${encodeURIComponent(slug)}`);
 }
 
-export function listNewHoldings(): Promise<NewHoldingActivity[]> {
-  return request<NewHoldingActivity[]>('/api/investors/new-holdings');
+export function listNewHoldings(page: number = 1, limit: number = 20, search?: string): Promise<NewHoldingsPage> {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (search) params.append('search', search);
+  return request<NewHoldingsPage>(`/api/investors/new-holdings?${params.toString()}`);
 }
 
 export interface InvestorsApiStatus {

@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import * as client from '../../api/client';
 import { InvestorTracker } from './InvestorTracker';
-import type { InvestorProfile, NewHoldingActivity } from '../../api/types';
+import type { InvestorProfile, NewHoldingsPage } from '../../api/types';
 
 function makeInvestor(overrides: Partial<InvestorProfile>): InvestorProfile {
   return {
@@ -23,7 +23,22 @@ function makeInvestor(overrides: Partial<InvestorProfile>): InvestorProfile {
   };
 }
 
-const newHoldings: NewHoldingActivity[] = [];
+const newHoldings: NewHoldingsPage = { items: [], total_items: 0, total_pages: 1, current_page: 1, limit: 20 };
+
+function makeStock(overrides: Partial<import('../../api/types').NewHoldingStock> = {}): import('../../api/types').NewHoldingStock {
+  return {
+    ticker: 'BRK-A',
+    company_name: 'Berkshire Hathaway Inc.',
+    logo_url: null,
+    current_price: 611375,
+    activity_period: 'Q4 2016',
+    buyers: [
+      { investor_slug: 'guy-spier', investor_name: 'Guy Spier', investor_avatar_url: null, portfolio_percent: 4, avg_buy_price: 230816.07, gain_percent: 164.9, activity_period: 'Q4 2016' },
+    ],
+    buyers_count: 1,
+    ...overrides,
+  };
+}
 
 describe('InvestorTracker', () => {
   afterEach(() => {
@@ -135,5 +150,97 @@ describe('InvestorTracker', () => {
     render(<InvestorTracker />);
 
     await waitFor(() => expect(screen.getByText('Michael Burry')).toBeInTheDocument());
+  });
+
+  describe('New Holdings tab (mirrors konbalongtun.com/new-holdings)', () => {
+    async function openNewHoldingsTab() {
+      vi.spyOn(client, 'listInvestors').mockResolvedValue([makeInvestor({})]);
+      vi.spyOn(client, 'getInvestorsStatus').mockResolvedValue({ last_fetched_at: '', fetch_timestamp: 0, investors_count: 1, data_provider: 'test' });
+      render(<InvestorTracker />);
+      await waitFor(() => expect(screen.getByText('Warren Buffett')).toBeInTheDocument());
+      fireEvent.click(screen.getByRole('button', { name: /หุ้นเข้าใหม่ \(New Holdings\)/ }));
+    }
+
+    it('renders one card per stock with a real buyer count badge, not a flattened per-action row', async () => {
+      const listNewHoldingsSpy = vi.spyOn(client, 'listNewHoldings').mockResolvedValue({
+        items: [makeStock({ buyers_count: 9 })],
+        total_items: 1,
+        total_pages: 1,
+        current_page: 1,
+        limit: 20,
+      });
+
+      await openNewHoldingsTab();
+
+      await waitFor(() => expect(listNewHoldingsSpy).toHaveBeenCalledWith(1, 20, undefined));
+      expect(await screen.findByText('Berkshire Hathaway Inc.')).toBeInTheDocument();
+      expect(screen.getByText('9 คนซื้อ')).toBeInTheDocument();
+      expect(screen.getByText(/ราคาปัจจุบัน \$611,375/)).toBeInTheDocument();
+    });
+
+    it('shows a plain-letter logo fallback instead of a broken image when logo_url is null', async () => {
+      vi.spyOn(client, 'listNewHoldings').mockResolvedValue({
+        items: [makeStock({ logo_url: null, company_name: 'Sunbelt Rentals Holdings Inc' })],
+        total_items: 1,
+        total_pages: 1,
+        current_page: 1,
+        limit: 20,
+      });
+
+      await openNewHoldingsTab();
+
+      expect(await screen.findByText('S')).toBeInTheDocument();
+    });
+
+    it('re-fetches page 1 with the search query when the user types in the stock search box', async () => {
+      const listNewHoldingsSpy = vi.spyOn(client, 'listNewHoldings').mockResolvedValue({
+        items: [makeStock()],
+        total_items: 1,
+        total_pages: 1,
+        current_page: 1,
+        limit: 20,
+      });
+
+      await openNewHoldingsTab();
+      await waitFor(() => expect(listNewHoldingsSpy).toHaveBeenCalledWith(1, 20, undefined));
+
+      fireEvent.change(screen.getByPlaceholderText('ค้นหาชื่อหุ้น...'), { target: { value: 'AAPL' } });
+
+      await waitFor(() => expect(listNewHoldingsSpy).toHaveBeenLastCalledWith(1, 20, 'AAPL'));
+    });
+
+    it('requests the next page when a numbered pagination button is clicked', async () => {
+      const listNewHoldingsSpy = vi.spyOn(client, 'listNewHoldings').mockResolvedValue({
+        items: [makeStock()],
+        total_items: 41,
+        total_pages: 3,
+        current_page: 1,
+        limit: 20,
+      });
+
+      await openNewHoldingsTab();
+      await waitFor(() => expect(listNewHoldingsSpy).toHaveBeenCalledWith(1, 20, undefined));
+
+      fireEvent.click(screen.getByRole('button', { name: '2' }));
+
+      await waitFor(() => expect(listNewHoldingsSpy).toHaveBeenLastCalledWith(2, 20, undefined));
+    });
+
+    it('opens the buyer breakdown modal with real avg buy price and gain% when a card is clicked', async () => {
+      vi.spyOn(client, 'listNewHoldings').mockResolvedValue({
+        items: [makeStock()],
+        total_items: 1,
+        total_pages: 1,
+        current_page: 1,
+        limit: 20,
+      });
+
+      await openNewHoldingsTab();
+      fireEvent.click(await screen.findByText('Berkshire Hathaway Inc.'));
+
+      expect(await screen.findByText(/นักลงทุนที่เข้าซื้อ/)).toBeInTheDocument();
+      expect(screen.getByText('$230,816.07')).toBeInTheDocument();
+      expect(screen.getByText('+164.9%')).toBeInTheDocument();
+    });
   });
 });

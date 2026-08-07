@@ -362,12 +362,14 @@ export function calcTradingSetup(
 
 // AI Confidence Score Engine
 // AI Confidence Score Engine (Fitted Logistic Regression Model)
+// Note: squeeze status was in the old rule-based scorer's inputs but is not
+// one of the backtest-fitted model's features (see model_fit_report.md) —
+// not accepted here so a caller can't assume it influences the score.
 export function calcConfidenceScore(
   ma: MovingAverageMetrics,
   rsi14: number | null,
   macd: MacdMetrics,
   volumeRatio: number | null,
-  isSqueeze: boolean,
   nearestSupport: { distancePct: number } | null,
   nearestResistance: { distancePct: number } | null,
   bbWidthPct?: number | null
@@ -642,7 +644,6 @@ export function generateAiTechnicalSignal(
     rsi14,
     macd,
     volumeRatio,
-    isSqueeze,
     nearestSupport,
     nearestResistance,
     bbWidthPct

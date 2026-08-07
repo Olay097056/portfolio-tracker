@@ -215,7 +215,7 @@ describe('aiTechnicalSignal Utility', () => {
     it('calculates confidence score between 0 and 100%', () => {
       const ma = calcMovingAverages(Array.from({ length: 200 }, (_, i) => 100 + i));
       const macd = calcMacd(Array.from({ length: 50 }, (_, i) => 100 + i));
-      const scoreObj = calcConfidenceScore(ma, 60, macd, 2.0, true, { distancePct: -2 }, { distancePct: 10 });
+      const scoreObj = calcConfidenceScore(ma, 60, macd, 2.0, { distancePct: -2 }, { distancePct: 10 });
 
       expect(scoreObj.score).toBeGreaterThanOrEqual(0);
       expect(scoreObj.score).toBeLessThanOrEqual(100);
@@ -242,7 +242,7 @@ describe('aiTechnicalSignal Utility', () => {
         isBearishCrossover: false,
       };
 
-      const scoreObj = calcConfidenceScore(ma, 80, macd, 0.5, true, null, null, 1.0);
+      const scoreObj = calcConfidenceScore(ma, 80, macd, 0.5, null, null, 1.0);
       expect(scoreObj.score).toBeGreaterThanOrEqual(70);
       expect(scoreObj.ratingBadge).toContain('STRONG CONVICTION');
       expect(scoreObj.badgeColor).toBe('#10b981');
@@ -266,7 +266,7 @@ describe('aiTechnicalSignal Utility', () => {
         isBearishCrossover: true,
       };
 
-      const scoreObj = calcConfidenceScore(ma, 30, macd, 3.0, false, null, { distancePct: 1.0 }, 40.0);
+      const scoreObj = calcConfidenceScore(ma, 30, macd, 3.0, null, { distancePct: 1.0 }, 40.0);
       expect(scoreObj.score).toBeLessThan(40);
       expect(scoreObj.ratingBadge).toContain('BEARISH RISK');
       expect(scoreObj.badgeColor).toBe('#f43f5e');

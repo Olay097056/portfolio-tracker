@@ -202,25 +202,24 @@ describe('Empirical Math Engine Stress Tests for aiTechnicalSignal', () => {
 
       const rsiValues = [null, 0, 25, 30, 45, 55, 75, 85, 100];
       const volumeRatios = [null, 0, 0.5, 1.0, 1.5, 2.0];
-      const squeezeStates = [true, false];
 
+      // Squeeze status isn't one of calcConfidenceScore's fitted-model
+      // features (see aiTechnicalSignal.ts) — no longer a dimension here.
       for (const ma of maStates) {
         for (const macd of macdStates) {
           for (const rsi of rsiValues) {
             for (const vr of volumeRatios) {
-              for (const sq of squeezeStates) {
-                const scoreObj = calcConfidenceScore(ma, rsi, macd, vr, sq, null, null);
-                expect(scoreObj.score).toBeGreaterThanOrEqual(0);
-                expect(scoreObj.score).toBeLessThanOrEqual(100);
-                expect(containsNaN(scoreObj)).toBe(false);
-                expect(typeof scoreObj.pillars.rsiContribution).toBe('number');
-                expect(typeof scoreObj.pillars.macdContribution).toBe('number');
-                expect(typeof scoreObj.pillars.sma50DistanceContribution).toBe('number');
-                expect(typeof scoreObj.pillars.volumeRatioContribution).toBe('number');
-                expect(typeof scoreObj.pillars.bbWidthContribution).toBe('number');
-                expect(typeof scoreObj.pillars.supportContribution).toBe('number');
-                expect(typeof scoreObj.pillars.resistanceContribution).toBe('number');
-              }
+              const scoreObj = calcConfidenceScore(ma, rsi, macd, vr, null, null);
+              expect(scoreObj.score).toBeGreaterThanOrEqual(0);
+              expect(scoreObj.score).toBeLessThanOrEqual(100);
+              expect(containsNaN(scoreObj)).toBe(false);
+              expect(typeof scoreObj.pillars.rsiContribution).toBe('number');
+              expect(typeof scoreObj.pillars.macdContribution).toBe('number');
+              expect(typeof scoreObj.pillars.sma50DistanceContribution).toBe('number');
+              expect(typeof scoreObj.pillars.volumeRatioContribution).toBe('number');
+              expect(typeof scoreObj.pillars.bbWidthContribution).toBe('number');
+              expect(typeof scoreObj.pillars.supportContribution).toBe('number');
+              expect(typeof scoreObj.pillars.resistanceContribution).toBe('number');
             }
           }
         }

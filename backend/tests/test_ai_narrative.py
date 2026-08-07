@@ -398,6 +398,48 @@ def test_fact_check_adds_no_caveat_when_narrative_makes_no_flagged_claims():
     assert result.caveats == ["ตัวอย่างข้อควรระวังเดิม"]
 
 
+def test_fact_check_catches_lowercase_overbought_in_parentheses_real_spcx_case():
+    # Real production narrative for SPCX, 2026-08-07: rsi14=43.99 (nowhere near the >70
+    # overbought threshold), but the model wrote "(overbought)" lowercase inside parentheses.
+    # A case-sensitive check for "Overbought" (capital O) missed this on first ship.
+    metrics = _sample_metrics().model_copy(update={"rsi14": 43.99})
+    fake_response = (
+        '{"sentiment": "bullish", "narrative": '
+        '"RSI ก็แสดงให้เห็นถึงความแรงของโมเมนตัมที่เพิ่มขึ้นอย่างเห็นได้ชัด '
+        'ผ่านมาจาก 18.33 เป็น 43.99 ซึ่งบ่งชี้ว่าตลาดกำลังเข้าสู่ภาวะซื้อขายมากเกินไป (overbought) '
+        'นอกจากนี้ Moving Average ยังไม่มีข้อมูลในรอบนี้", "caveats": []}'
+    )
+    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+        result = get_ai_narrative("SPCX", metrics)
+
+    assert any("Overbought" in c and "43.99" in c for c in result.caveats)
+
+
+def test_fact_check_catches_ma_over_generalized_to_no_data_when_sma20_is_real():
+    # Same real SPCX narrative: sma20 was real (38 days of history is enough for a 20-day
+    # average), sma50/sma200 were correctly null (not enough history), but the model
+    # generalized the mixed state into a blanket "Moving Average has no data" claim.
+    metrics = _sample_metrics().model_copy(
+        update={"moving_averages": _sample_metrics().moving_averages.model_copy(update={"sma20": 130.0, "sma50": None, "sma200": None})}
+    )
+    fake_response = '{"sentiment": "neutral", "narrative": "นอกจากนี้ Moving Average ยังไม่มีข้อมูลในรอบนี้ แต่ MACD แสดงให้เห็นว่าโมเมนตัมยังคงอยู่ในทิศทางขาขึ้น", "caveats": []}'
+    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+        result = get_ai_narrative("SPCX", metrics)
+
+    assert any("Moving Average" in c and "SMA20" in c for c in result.caveats)
+
+
+def test_fact_check_does_not_flag_ma_no_data_claim_when_all_ma_fields_really_are_null():
+    metrics = _sample_metrics().model_copy(
+        update={"moving_averages": _sample_metrics().moving_averages.model_copy(update={"sma20": None, "sma50": None, "sma200": None})}
+    )
+    fake_response = '{"sentiment": "neutral", "narrative": "Moving Average ยังไม่มีข้อมูลในรอบนี้ รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาว", "caveats": []}'
+    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+        result = get_ai_narrative("SPCX", metrics)
+
+    assert not any("Moving Average" in c and "SMA20" in c for c in result.caveats)
+
+
 def test_get_ai_narrative_raises_on_ollama_unreachable():
     import requests
 

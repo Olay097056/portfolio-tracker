@@ -276,41 +276,62 @@ def _build_prompt(ticker: str, m: AiSignalMetricsIn, conflicts: list[str]) -> st
 
 def _fact_check_narrative(narrative: str, m: AiSignalMetricsIn) -> list[str]:
     """Best-effort keyword scan for narrative claims that contradict the real input data.
-    Live-tested 2026-08-07: the model was independently observed twice claiming an indicator
-    was 'high'/'confirmed a trend'/'above average' when the real value said the opposite (RSI
-    51 called 'high', a NEUTRAL MACD called 'confirming an uptrend', 0.8x volume called 'above
-    average', a NEUTRAL MA state called 'crossing favorably').
+    Live-tested 2026-08-07 (twice, including a real production narrative for SPCX): the model
+    was independently observed claiming an indicator was 'high'/'confirmed a trend'/'above
+    average' when the real value said the opposite (RSI 51 called 'high', a NEUTRAL MACD called
+    'confirming an uptrend', 0.8x volume called 'above average', a NEUTRAL MA state called
+    'crossing favorably', RSI 43.99 -- nowhere near the >70 overbought threshold -- called
+    '(overbought)').
 
     This does NOT rewrite the narrative -- editing AI-generated Thai prose risks producing
     broken grammar or a still-wrong replacement, and this project's other fixes fabricate
     nothing rather than guess. It only appends a visible caveat telling the user which specific
     claim to double-check against the real numbers already shown alongside this panel.
 
+    Matching is case-insensitive: the SPCX case above was missed on first ship because the
+    phrase list checked "Overbought" (capital O) but the model wrote "(overbought)" lowercase,
+    inside parentheses as an aside -- a case-sensitive `in` check silently let it through.
+
     Coverage is necessarily partial: this is keyword matching against free-form natural
     language, not a parse of the narrative's actual claims -- it will miss paraphrases the
     model didn't happen to use here, and can in principle false-positive on a legitimate
-    mention that happens to contain one of these phrases in a different context."""
+    mention that happens to contain one of these phrases in a different context. It also can't
+    catch a *correctly-quoted* number spun with a misleading interpretation (e.g. "only 9.6%
+    above the 52-week low" framed as strength, when sitting near the yearly low is arguably the
+    opposite read) -- that's a judgment call, not a fact this function can check against data."""
+    text = narrative.lower()
     warnings: list[str] = []
 
-    rsi_high_phrases = ["RSI ที่อยู่ในโซนสูง", "RSI สูง", "RSI อยู่ในระดับสูง", "Overbought"]
-    if any(p in narrative for p in rsi_high_phrases) and not (m.rsi14 is not None and m.rsi14 > 60):
-        warnings.append(f"บทวิเคราะห์อาจอ้างถึง RSI ว่า 'สูง' ทั้งที่ค่าจริงคือ {_or_no_data(m.rsi14)} — โปรดตรวจสอบกับตัวเลขจริงด้านบน")
+    rsi_high_phrases = ["rsi ที่อยู่ในโซนสูง", "rsi สูง", "rsi อยู่ในระดับสูง", "overbought"]
+    if any(p in text for p in rsi_high_phrases) and not (m.rsi14 is not None and m.rsi14 > 60):
+        warnings.append(f"บทวิเคราะห์อาจอ้างถึง RSI ว่า 'สูง'/Overbought ทั้งที่ค่าจริงคือ {_or_no_data(m.rsi14)} — โปรดตรวจสอบกับตัวเลขจริงด้านบน")
 
-    rsi_low_phrases = ["RSI ที่อยู่ในโซนต่ำ", "RSI ต่ำ", "RSI อยู่ในระดับต่ำ", "Oversold"]
-    if any(p in narrative for p in rsi_low_phrases) and not (m.rsi14 is not None and m.rsi14 < 40):
-        warnings.append(f"บทวิเคราะห์อาจอ้างถึง RSI ว่า 'ต่ำ' ทั้งที่ค่าจริงคือ {_or_no_data(m.rsi14)} — โปรดตรวจสอบกับตัวเลขจริงด้านบน")
+    rsi_low_phrases = ["rsi ที่อยู่ในโซนต่ำ", "rsi ต่ำ", "rsi อยู่ในระดับต่ำ", "oversold"]
+    if any(p in text for p in rsi_low_phrases) and not (m.rsi14 is not None and m.rsi14 < 40):
+        warnings.append(f"บทวิเคราะห์อาจอ้างถึง RSI ว่า 'ต่ำ'/Oversold ทั้งที่ค่าจริงคือ {_or_no_data(m.rsi14)} — โปรดตรวจสอบกับตัวเลขจริงด้านบน")
 
-    macd_trend_phrases = ["ยืนยันแนวโน้มขาขึ้น", "ยืนยันขาขึ้น", "ยืนยันแนวโน้มขาลง", "ยืนยันขาลง", "MACD ยืนยัน"]
-    if any(p in narrative for p in macd_trend_phrases) and m.macd.crossover == "NEUTRAL":
+    macd_trend_phrases = ["ยืนยันแนวโน้มขาขึ้น", "ยืนยันขาขึ้น", "ยืนยันแนวโน้มขาลง", "ยืนยันขาลง", "macd ยืนยัน"]
+    if any(p in text for p in macd_trend_phrases) and m.macd.crossover == "NEUTRAL":
         warnings.append("บทวิเคราะห์อาจอ้างว่า MACD ยืนยันแนวโน้ม ทั้งที่สถานะจริงคือ NEUTRAL — โปรดตรวจสอบกับตัวเลขจริงด้านบน")
 
     vol_high_phrases = ["สูงกว่าค่าเฉลี่ย", "วอลุ่มสูงกว่าค่าเฉลี่ย", "ปริมาณการซื้อขายสูงกว่าค่าเฉลี่ย"]
-    if any(p in narrative for p in vol_high_phrases) and not (m.volume_ratio is not None and m.volume_ratio >= 1.0):
+    if any(p in text for p in vol_high_phrases) and not (m.volume_ratio is not None and m.volume_ratio >= 1.0):
         warnings.append(f"บทวิเคราะห์อาจอ้างว่า Volume 'สูงกว่าค่าเฉลี่ย' ทั้งที่ค่าจริงคือ {_or_no_data(m.volume_ratio, 'x')} — โปรดตรวจสอบกับตัวเลขจริงด้านบน")
 
-    ma_bullish_phrases = ["ตัดกันเป็นผลดี", "Golden Cross", "ตัดขึ้น"]
-    if any(p in narrative for p in ma_bullish_phrases) and m.moving_averages.ma_cross_state != "GOLDEN_CROSS":
+    ma_bullish_phrases = ["ตัดกันเป็นผลดี", "golden cross", "ตัดขึ้น"]
+    if any(p in text for p in ma_bullish_phrases) and m.moving_averages.ma_cross_state != "GOLDEN_CROSS":
         warnings.append(f"บทวิเคราะห์อาจอ้างว่า Moving Average ตัดกันเป็นขาขึ้น (Golden Cross) ทั้งที่สถานะจริงคือ {m.moving_averages.ma_cross_state} — โปรดตรวจสอบกับตัวเลขจริงด้านบน")
+
+    # Live-tested 2026-08-07 (real SPCX narrative): with sma20 real but sma50/sma200 null
+    # (only 38 days of history -- not enough for a 50- or 200-day average), the model
+    # over-generalized the partial-null state into a blanket "Moving Average has no data"
+    # claim, discarding the real SMA20 value entirely instead of reporting what was actually
+    # available.
+    ma_no_data_phrases = ["moving average ยังไม่มีข้อมูล", "moving average ไม่มีข้อมูล"]
+    if any(p in text for p in ma_no_data_phrases) and (
+        m.moving_averages.sma20 is not None or m.moving_averages.sma50 is not None or m.moving_averages.sma200 is not None
+    ):
+        warnings.append("บทวิเคราะห์อาจอ้างว่า Moving Average ไม่มีข้อมูลเลย ทั้งที่มีบางค่า (เช่น SMA20) เป็นข้อมูลจริง — โปรดตรวจสอบกับตัวเลขจริงด้านบน")
 
     return warnings
 

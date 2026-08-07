@@ -88,6 +88,49 @@ def _trend_line(label: str, current, previous, prefix: str = "", suffix: str = "
 MAX_CONFLICTS_IN_PROMPT = 2  # cap so the model isn't asked to weave 4+ conflicts into one narrative
 
 
+def _detect_conflicts_scored(m: AiSignalMetricsIn) -> list[tuple[int, str, str]]:
+    """(priority, rule_id, message) for every conflict rule that fires -- unsorted, uncapped.
+    The single source of truth both _detect_conflicts (prompt text, capped to the top
+    MAX_CONFLICTS_IN_PROMPT) and _direction_ambiguous (the sentiment-override guard, which needs
+    to know whether Rule A specifically fired regardless of whether it survived the cap) build on.
+
+    Priority (1=highest): trend-vs-momentum conflicts (rules 1-2) > confidence-vs-indicator
+    conflicts (rules 3-4) > squeeze/resistance-proximity conflicts (rules A-B)."""
+    ma = m.moving_averages
+    macd = m.macd
+    trend_bullish = ma.is_bullish_alignment or ma.ma_cross_state == "GOLDEN_CROSS" or macd.is_bullish_crossover
+    trend_bearish = ma.ma_cross_state == "DEATH_CROSS" or macd.is_bearish_crossover
+
+    scored: list[tuple[int, str, str]] = []
+
+    if m.rsi14 is not None and m.rsi14 > 70 and trend_bullish:
+        scored.append((1, "rsi_overbought_bullish", f"RSI ({m.rsi14:.1f}) เข้าเขต Overbought แล้ว แต่สัญญาณเทรนด์/โมเมนตัม (MA, MACD) ยังเป็นบวก — เสี่ยงย่อตัวระยะสั้นแม้เทรนด์หลักยังดี"))
+    if m.rsi14 is not None and m.rsi14 < 30 and trend_bearish:
+        scored.append((1, "rsi_oversold_bearish", f"RSI ({m.rsi14:.1f}) เข้าเขต Oversold แล้ว แต่สัญญาณเทรนด์/โมเมนตัมยังเป็นลบ — อาจมีโอกาสดีดตัวทางเทคนิคแม้เทรนด์หลักยังไม่กลับตัว"))
+    if m.confidence_score.score < 40 and trend_bullish:
+        scored.append((2, "low_confidence_bullish", f"คะแนนความเชื่อมั่นจากระบบ ({m.confidence_score.score}/100) บ่งชี้ความเสี่ยงด้านลบ แต่ตัวชี้วัดเทรนด์/โมเมนตัมรายตัวยังดูเป็นบวก — ระบบเห็นความเสี่ยงที่ indicator รายตัวยังไม่สะท้อน"))
+    if m.confidence_score.score >= 60 and trend_bearish:
+        scored.append((2, "high_confidence_bearish", f"คะแนนความเชื่อมั่นจากระบบ ({m.confidence_score.score}/100) ดูเป็นบวก แต่สัญญาณเทรนด์/โมเมนตัมรายตัวกลับเป็นลบ"))
+
+    # Rule A: strong squeeze + dead-center RSI -- accumulation with no directional lean yet,
+    # a different kind of "don't over-commit to a read" signal than the trend-vs-momentum rules.
+    # Live-tested 2026-08-07: the model was told this exact condition means "don't rush to
+    # bullish or bearish" and answered sentiment="bullish" anyway, fabricating supporting
+    # numbers for it (claimed RSI was "high", MACD "confirmed an uptrend", volume was "above
+    # average" -- none of which matched the real input). Its sentiment field is not trusted
+    # when this rule fires; see _direction_ambiguous / get_ai_narrative's override.
+    if m.bb_width_pct is not None and m.bb_width_pct < 5 and m.is_squeeze and m.rsi14 is not None and 45 <= m.rsi14 <= 55:
+        scored.append((3, "squeeze_neutral_rsi", "Bollinger Band กำลัง Squeeze รุนแรง (BB Width < 5%) ร่วมกับ RSI อยู่กลางโซน (45-55) หมายความว่าราคากำลังสะสมพลังงานและยังไม่มีทิศทางชัดเจน อย่าด่วนสรุปว่า bullish หรือ bearish"))
+
+    # Rule B: bullish trend running straight into a very close resistance -- the trend reading
+    # and the proximity-to-resistance reading point at different near-term outcomes.
+    if m.nearest_resistance is not None and m.nearest_resistance.distance_pct < 2 and trend_bullish:
+        r = m.nearest_resistance
+        scored.append((3, "bullish_near_resistance", f"ราคาอยู่ห่างแนวต้านใกล้สุดแค่ {r.distance_pct:.1f}% (แนวต้าน {r.label}) แม้เทรนด์จะเป็นบวก แต่กำลังเข้าใกล้โซนที่อาจมีแรงขายทำกำไร"))
+
+    return scored
+
+
 def _detect_conflicts(m: AiSignalMetricsIn) -> list[str]:
     """Deterministic, rule-based conflict detection -- the thing this feature exists to surface
     (ticket 02), computed here instead of trusted to the LLM's own judgment. Live re-testing
@@ -96,41 +139,45 @@ def _detect_conflicts(m: AiSignalMetricsIn) -> list[str]:
     is authoritative for the response's `conflicting_signals` field -- the model is told about
     these explicitly in the prompt and asked to explain them, not to go find them.
 
-    Priority (1=highest): trend-vs-momentum conflicts (rules 1-2) > confidence-vs-indicator
-    conflicts (rules 3-4) > squeeze/resistance-proximity conflicts (rules A-B). When more than
-    MAX_CONFLICTS_IN_PROMPT fire at once, only the highest-priority ones are kept -- asking the
-    model to hold 4+ conflicting threads in one narrative degrades the same way a longer,
-    less-focused prompt already did once (see MODEL's comment)."""
-    ma = m.moving_averages
-    macd = m.macd
-    trend_bullish = ma.is_bullish_alignment or ma.ma_cross_state == "GOLDEN_CROSS" or macd.is_bullish_crossover
-    trend_bearish = ma.ma_cross_state == "DEATH_CROSS" or macd.is_bearish_crossover
+    When more than MAX_CONFLICTS_IN_PROMPT fire at once, only the highest-priority ones are kept
+    -- asking the model to hold 4+ conflicting threads in one narrative degrades the same way a
+    longer, less-focused prompt already did once (see MODEL's comment)."""
+    scored = sorted(_detect_conflicts_scored(m), key=lambda t: t[0])
+    return [message for _, _, message in scored[:MAX_CONFLICTS_IN_PROMPT]]
 
-    # (priority, message) -- priority ties keep the order rules are listed here.
-    scored: list[tuple[int, str]] = []
 
-    if m.rsi14 is not None and m.rsi14 > 70 and trend_bullish:
-        scored.append((1, f"RSI ({m.rsi14:.1f}) เข้าเขต Overbought แล้ว แต่สัญญาณเทรนด์/โมเมนตัม (MA, MACD) ยังเป็นบวก — เสี่ยงย่อตัวระยะสั้นแม้เทรนด์หลักยังดี"))
-    if m.rsi14 is not None and m.rsi14 < 30 and trend_bearish:
-        scored.append((1, f"RSI ({m.rsi14:.1f}) เข้าเขต Oversold แล้ว แต่สัญญาณเทรนด์/โมเมนตัมยังเป็นลบ — อาจมีโอกาสดีดตัวทางเทคนิคแม้เทรนด์หลักยังไม่กลับตัว"))
-    if m.confidence_score.score < 40 and trend_bullish:
-        scored.append((2, f"คะแนนความเชื่อมั่นจากระบบ ({m.confidence_score.score}/100) บ่งชี้ความเสี่ยงด้านลบ แต่ตัวชี้วัดเทรนด์/โมเมนตัมรายตัวยังดูเป็นบวก — ระบบเห็นความเสี่ยงที่ indicator รายตัวยังไม่สะท้อน"))
-    if m.confidence_score.score >= 60 and trend_bearish:
-        scored.append((2, f"คะแนนความเชื่อมั่นจากระบบ ({m.confidence_score.score}/100) ดูเป็นบวก แต่สัญญาณเทรนด์/โมเมนตัมรายตัวกลับเป็นลบ"))
+def _direction_ambiguous(m: AiSignalMetricsIn) -> bool:
+    """True when Rule A (squeeze + dead-center RSI) fires, regardless of whether it survived
+    the MAX_CONFLICTS_IN_PROMPT cap -- the underlying data situation is direction-ambiguous
+    either way. get_ai_narrative overrides the model's own sentiment to 'neutral' in this case;
+    see _detect_conflicts_scored's Rule A comment for why it can't be trusted here."""
+    return any(rule_id == "squeeze_neutral_rsi" for _, rule_id, _ in _detect_conflicts_scored(m))
 
-    # Rule A: strong squeeze + dead-center RSI -- accumulation with no directional lean yet,
-    # a different kind of "don't over-commit to a read" signal than the trend-vs-momentum rules.
-    if m.bb_width_pct is not None and m.bb_width_pct < 5 and m.is_squeeze and m.rsi14 is not None and 45 <= m.rsi14 <= 55:
-        scored.append((3, "Bollinger Band กำลัง Squeeze รุนแรง (BB Width < 5%) ร่วมกับ RSI อยู่กลางโซน (45-55) หมายความว่าราคากำลังสะสมพลังงานและยังไม่มีทิศทางชัดเจน อย่าด่วนสรุปว่า bullish หรือ bearish"))
 
-    # Rule B: bullish trend running straight into a very close resistance -- the trend reading
-    # and the proximity-to-resistance reading point at different near-term outcomes.
-    if m.nearest_resistance is not None and m.nearest_resistance.distance_pct < 2 and trend_bullish:
-        r = m.nearest_resistance
-        scored.append((3, f"ราคาอยู่ห่างแนวต้านใกล้สุดแค่ {r.distance_pct:.1f}% (แนวต้าน {r.label}) แม้เทรนด์จะเป็นบวก แต่กำลังเข้าใกล้โซนที่อาจมีแรงขายทำกำไร"))
+# Core indicators a narrative actually needs something real to say about. Live-tested
+# 2026-08-07: with every one of these null, the model didn't say "not enough data" -- it
+# fabricated a confident bullish narrative (a $0.00 price "near an all-time high", a "clear
+# uptrend" from a null MACD, etc.), directly violating the prompt's own "don't guess a number"
+# instruction. Rather than keep hoping the LLM behaves, missing MISSING_DATA_THRESHOLD or more
+# of these bails out to a deterministic response before ever calling it.
+MISSING_DATA_THRESHOLD = 4
 
-    scored.sort(key=lambda pair: pair[0])
-    return [message for _, message in scored[:MAX_CONFLICTS_IN_PROMPT]]
+
+def _has_insufficient_data(m: AiSignalMetricsIn) -> bool:
+    core_fields = [m.rsi14, m.macd.macd_line, m.moving_averages.sma20, m.current_price, m.atr14]
+    return sum(1 for f in core_fields if f is None) >= MISSING_DATA_THRESHOLD
+
+
+def _insufficient_data_response(ticker: str) -> AiNarrativeOut:
+    return AiNarrativeOut(
+        sentiment="neutral",
+        narrative=(
+            f"ข้อมูลราคาและตัวชี้วัดทางเทคนิคของ {ticker} ในรอบนี้มีไม่เพียงพอสำหรับการวิเคราะห์ที่น่าเชื่อถือ "
+            "(ตัวชี้วัดหลักส่วนใหญ่ยังไม่มีข้อมูลในรอบนี้) กรุณาลองใหม่เมื่อมีข้อมูลราคาย้อนหลังมากขึ้น"
+        ),
+        conflicting_signals=None,
+        caveats=["ข้อมูลไม่เพียงพอสำหรับการวิเคราะห์ในรอบนี้ -- ไม่ได้เรียกใช้ AI เพื่อป้องกันการเดาตัวเลขที่ไม่มีอยู่จริง"],
+    )
 
 
 def _build_prompt(ticker: str, m: AiSignalMetricsIn, conflicts: list[str]) -> str:
@@ -268,6 +315,12 @@ def get_ai_narrative(ticker: str, metrics: AiSignalMetricsIn) -> AiNarrativeOut:
     if cached is not None:
         return cached
 
+    # Bails out before ever calling Ollama -- see _has_insufficient_data's comment.
+    if _has_insufficient_data(metrics):
+        result = _insufficient_data_response(ticker)
+        _cache[cache_key] = result
+        return result
+
     conflicts = _detect_conflicts(metrics)
     prompt = _build_prompt(ticker, metrics, conflicts)
     raw = _call_ollama(prompt)
@@ -275,6 +328,10 @@ def get_ai_narrative(ticker: str, metrics: AiSignalMetricsIn) -> AiNarrativeOut:
     # conflicting_signals is authoritative from the rule-based detector, not the model's own JSON
     # (which the prompt no longer even asks it to fill in) -- see MODEL's comment for why.
     result = result.model_copy(update={"conflicting_signals": conflicts or None})
+    # sentiment is likewise not trusted from the model when Rule A fires -- see
+    # _direction_ambiguous's comment.
+    if _direction_ambiguous(metrics) and result.sentiment != "neutral":
+        result = result.model_copy(update={"sentiment": "neutral"})
 
     _cache[cache_key] = result
     return result

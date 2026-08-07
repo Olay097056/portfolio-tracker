@@ -243,6 +243,65 @@ def test_prompt_market_context_falls_back_to_no_data_when_absent():
     assert "บริบทตลาด: ไม่มีข้อมูลเพิ่มเติม" in prompt
 
 
+def test_insufficient_data_skips_ollama_entirely():
+    # Live-tested 2026-08-07: when every core indicator was null, the model fabricated a
+    # confident bullish narrative instead of saying "not enough data". This guard bails out
+    # before the model ever gets a chance to.
+    sparse_metrics = _sample_metrics().model_copy(
+        update={
+            "rsi14": None,
+            "current_price": None,
+            "atr14": None,
+            "macd": _sample_metrics().macd.model_copy(update={"macd_line": None}),
+            "moving_averages": _sample_metrics().moving_averages.model_copy(update={"sma20": None}),
+        }
+    )
+    with patch.object(ai_narrative_service, "_call_ollama") as mock_call:
+        result = get_ai_narrative("NVDA", sparse_metrics)
+
+    mock_call.assert_not_called()
+    assert result.sentiment == "neutral"
+    assert "ไม่เพียงพอ" in result.narrative
+    assert result.conflicting_signals is None
+
+
+def test_insufficient_data_threshold_is_missing_at_least_four_of_five_core_fields():
+    # Only 3 of the 5 core fields missing -- still calls the model (below the threshold).
+    metrics = _sample_metrics().model_copy(
+        update={
+            "rsi14": None,
+            "current_price": None,
+            "atr14": None,
+            # macd.macd_line and moving_averages.sma20 stay real (from _sample_metrics()).
+        }
+    )
+    fake_response = '{"sentiment": "neutral", "narrative": "x", "caveats": []}'
+    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response) as mock_call:
+        get_ai_narrative("NVDA", metrics)
+
+    mock_call.assert_called_once()
+
+
+def test_sentiment_forced_to_neutral_when_squeeze_conflict_fires_even_if_model_says_bullish():
+    # Live-tested 2026-08-07: given this exact condition and told explicitly not to declare a
+    # direction, the model answered sentiment="bullish" anyway. Not trusted -- forced to neutral.
+    metrics = _sample_metrics().model_copy(update={"bb_width_pct": 3.5, "is_squeeze": True, "rsi14": 50.0})
+    fake_response = '{"sentiment": "bullish", "narrative": "x", "caveats": []}'
+    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+        result = get_ai_narrative("NVDA", metrics)
+
+    assert result.sentiment == "neutral"
+
+
+def test_sentiment_left_alone_when_no_squeeze_conflict():
+    metrics = _sample_metrics().model_copy(update={"is_squeeze": False})
+    fake_response = '{"sentiment": "bearish", "narrative": "x", "caveats": []}'
+    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+        result = get_ai_narrative("NVDA", metrics)
+
+    assert result.sentiment == "bearish"
+
+
 def test_get_ai_narrative_raises_on_ollama_unreachable():
     import requests
 

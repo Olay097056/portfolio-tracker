@@ -5,8 +5,8 @@ import {
   getMarketData,
   type DcaCalculateResponse,
   type DcaTickerItem,
-} from '../api/client';
-import { calculateDcaProjectionFull, type DcaFullProjectionResult } from '../utils/dcaProjection';
+} from '../../api/client';
+import { calculateDcaProjectionFull, type DcaFullProjectionResult } from '../../utils/dcaProjection';
 
 export interface DcaProjectionCalculatorProps {
   currency?: 'THB' | 'USD';

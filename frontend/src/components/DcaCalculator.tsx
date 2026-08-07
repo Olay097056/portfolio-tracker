@@ -1,7 +1,7 @@
 // frontend/src/components/DcaCalculator.tsx
 import { useState } from 'react';
 import { calculateDca } from '../utils/dca';
-import { DcaProjectionCalculator, type DcaProjectionCalculatorProps } from './DcaProjectionCalculator';
+import { DcaProjectionCalculator, type DcaProjectionCalculatorProps } from './tools/DcaProjectionCalculator';
 
 export interface DcaCalculatorProps extends DcaProjectionCalculatorProps {
   currentShares?: number;

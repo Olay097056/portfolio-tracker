@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { DcaProjectionCalculator } from '../components/DcaProjectionCalculator';
-import { PassiveIncomeCalculator } from '../components/PassiveIncomeCalculator';
-import { PortfolioBuilderWizard } from '../components/PortfolioBuilderWizard';
+import { DcaProjectionCalculator } from '../components/tools/DcaProjectionCalculator';
+import { PassiveIncomeCalculator } from '../components/tools/PassiveIncomeCalculator';
+import { PortfolioBuilderWizard } from '../components/tools/PortfolioBuilderWizard';
 import { StockScreener } from '../components/tools/StockScreener';
 import { InvestorTracker } from '../components/tools/InvestorTracker';
 import { TabStrip } from '../components/TabStrip';

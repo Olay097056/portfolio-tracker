@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import * as client from '../api/client';
+import * as client from '../../api/client';
 import { PortfolioBuilderWizard } from './PortfolioBuilderWizard';
 
 describe('PortfolioBuilderWizard', () => {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { getMarketData } from '../api/client';
-import type { MarketData } from '../api/types';
-import { calculateRequiredPortfolio } from '../utils/passiveIncome';
+import { getMarketData } from '../../api/client';
+import type { MarketData } from '../../api/types';
+import { calculateRequiredPortfolio } from '../../utils/passiveIncome';
 
 export interface PassiveIncomeCalculatorProps {
   currency?: 'THB' | 'USD';

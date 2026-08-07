@@ -1,0 +1,23 @@
+# frontend/Dockerfile.dev — dev-mode image: installs deps into the image, then
+# docker-compose bind-mounts the source over it so edits hot-reload via Vite
+# without rebuilding. Not meant for production (no build step, runs the dev
+# server, not a static bundle behind nginx).
+FROM node:22-slim
+
+WORKDIR /app
+
+COPY package.json ./
+# package-lock.json is intentionally NOT copied in: it was generated on
+# Windows/Mac and npm's lockfile handling of platform-specific optional
+# dependencies (e.g. Rollup's native binary) doesn't resolve correctly for a
+# different OS from a cross-platform lockfile (npm/cli#4828) -- `npm install`
+# from package.json alone lets npm resolve the right Linux binary itself.
+RUN npm install
+
+COPY . .
+
+EXPOSE 5173
+
+# --host 0.0.0.0 so the dev server accepts connections from outside the
+# container (Vite binds to localhost only by default).
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

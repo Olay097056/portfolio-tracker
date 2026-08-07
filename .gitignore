@@ -1,5 +1,6 @@
 backend/.venv/
 backend/portfolio.db
+backend/app/backtest/_cache/
 portfolio.db
 .env
 *.env

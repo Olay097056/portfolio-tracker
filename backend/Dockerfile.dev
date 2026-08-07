@@ -1,0 +1,19 @@
+# backend/Dockerfile.dev — dev-mode image: installs deps into the image, then
+# docker-compose bind-mounts the source over it so edits show up via --reload
+# without rebuilding. Not meant for production (no multi-stage build, runs as
+# root, --reload is on).
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Source is bind-mounted by docker-compose in dev; this COPY just means the
+# image is runnable standalone too (e.g. `docker build` + `docker run` with no
+# compose/mount, for a quick sanity check).
+COPY . .
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

@@ -1,0 +1,54 @@
+# Dev-mode Docker setup: runs the real dev servers (uvicorn --reload, vite)
+# with source bind-mounted from the host, so editing code on your machine
+# hot-reloads inside the containers exactly like running them natively.
+#
+# Usage:
+#   docker compose up          # first run builds the images
+#   docker compose up --build  # rebuild after changing requirements.txt / package.json
+#
+# App: http://localhost:5173   API: http://localhost:8000
+#
+# backend/portfolio.db and backend/.env are bind-mounted along with the rest
+# of backend/, so the SQLite database and your API keys persist on the host
+# exactly as they do when running without Docker.
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    env_file:
+      # Optional -- the app degrades gracefully per-feature when a key is
+      # unset (see backend/README.md). `required: false` means first-time
+      # setup with no backend/.env yet still starts instead of erroring.
+      - path: ./backend/.env
+        required: false
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      # Anonymous volume over node_modules so the container's own Linux
+      # build isn't shadowed by the host's node_modules (which, on Windows/Mac,
+      # contains native binaries built for the wrong OS).
+      - /app/node_modules
+    environment:
+      # Use 127.0.0.1 instead of localhost: on this Windows host, "localhost"
+      # resolves to the IPv6 loopback (::1) first, and Docker Desktop's port
+      # mapping doesn't answer there -- only on 127.0.0.1 (IPv4).
+      - VITE_API_BASE_URL=http://127.0.0.1:8000
+      # Docker Desktop's bind mount on Windows doesn't reliably forward native
+      # filesystem-change events into the Linux container, so Vite's default
+      # watcher (chokidar) can silently miss edits made on the host. Polling
+      # is slower but actually detects every change.
+      - CHOKIDAR_USEPOLLING=true
+      - CHOKIDAR_INTERVAL=1000
+    depends_on:
+      - backend

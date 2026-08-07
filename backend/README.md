@@ -30,6 +30,7 @@ export FMP_API_KEY=your-key
 | ---------------------- | ------------------------------------------- | ------------------------------------------------------------ |
 | `TWELVE_DATA_API_KEY` | `app/price_service.py`                     | Price/FX lookups return null; features degrade to "Unavailable" |
 | `FMP_API_KEY`         | `app/trending_service.py` (Trending Stocks) | `GET /market/trending` reports `api_key_configured: false`, and the tab explains what to set |
+| `FINNHUB_API_KEY`     | `scripts/refresh_screener.py` (standalone CLI, loads `backend/.env` itself — see script docstring) | Stock Screener falls back to static demo data (51 stocks) instead of the full live universe |
 
 ## Running
 

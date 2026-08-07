@@ -1,8 +1,10 @@
 # backend/app/routers/investors.py
 import json
+import re
 import time
 import urllib.request
 from collections import Counter
+from datetime import date, timedelta
 from typing import Literal
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
@@ -19,6 +21,20 @@ def _most_recent_filing_label(holdings: "list[TopHolding]") -> str:
         return "SEC Form 13F (period unavailable)"
     mode_period = Counter(periods).most_common(1)[0][0]
     return f"SEC Form 13F ({mode_period})"
+
+
+def _quarter_filing_deadline(quarter_label: str) -> str:
+    """konbalongtun's new-holdings feed gives a quarter label ('Q1 2026') but no exact
+    filing date. Rather than fabricate one, derive the real SEC 13F regulatory deadline --
+    45 calendar days after quarter-end -- which is an actual rule, not a guess. Falls back
+    to the raw label unchanged if it doesn't parse as 'Q<1-4> <year>'."""
+    match = re.match(r"Q([1-4])\s+(\d{4})", quarter_label.strip())
+    if not match:
+        return quarter_label
+    quarter_num, year = int(match.group(1)), int(match.group(2))
+    quarter_end_month_day = {1: (3, 31), 2: (6, 30), 3: (9, 30), 4: (12, 31)}[quarter_num]
+    quarter_end = date(year, *quarter_end_month_day)
+    return (quarter_end + timedelta(days=45)).isoformat()
 
 
 class TopHolding(BaseModel):
@@ -10493,10 +10509,13 @@ def get_investors_status():
 
 @router.post("/refresh")
 def force_refresh_investors():
-    global _CACHE_TIMESTAMP, _CACHED_INVESTORS
+    global _CACHE_TIMESTAMP, _CACHED_INVESTORS, _NEW_HOLDINGS_CACHE_TIMESTAMP, _CACHED_NEW_HOLDINGS
     _CACHE_TIMESTAMP = 0.0
     _CACHED_INVESTORS = []
+    _NEW_HOLDINGS_CACHE_TIMESTAMP = 0.0
+    _CACHED_NEW_HOLDINGS = []
     investors = fetch_live_investors_multi_provider()
+    fetch_live_new_holdings_multi_provider()
     last_fetched_str = time.strftime("%d/%m/%Y %H:%M:%S", time.localtime(_CACHE_TIMESTAMP if _CACHE_TIMESTAMP > 0 else time.time()))
     return {
         "status": "refreshed",
@@ -10507,9 +10526,84 @@ def force_refresh_investors():
     }
 
 
+_NEW_HOLDINGS_CACHE_TIMESTAMP = 0.0
+_CACHED_NEW_HOLDINGS: list[NewHoldingActivity] = []
+
+
+def fetch_live_new_holdings_multi_provider() -> list[NewHoldingActivity]:
+    """Same cache/fallback shape as fetch_live_investors_multi_provider() above, but hits
+    konbalongtun's /new-holdings endpoint instead. That API groups by stock -- each item has
+    a buyers[] list of investors who newly opened that position -- so this flattens it into
+    one NewHoldingActivity row per (stock, buyer) pair, which is the shape the existing
+    /new-holdings response model and frontend table already expect."""
+    global _NEW_HOLDINGS_CACHE_TIMESTAMP, _CACHED_NEW_HOLDINGS
+    now = time.time()
+    if _CACHED_NEW_HOLDINGS and (now - _NEW_HOLDINGS_CACHE_TIMESTAMP < 600):
+        return _CACHED_NEW_HOLDINGS
+
+    try:
+        # limit=100 covers the whole feed in one request -- confirmed 2026-08-07 that
+        # konbalongtun's new-holdings feed has 81 total items, all returned when
+        # limit >= totalItems (their own frontend paginates client-side at limit=20/page).
+        url = "https://www.konbalongtun.com/api-server/investors/new-holdings?page=1&limit=100"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+        with urllib.request.urlopen(req, timeout=5) as response:
+            if response.status == 200:
+                raw_json = json.loads(response.read().decode("utf-8"))
+                items = raw_json.get("data", raw_json) if isinstance(raw_json, dict) else raw_json
+                parsed: list[NewHoldingActivity] = []
+
+                for s_idx, stock in enumerate(items):
+                    company_name = str(stock.get("name") or "Unknown")
+                    logo = str(stock.get("logo", ""))
+                    ticker = (
+                        logo.split("/stock-logo/")[-1].replace(".svg", "").replace(".png", "")
+                        if "/stock-logo/" in logo
+                        else ""
+                    )
+                    if not ticker or ticker.startswith("COMPANY-ICON"):
+                        ticker = company_name.split()[0].upper()
+
+                    for b_idx, buyer in enumerate(stock.get("buyers", [])):
+                        quarter = str(buyer.get("activityPeriod") or stock.get("activityPeriod") or "")
+                        parsed.append(
+                            NewHoldingActivity(
+                                id=f"nh_{s_idx}_{b_idx}",
+                                investor_name=str(buyer.get("investorName") or "Investor"),
+                                investor_slug=str(buyer.get("investorSlug") or f"investor-{b_idx}"),
+                                ticker=ticker,
+                                company_name=company_name,
+                                # This feed only ever lists brand-new positions -- there's no
+                                # increase/decrease/sell-full data here, so BUY_NEW is correct
+                                # by construction, not a guess.
+                                action_type="BUY_NEW",
+                                action_label="เข้าซื้อหุ้นใหม่",
+                                # A brand-new position is definitionally a 0% -> full-position
+                                # change; the API doesn't expose a numeric shares-changed field
+                                # for this feed, so 100% is the only value consistent with "new".
+                                shares_changed_pct=100.0,
+                                portfolio_percent=float(buyer.get("portfolioPercent") or 0.0),
+                                filing_date=_quarter_filing_deadline(quarter),
+                                quarter=quarter,
+                            )
+                        )
+
+                if parsed:
+                    _CACHED_NEW_HOLDINGS = parsed
+                    _NEW_HOLDINGS_CACHE_TIMESTAMP = now
+                    return _CACHED_NEW_HOLDINGS
+    except Exception:
+        pass
+
+    if _CACHED_NEW_HOLDINGS:
+        return _CACHED_NEW_HOLDINGS
+
+    return NEW_HOLDINGS_ACTIVITIES
+
+
 @router.get("/new-holdings", response_model=list[NewHoldingActivity])
 def list_new_holdings():
-    return NEW_HOLDINGS_ACTIVITIES
+    return fetch_live_new_holdings_multi_provider()
 
 
 @router.get("/{slug}", response_model=InvestorProfile)

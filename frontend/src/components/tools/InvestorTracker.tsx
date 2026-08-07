@@ -91,10 +91,11 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
     refreshInvestorsApi()
       .then((status) => {
         setLastFetchedAt(status.last_fetched_at);
-        return listInvestors(searchTerm, sortBy);
+        return Promise.all([listInvestors(searchTerm, sortBy), listNewHoldings().catch(() => [])]);
       })
-      .then((invList) => {
+      .then(([invList, holdingsList]) => {
         setInvestors(invList);
+        setNewHoldings(holdingsList);
       })
       .catch(() => {})
       .finally(() => {

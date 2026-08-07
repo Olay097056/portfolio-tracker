@@ -7,6 +7,14 @@ interface InvestorTrackerProps {
   fxRate?: number;
 }
 
+function formatAumUsd(usd: number): string {
+  if (usd >= 1e12) return `$${(usd / 1e12).toFixed(1)}T`;
+  if (usd >= 1e9) return `$${(usd / 1e9).toFixed(1)}B`;
+  if (usd >= 1e6) return `$${(usd / 1e6).toFixed(1)}M`;
+  if (usd <= 0) return '$0';
+  return `$${usd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+}
+
 export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTrackerProps) {
   const [investors, setInvestors] = useState<InvestorProfile[]>([]);
   const [newHoldings, setNewHoldings] = useState<NewHoldingActivity[]>([]);
@@ -94,6 +102,8 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
   const topPerformer = investors.length > 0
     ? [...investors].sort((a, b) => b.performance_1y_pct - a.performance_1y_pct)[0]
     : null;
+  const totalAumUsd = investors.reduce((sum, inv) => sum + (inv.portfolio_value_num || 0), 0);
+  const totalAumFormatted = formatAumUsd(totalAumUsd);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -101,7 +111,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: '#f8fafc', fontFamily: 'Outfit, sans-serif' }}>
+            <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: 'var(--text)' }}>
               🕵️‍♂️ พอร์ตนักลงทุนระดับโลก (Super Investor Tracker)
             </h3>
             <span className="badge badge-blue" style={{ fontSize: '0.75rem', padding: '3px 8px' }}>konbalongtun style</span>
@@ -126,9 +136,9 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
               padding: '6px 14px',
               fontSize: '0.82rem',
               borderRadius: '8px',
-              border: '1px solid #10b981',
+              border: '1px solid var(--green)',
               background: 'rgba(16, 185, 129, 0.15)',
-              color: '#10b981',
+              color: 'var(--green)',
               fontWeight: 700,
               cursor: refreshing ? 'not-allowed' : 'pointer',
               display: 'inline-flex',
@@ -164,7 +174,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
                 fontSize: '0.82rem',
                 borderRadius: '8px',
                 border: 'none',
-                background: activeSubTab === 'new-holdings' ? '#10b981' : 'transparent',
+                background: activeSubTab === 'new-holdings' ? 'var(--green)' : 'transparent',
                 color: activeSubTab === 'new-holdings' ? '#fff' : 'var(--text-muted)',
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -180,7 +190,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
         <div className="card" style={{ margin: 0, padding: '14px 18px', background: 'rgba(15, 23, 42, 0.85)', border: '1px solid var(--border)' }}>
           <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>กองทุนเซียนหุ้นที่ติดตาม</span>
-          <div style={{ fontSize: '1.4rem', fontWeight: 800, fontFamily: 'Outfit, sans-serif', color: '#f8fafc', marginTop: '4px' }}>
+          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text)', marginTop: '4px' }}>
             {investors.length} กองทุนหลัก
           </div>
           <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Top Super Investors</span>
@@ -188,7 +198,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
 
         <div className="card" style={{ margin: 0, padding: '14px 18px', background: 'rgba(15, 23, 42, 0.85)', border: '1px solid var(--border)' }}>
           <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>ผลตอบแทนสูงสุด 1 ปี</span>
-          <div style={{ fontSize: '1.4rem', fontWeight: 800, fontFamily: 'Outfit, sans-serif', color: '#10b981', marginTop: '4px' }}>
+          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--green)', marginTop: '4px' }}>
             +{topPerformer?.performance_1y_pct || 0}%
           </div>
           <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
@@ -198,15 +208,15 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
 
         <div className="card" style={{ margin: 0, padding: '14px 18px', background: 'rgba(15, 23, 42, 0.85)', border: '1px solid var(--border)' }}>
           <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>มูลค่าพอร์ตรวม (AUM)</span>
-          <div style={{ fontSize: '1.4rem', fontWeight: 800, fontFamily: 'Outfit, sans-serif', color: '#fcd34d', marginTop: '4px' }}>
-            $350.2B
+          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--yellow)', marginTop: '4px' }}>
+            {totalAumFormatted}
           </div>
           <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Combined Portfolio AUM</span>
         </div>
 
         <div className="card" style={{ margin: 0, padding: '14px 18px', background: 'rgba(15, 23, 42, 0.85)', border: '1px solid var(--border)' }}>
           <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>รายงาน 13F FILING ล่าสุด</span>
-          <div style={{ fontSize: '1.4rem', fontWeight: 800, fontFamily: 'Outfit, sans-serif', color: 'var(--primary)', marginTop: '4px' }}>
+          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--primary)', marginTop: '4px' }}>
             Q1 2026
           </div>
           <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>SEC Form 13F Quarter</span>
@@ -301,7 +311,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
                       }}
                     />
                     <div>
-                      <h4 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#f8fafc', fontFamily: 'Outfit, sans-serif' }}>
+                      <h4 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text)' }}>
                         {inv.name}
                       </h4>
                       <span style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600 }}>{inv.fund_name}</span>
@@ -312,13 +322,13 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', padding: '10px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', marginBottom: '14px', border: '1px solid rgba(255,255,255,0.05)' }}>
                     <div>
                       <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>ผลตอบแทน (1 ปี)</span>
-                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: inv.performance_1y_pct >= 0 ? '#10b981' : 'var(--red)', marginTop: '2px' }}>
+                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: inv.performance_1y_pct >= 0 ? 'var(--green)' : 'var(--red)', marginTop: '2px' }}>
                         {inv.performance_1y_pct >= 0 ? '+' : ''}{inv.performance_1y_pct}%
                       </div>
                     </div>
                     <div>
                       <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>มูลค่าพอร์ต (AUM)</span>
-                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#f8fafc', marginTop: '2px' }}>
+                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text)', marginTop: '2px' }}>
                         ${inv.portfolio_value_usd}
                       </div>
                     </div>
@@ -331,7 +341,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
 
                   {/* Top Holdings Section */}
                   <div style={{ marginBottom: '16px' }}>
-                    <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#fcd34d', textTransform: 'uppercase', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--yellow)', textTransform: 'uppercase', marginBottom: '8px' }}>
                       🏆 สินทรัพย์ถือครองสูงสุด (Top Holdings)
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -349,11 +359,11 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontWeight: 800, color: 'var(--primary)', fontFamily: 'Outfit, sans-serif' }}>{holding.ticker}</span>
+                            <span style={{ fontWeight: 800, color: 'var(--primary)' }}>{holding.ticker}</span>
                             <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{holding.name}</span>
                           </div>
                           <div style={{ textAlign: 'right' }}>
-                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#38bdf8' }}>{holding.portfolio_percent}%</span>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--primary)' }}>{holding.portfolio_percent}%</span>
                             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{holding.activity_text}</div>
                           </div>
                         </div>
@@ -400,7 +410,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
             }}
           >
             <span style={{ fontSize: '0.88rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-              📊 กำลังแสดง <strong style={{ color: '#fff' }}>{Math.min(displayLimit, investors.length)}</strong> จากทั้งหมด <strong style={{ color: '#fcd34d' }}>{investors.length}</strong> กองทุนเซียนหุ้น
+              📊 กำลังแสดง <strong style={{ color: '#fff' }}>{Math.min(displayLimit, investors.length)}</strong> จากทั้งหมด <strong style={{ color: 'var(--yellow)' }}>{investors.length}</strong> กองทุนเซียนหุ้น
             </span>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -444,7 +454,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
                   padding: '6px 14px',
                   borderRadius: '6px',
                   border: '1px solid var(--border)',
-                  background: displayLimit >= 50 ? '#10b981' : 'rgba(255,255,255,0.05)',
+                  background: displayLimit >= 50 ? 'var(--green)' : 'rgba(255,255,255,0.05)',
                   color: displayLimit >= 50 ? '#fff' : 'var(--text-muted)',
                   fontSize: '0.82rem',
                   fontWeight: 700,
@@ -476,7 +486,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
               <tbody>
                 {newHoldings.map((item) => (
                   <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                    <td style={{ padding: '10px', fontWeight: 700, color: '#f8fafc' }}>{item.investor_name}</td>
+                    <td style={{ padding: '10px', fontWeight: 700, color: 'var(--text)' }}>{item.investor_name}</td>
                     <td style={{ padding: '10px', textAlign: 'center' }}>
                       <span
                         className={`badge ${
@@ -492,10 +502,10 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
                       </span>
                     </td>
                     <td style={{ padding: '10px' }}>
-                      <span style={{ fontWeight: 800, color: 'var(--primary)', fontFamily: 'Outfit, sans-serif' }}>{item.ticker}</span>
+                      <span style={{ fontWeight: 800, color: 'var(--primary)' }}>{item.ticker}</span>
                       <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginLeft: '6px' }}>{item.company_name}</span>
                     </td>
-                    <td style={{ padding: '10px', textAlign: 'right', fontWeight: 700, color: '#fcd34d' }}>
+                    <td style={{ padding: '10px', textAlign: 'right', fontWeight: 700, color: 'var(--yellow)' }}>
                       {item.portfolio_percent}%
                     </td>
                     <td style={{ padding: '10px', textAlign: 'right', color: 'var(--text-muted)' }}>
@@ -512,7 +522,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
       {/* ── Modal: Investor Detail Drawer / Modal ── */}
       {selectedInvestorSlug && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
-          <div className="card" style={{ width: '100%', maxWidth: '650px', maxHeight: '85vh', overflowY: 'auto', background: '#0f172a', border: '1px solid var(--border)', padding: '24px', borderRadius: '14px' }}>
+          <div className="card" style={{ width: '100%', maxWidth: '650px', maxHeight: '85vh', overflowY: 'auto', background: 'var(--card-bg)', border: '1px solid var(--border)', padding: '24px', borderRadius: '14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800, color: '#fff' }}>
@@ -531,7 +541,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
                   {selectedInvestor.description}
                 </p>
 
-                <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#fcd34d', marginBottom: '12px' }}>
+                <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--yellow)', marginBottom: '12px' }}>
                   📋 หุ้นทั้งหมดในพอร์ต (13F Holdings Breakdown)
                 </h4>
 
@@ -551,10 +561,10 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
                       {selectedInvestor.top_holdings.map((h) => (
                         <tr key={h.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                           <td style={{ padding: '8px', fontWeight: 700, color: 'var(--primary)' }}>{h.ticker}</td>
-                          <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700, color: '#38bdf8' }}>{h.portfolio_percent}%</td>
+                          <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700, color: 'var(--primary)' }}>{h.portfolio_percent}%</td>
                           <td style={{ padding: '8px', textAlign: 'right', color: 'var(--text-muted)' }}>{currencySymbol}{(h.avg_buy_price * multiplier).toFixed(2)}</td>
                           <td style={{ padding: '8px', textAlign: 'right', fontWeight: 600 }}>{currencySymbol}{(h.current_price * multiplier).toFixed(2)}</td>
-                          <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700, color: h.gain_percent >= 0 ? '#10b981' : 'var(--red)' }}>
+                          <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700, color: h.gain_percent >= 0 ? 'var(--green)' : 'var(--red)' }}>
                             {h.gain_percent >= 0 ? '+' : ''}{h.gain_percent}%
                           </td>
                           <td style={{ padding: '8px', color: 'var(--text-muted)', fontSize: '0.78rem' }}>{h.activity_text}</td>

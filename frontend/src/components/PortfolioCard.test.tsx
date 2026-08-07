@@ -5,6 +5,21 @@ import { PortfolioCard } from './PortfolioCard';
 
 const portfolio = { id: 1, name: 'DIME', cash_usd: 250, target_allocation_pct: 70, created_at: '2026-01-01T00:00:00Z' };
 
+function renderCard(props: Partial<React.ComponentProps<typeof PortfolioCard>> = {}) {
+  return render(
+    <PortfolioCard
+      portfolio={portfolio}
+      allPortfolios={[portfolio]}
+      onDelete={vi.fn()}
+      onUpdate={vi.fn()}
+      onRebalance={vi.fn()}
+      onToggleHoldings={vi.fn()}
+      expanded={false}
+      {...props}
+    />,
+  );
+}
+
 describe('PortfolioCard', () => {
   beforeEach(() => {
     vi.spyOn(client, 'getPortfolioSummary').mockResolvedValue({
@@ -25,7 +40,7 @@ describe('PortfolioCard', () => {
   });
 
   it('renders the portfolio name, total value, and target allocation', async () => {
-    render(<PortfolioCard portfolio={portfolio} onDelete={vi.fn()} onToggleHoldings={vi.fn()} expanded={false} />);
+    renderCard();
 
     await waitFor(() => expect(screen.getByText('DIME')).toBeInTheDocument());
     expect(screen.getByText(/250/)).toBeInTheDocument();
@@ -33,14 +48,14 @@ describe('PortfolioCard', () => {
   });
 
   it('renders "no target set" when target_allocation_pct is null', async () => {
-    render(<PortfolioCard portfolio={{ ...portfolio, target_allocation_pct: null }} onDelete={vi.fn()} onToggleHoldings={vi.fn()} expanded={false} />);
+    renderCard({ portfolio: { ...portfolio, target_allocation_pct: null } });
 
     await waitFor(() => expect(screen.getByText(/no target set/i)).toBeInTheDocument());
   });
 
   it('calls onDelete with the portfolio id when the delete button is clicked', async () => {
     const onDelete = vi.fn();
-    render(<PortfolioCard portfolio={portfolio} onDelete={onDelete} onToggleHoldings={vi.fn()} expanded={false} />);
+    renderCard({ onDelete });
 
     await waitFor(() => expect(screen.getByText('DIME')).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /delete/i }));
@@ -50,7 +65,7 @@ describe('PortfolioCard', () => {
 
   it('calls onToggleHoldings with the portfolio id when the "show holdings" button is clicked', async () => {
     const onToggleHoldings = vi.fn();
-    render(<PortfolioCard portfolio={portfolio} onDelete={vi.fn()} onToggleHoldings={onToggleHoldings} expanded={false} />);
+    renderCard({ onToggleHoldings });
 
     await waitFor(() => expect(screen.getByText('DIME')).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /show holdings/i }));
@@ -59,9 +74,19 @@ describe('PortfolioCard', () => {
   });
 
   it('shows "hide holdings" label when expanded is true', async () => {
-    render(<PortfolioCard portfolio={portfolio} onDelete={vi.fn()} onToggleHoldings={vi.fn()} expanded={true} />);
+    renderCard({ expanded: true });
 
     await waitFor(() => expect(screen.getByRole('button', { name: /hide holdings/i })).toBeInTheDocument());
+  });
+
+  it('opens the edit modal when the Edit button is clicked, pre-filled with the portfolio', async () => {
+    renderCard();
+
+    await waitFor(() => expect(screen.getByText('DIME')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
+
+    expect(screen.getByRole('heading', { name: /edit portfolio/i })).toBeInTheDocument();
+    expect(screen.getByLabelText('Name')).toHaveValue('DIME');
   });
 
   it('shows the real total value from the summary once loaded', async () => {
@@ -77,7 +102,7 @@ describe('PortfolioCard', () => {
       holdings: [],
     });
 
-    render(<PortfolioCard portfolio={portfolio} onDelete={vi.fn()} onToggleHoldings={vi.fn()} expanded={false} />);
+    renderCard();
 
     await waitFor(() => expect(screen.getByText(/4,254.88/)).toBeInTheDocument());
   });
@@ -98,12 +123,12 @@ describe('PortfolioCard', () => {
       ],
     });
 
-    render(<PortfolioCard portfolio={portfolio} onDelete={vi.fn()} onToggleHoldings={vi.fn()} expanded={false} />);
+    renderCard();
 
     await waitFor(() => expect(screen.getByText(/1 holding needs rebalancing/i)).toBeInTheDocument());
   });
 
-  it('colors Unrealized P&L green with a positive emoji when it is a gain', async () => {
+  it('colors the donut\'s P&L green with a positive emoji when it is a gain', async () => {
     vi.spyOn(client, 'getPortfolioSummary').mockResolvedValue({
       id: 1,
       name: 'DIME',
@@ -113,17 +138,19 @@ describe('PortfolioCard', () => {
       total_value: 4254.88,
       unrealized_pnl: 1755.28,
       realized_pnl: 0,
-      holdings: [],
+      holdings: [
+        { ticker: 'AAPL', shares: 1, avg_cost_usd: 100, current_price: 250, value: 4004.88, current_pct: 100, target_pct: 70, deviation_pp: 30, severity: 'green', unrealized_pnl: 1755.28, realized_pnl: 0 },
+      ],
     });
 
-    render(<PortfolioCard portfolio={portfolio} onDelete={vi.fn()} onToggleHoldings={vi.fn()} expanded={false} />);
+    renderCard();
 
-    const pnl = await screen.findByText(/unrealized p&l/i);
-    expect(pnl).toHaveStyle({ color: 'var(--green)' });
+    const pnl = await screen.findByTestId('donut-pnl');
     expect(pnl).toHaveTextContent('😊');
+    expect(pnl.querySelector('span')).toHaveStyle({ color: 'var(--green)' });
   });
 
-  it('colors Unrealized P&L red with a downcast emoji when it is a loss', async () => {
+  it('colors the donut\'s P&L red with a downcast emoji when it is a loss', async () => {
     vi.spyOn(client, 'getPortfolioSummary').mockResolvedValue({
       id: 1,
       name: 'DIME',
@@ -133,18 +160,20 @@ describe('PortfolioCard', () => {
       total_value: 350,
       unrealized_pnl: -150,
       realized_pnl: 0,
-      holdings: [],
+      holdings: [
+        { ticker: 'AAPL', shares: 1, avg_cost_usd: 100, current_price: 40, value: 100, current_pct: 100, target_pct: 70, deviation_pp: 30, severity: 'red', unrealized_pnl: -150, realized_pnl: 0 },
+      ],
     });
 
-    render(<PortfolioCard portfolio={portfolio} onDelete={vi.fn()} onToggleHoldings={vi.fn()} expanded={false} />);
+    renderCard();
 
-    const pnl = await screen.findByText(/unrealized p&l/i);
-    expect(pnl).toHaveStyle({ color: 'var(--red)' });
+    const pnl = await screen.findByTestId('donut-pnl');
     expect(pnl).toHaveTextContent('😟');
+    expect(pnl.querySelector('span')).toHaveStyle({ color: 'var(--red)' });
   });
 
   it("styles the delete button as a warning action, matching the Dashboard's Recompute-defaults convention", async () => {
-    render(<PortfolioCard portfolio={portfolio} onDelete={vi.fn()} onToggleHoldings={vi.fn()} expanded={false} />);
+    renderCard();
 
     await waitFor(() => expect(screen.getByText('DIME')).toBeInTheDocument());
     expect(screen.getByRole('button', { name: /delete/i })).toHaveStyle({ color: 'var(--red)' });
@@ -165,7 +194,7 @@ describe('PortfolioCard', () => {
       ],
     });
 
-    render(<PortfolioCard portfolio={portfolio} onDelete={vi.fn()} onToggleHoldings={vi.fn()} expanded={false} />);
+    renderCard();
 
     await waitFor(() => expect(screen.getByText(/500/)).toBeInTheDocument());
     expect(screen.queryByText(/needs? rebalancing/i)).not.toBeInTheDocument();

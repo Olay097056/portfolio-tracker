@@ -1,10 +1,16 @@
 // frontend/src/components/PortfolioCard.tsx
-import type { Portfolio } from '../api/types';
+import { useState } from 'react';
+import type { Portfolio, PortfolioTargetUpdate, PortfolioUpdateInput } from '../api/types';
 import { usePortfolioSummary } from '../hooks/usePortfolioSummary';
+import { PortfolioDonutChart } from './PortfolioDonutChart';
+import { EditPortfolioModal } from './EditPortfolioModal';
 
 interface PortfolioCardProps {
   portfolio: Portfolio;
+  allPortfolios: Portfolio[];
   onDelete: (id: number) => void;
+  onUpdate: (id: number, input: PortfolioUpdateInput) => Promise<unknown>;
+  onRebalance: (updates: PortfolioTargetUpdate[]) => Promise<unknown>;
   onToggleHoldings: (id: number) => void;
   expanded: boolean;
   currencyMultiplier?: number;
@@ -13,19 +19,26 @@ interface PortfolioCardProps {
 
 export function PortfolioCard({
   portfolio,
+  allPortfolios,
   onDelete,
+  onUpdate,
+  onRebalance,
   onToggleHoldings,
   expanded,
   currencyMultiplier = 1,
   currencySymbol = '$',
 }: PortfolioCardProps) {
   const { summary, loading, error } = usePortfolioSummary(portfolio.id);
+  const [editing, setEditing] = useState(false);
   const needsRebalanceCount = summary
     ? summary.holdings.filter((h) => h.severity === 'yellow' || h.severity === 'red').length
     : 0;
 
   const totalVal = summary ? summary.total_value * currencyMultiplier : portfolio.cash_usd * currencyMultiplier;
   const pnlVal = summary ? summary.unrealized_pnl * currencyMultiplier : 0;
+  const costBasis = summary ? summary.holdings_value - summary.unrealized_pnl : 0;
+  const pnlPct = costBasis > 0 ? (summary!.unrealized_pnl / costBasis) * 100 : 0;
+  const donutHoldings = summary?.holdings ?? [];
 
   return (
     <div className="portfolio-card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -41,6 +54,19 @@ export function PortfolioCard({
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            style={{
+              padding: '6px 14px',
+              fontSize: '0.85rem',
+              borderColor: 'var(--primary)',
+              color: 'var(--primary)',
+              fontWeight: 600,
+            }}
+          >
+            Edit
+          </button>
           <button
             type="button"
             onClick={() => onToggleHoldings(portfolio.id)}
@@ -74,21 +100,14 @@ export function PortfolioCard({
       {error && <div role="alert">{error}</div>}
 
       {summary && (
-        <div style={{ display: 'flex', gap: '20px', alignItems: 'baseline', flexWrap: 'wrap' }}>
-          <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>
-            Total value: {currencySymbol}{totalVal.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-          </div>
-
-          <div
-            style={{
-              color: summary.unrealized_pnl >= 0 ? 'var(--green)' : 'var(--red)',
-              fontWeight: 700,
-              fontSize: '1.05rem',
-            }}
-          >
-            Unrealized P&amp;L: {currencySymbol}{pnlVal.toLocaleString(undefined, { maximumFractionDigits: 2 })}{' '}
-            {summary.unrealized_pnl >= 0 ? '😊' : '😟'}
-          </div>
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <PortfolioDonutChart
+            holdings={donutHoldings}
+            totalValue={totalVal}
+            pnlValue={pnlVal}
+            pnlPct={pnlPct}
+            currencySymbol={currencySymbol}
+          />
 
           {needsRebalanceCount > 0 && (
             <div
@@ -100,6 +119,16 @@ export function PortfolioCard({
             </div>
           )}
         </div>
+      )}
+
+      {editing && (
+        <EditPortfolioModal
+          portfolio={portfolio}
+          allPortfolios={allPortfolios}
+          onSave={(input) => onUpdate(portfolio.id, input)}
+          onRebalance={onRebalance}
+          onClose={() => setEditing(false)}
+        />
       )}
     </div>
   );

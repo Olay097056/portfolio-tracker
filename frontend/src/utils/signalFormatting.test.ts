@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { formatNumber, formatSignedPercent } from './signalFormatting';
 
+
 describe('formatSignedPercent', () => {
   it('formats a positive value with a percent sign', () => {
     expect(formatSignedPercent(1.5)).toBe('1.50%');

@@ -5,8 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.database import Base, engine
-from app.routers import fx, holdings, market, market_data, portfolios, prices, watchlist
-
+from app.routers import ai_narrative, dca, fx, holdings, investors, market, market_data, portfolios, prices, screener, watchlist
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -25,7 +24,11 @@ app = FastAPI(title="Portfolio Tracker API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    # Both hostnames need to be allowed: on this Windows host "localhost"
+    # resolves to the IPv6 loopback (::1) first and Docker Desktop's port
+    # mapping doesn't answer there, so the frontend is accessed via
+    # 127.0.0.1 instead -- which is also the browser Origin the API sees.
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -37,6 +40,10 @@ app.include_router(prices.router)
 app.include_router(fx.router)
 app.include_router(market_data.router)
 app.include_router(market.router)
+app.include_router(screener.router)
+app.include_router(dca.router)
+app.include_router(ai_narrative.router)
+app.include_router(investors.router)
 
 
 @app.get("/health")

@@ -7,6 +7,8 @@ import { DashboardPage } from './DashboardPage';
 
 vi.mock('lightweight-charts', () => ({
   createChart: vi.fn(),
+  CandlestickSeries: 'candlestick-series-definition',
+  HistogramSeries: 'histogram-series-definition',
   LineSeries: 'line-series-definition',
   ColorType: { Solid: 'solid' },
 }));
@@ -14,8 +16,11 @@ vi.mock('lightweight-charts', () => ({
 describe('DashboardPage', () => {
   beforeEach(() => {
     vi.mocked(createChart).mockReturnValue({
-      addSeries: vi.fn(() => ({ setData: vi.fn(), createPriceLine: vi.fn(), removePriceLine: vi.fn() })),
+      addSeries: vi.fn(() => ({ setData: vi.fn(), createPriceLine: vi.fn(), removePriceLine: vi.fn(), priceToCoordinate: vi.fn(), coordinateToPrice: vi.fn() })),
       remove: vi.fn(),
+      priceScale: vi.fn(() => ({ applyOptions: vi.fn() })),
+      timeScale: vi.fn(() => ({ fitContent: vi.fn() })),
+      resize: vi.fn(),
     } as unknown as ReturnType<typeof createChart>);
   });
 
@@ -64,7 +69,7 @@ describe('DashboardPage', () => {
   it('fetches and renders the chart for the ticker once selected', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
-    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }], zones: [] });
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }], zones: [] });
 
     render(<DashboardPage />);
     await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
@@ -80,18 +85,24 @@ describe('DashboardPage', () => {
       { id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' },
       { id: 2, ticker: 'MSFT', category: null, created_at: '2026-01-01T00:00:00Z' },
     ]);
-    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }], zones: [] });
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }], zones: [] });
 
     const firstRemove = vi.fn();
     const secondRemove = vi.fn();
     vi.mocked(createChart)
       .mockReturnValueOnce({
-        addSeries: vi.fn(() => ({ setData: vi.fn() })),
+        addSeries: vi.fn(() => ({ setData: vi.fn(), createPriceLine: vi.fn(), removePriceLine: vi.fn(), priceToCoordinate: vi.fn(), coordinateToPrice: vi.fn() })),
         remove: firstRemove,
+        priceScale: vi.fn(() => ({ applyOptions: vi.fn() })),
+        timeScale: vi.fn(() => ({ fitContent: vi.fn() })),
+        resize: vi.fn(),
       } as unknown as ReturnType<typeof createChart>)
       .mockReturnValueOnce({
-        addSeries: vi.fn(() => ({ setData: vi.fn() })),
+        addSeries: vi.fn(() => ({ setData: vi.fn(), createPriceLine: vi.fn(), removePriceLine: vi.fn(), priceToCoordinate: vi.fn(), coordinateToPrice: vi.fn() })),
         remove: secondRemove,
+        priceScale: vi.fn(() => ({ applyOptions: vi.fn() })),
+        timeScale: vi.fn(() => ({ fitContent: vi.fn() })),
+        resize: vi.fn(),
       } as unknown as ReturnType<typeof createChart>);
 
     render(<DashboardPage />);
@@ -113,19 +124,25 @@ describe('DashboardPage', () => {
       { id: 2, ticker: 'MSFT', category: null, created_at: '2026-01-01T00:00:00Z' },
     ]);
     vi.spyOn(client, 'getChartData')
-      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', close: 100 }], zones: [] })
+      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }], zones: [] })
       .mockRejectedValueOnce(new client.ApiError(502, 'upstream error'));
 
     const firstSetData = vi.fn();
     const secondSetData = vi.fn();
     vi.mocked(createChart)
       .mockReturnValueOnce({
-        addSeries: vi.fn(() => ({ setData: firstSetData })),
+        addSeries: vi.fn(() => ({ setData: firstSetData, createPriceLine: vi.fn(), removePriceLine: vi.fn(), priceToCoordinate: vi.fn(), coordinateToPrice: vi.fn() })),
         remove: vi.fn(),
+        priceScale: vi.fn(() => ({ applyOptions: vi.fn() })),
+        timeScale: vi.fn(() => ({ fitContent: vi.fn() })),
+        resize: vi.fn(),
       } as unknown as ReturnType<typeof createChart>)
       .mockReturnValueOnce({
-        addSeries: vi.fn(() => ({ setData: secondSetData })),
+        addSeries: vi.fn(() => ({ setData: secondSetData, createPriceLine: vi.fn(), removePriceLine: vi.fn(), priceToCoordinate: vi.fn(), coordinateToPrice: vi.fn() })),
         remove: vi.fn(),
+        priceScale: vi.fn(() => ({ applyOptions: vi.fn() })),
+        timeScale: vi.fn(() => ({ fitContent: vi.fn() })),
+        resize: vi.fn(),
       } as unknown as ReturnType<typeof createChart>);
 
     render(<DashboardPage />);
@@ -133,7 +150,9 @@ describe('DashboardPage', () => {
 
     fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
     await waitFor(() =>
-      expect(firstSetData).toHaveBeenCalledWith([{ time: '2026-01-02', value: 100 }]),
+      expect(firstSetData).toHaveBeenCalledWith(
+        expect.arrayContaining([expect.objectContaining({ time: '2026-01-02', close: 100 })]),
+      ),
     );
 
     fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'MSFT' } });
@@ -147,7 +166,7 @@ describe('DashboardPage', () => {
   it('shows a range button row once a ticker is selected, defaulting to 1 year', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
-    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }], zones: [] });
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }], zones: [] });
 
     render(<DashboardPage />);
     await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
@@ -163,7 +182,7 @@ describe('DashboardPage', () => {
   it('refetches with the new range when a range button is clicked', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
-    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }], zones: [] });
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }], zones: [] });
 
     render(<DashboardPage />);
     await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
@@ -186,18 +205,24 @@ describe('DashboardPage', () => {
   it('remounts the chart when only the range changes for the same ticker', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
-    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }], zones: [] });
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }], zones: [] });
 
     const firstRemove = vi.fn();
     const secondRemove = vi.fn();
     vi.mocked(createChart)
       .mockReturnValueOnce({
-        addSeries: vi.fn(() => ({ setData: vi.fn() })),
+        addSeries: vi.fn(() => ({ setData: vi.fn(), createPriceLine: vi.fn(), removePriceLine: vi.fn(), priceToCoordinate: vi.fn(), coordinateToPrice: vi.fn() })),
         remove: firstRemove,
+        priceScale: vi.fn(() => ({ applyOptions: vi.fn() })),
+        timeScale: vi.fn(() => ({ fitContent: vi.fn() })),
+        resize: vi.fn(),
       } as unknown as ReturnType<typeof createChart>)
       .mockReturnValueOnce({
-        addSeries: vi.fn(() => ({ setData: vi.fn() })),
+        addSeries: vi.fn(() => ({ setData: vi.fn(), createPriceLine: vi.fn(), removePriceLine: vi.fn(), priceToCoordinate: vi.fn(), coordinateToPrice: vi.fn() })),
         remove: secondRemove,
+        priceScale: vi.fn(() => ({ applyOptions: vi.fn() })),
+        timeScale: vi.fn(() => ({ fitContent: vi.fn() })),
+        resize: vi.fn(),
       } as unknown as ReturnType<typeof createChart>);
 
     render(<DashboardPage />);
@@ -220,25 +245,33 @@ describe('DashboardPage', () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData')
-      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', close: 100 }], zones: [] })
+      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }], zones: [] })
       .mockRejectedValueOnce(new client.ApiError(502, 'upstream error'));
 
     const firstSetData = vi.fn();
     const secondSetData = vi.fn();
     vi.mocked(createChart)
       .mockReturnValueOnce({
-        addSeries: vi.fn(() => ({ setData: firstSetData })),
+        addSeries: vi.fn(() => ({ setData: firstSetData, createPriceLine: vi.fn(), removePriceLine: vi.fn(), priceToCoordinate: vi.fn(), coordinateToPrice: vi.fn() })),
         remove: vi.fn(),
+        priceScale: vi.fn(() => ({ applyOptions: vi.fn() })),
+        timeScale: vi.fn(() => ({ fitContent: vi.fn() })),
+        resize: vi.fn(),
       } as unknown as ReturnType<typeof createChart>)
       .mockReturnValueOnce({
-        addSeries: vi.fn(() => ({ setData: secondSetData })),
+        addSeries: vi.fn(() => ({ setData: secondSetData, createPriceLine: vi.fn(), removePriceLine: vi.fn(), priceToCoordinate: vi.fn(), coordinateToPrice: vi.fn() })),
         remove: vi.fn(),
+        priceScale: vi.fn(() => ({ applyOptions: vi.fn() })),
+        timeScale: vi.fn(() => ({ fitContent: vi.fn() })),
+        resize: vi.fn(),
       } as unknown as ReturnType<typeof createChart>);
 
     render(<DashboardPage />);
     await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
     fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
-    await waitFor(() => expect(firstSetData).toHaveBeenCalledWith([{ time: '2026-01-02', value: 100 }]));
+    await waitFor(() => expect(firstSetData).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ time: '2026-01-02', close: 100 })])
+    ));
 
     fireEvent.click(screen.getByRole('button', { name: '5 years' }));
 
@@ -271,11 +304,14 @@ describe('DashboardPage', () => {
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     const createPriceLine = vi.fn();
     vi.mocked(createChart).mockReturnValue({
-      addSeries: vi.fn(() => ({ setData: vi.fn(), createPriceLine, removePriceLine: vi.fn() })),
+      addSeries: vi.fn(() => ({ setData: vi.fn(), createPriceLine, removePriceLine: vi.fn(), priceToCoordinate: vi.fn(), coordinateToPrice: vi.fn() })),
       remove: vi.fn(),
+      priceScale: vi.fn(() => ({ applyOptions: vi.fn() })),
+      timeScale: vi.fn(() => ({ fitContent: vi.fn() })),
+      resize: vi.fn(),
     } as unknown as ReturnType<typeof createChart>);
     vi.spyOn(client, 'getChartData').mockResolvedValue({
-      points: [{ time: '2026-01-02', close: 100 }],
+      points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }],
       zones: [{ id: null, price: 95, kind: 'support', strength: 3, source: 'auto' }],
     });
 
@@ -289,7 +325,7 @@ describe('DashboardPage', () => {
   it('shows S, R, and Freestyle buttons and a zone list once a ticker is selected', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
-    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }], zones: [] });
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }], zones: [] });
 
     render(<DashboardPage />);
     await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
@@ -306,9 +342,9 @@ describe('DashboardPage', () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData')
-      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', close: 100 }], zones: [] })
+      .mockResolvedValueOnce({ points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }], zones: [] })
       .mockResolvedValueOnce({
-        points: [{ time: '2026-01-02', close: 100 }],
+        points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }],
         zones: [{ id: 1, price: 100, kind: 'support', strength: null, source: 'manual' }],
       });
     const freezeSpy = vi.spyOn(client, 'freezeZones').mockResolvedValue([
@@ -330,7 +366,7 @@ describe('DashboardPage', () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData').mockResolvedValue({
-      points: [{ time: '2026-01-02', close: 100 }],
+      points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }],
       zones: [{ id: 1, price: 100, kind: 'support', strength: null, source: 'manual' }],
     });
     const deleteAllSpy = vi.spyOn(client, 'deleteAllZones').mockResolvedValue(undefined);
@@ -352,7 +388,7 @@ describe('DashboardPage', () => {
   it('disables the S/R/Freestyle/Recompute buttons while a zone mutation is in flight, then re-enables them', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
-    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }], zones: [] });
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }], zones: [] });
     let resolveFreeze: (value: client.Zone[]) => void;
     vi.spyOn(client, 'freezeZones').mockReturnValue(
       new Promise((resolve) => {
@@ -385,7 +421,7 @@ describe('DashboardPage', () => {
   it('a second click on S while the first is still in flight does not fire a second freeze call', async () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
-    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', close: 100 }], zones: [] });
+    vi.spyOn(client, 'getChartData').mockResolvedValue({ points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }], zones: [] });
     let resolveFreeze: (value: client.Zone[]) => void;
     const freezeSpy = vi.spyOn(client, 'freezeZones').mockReturnValue(
       new Promise((resolve) => {
@@ -415,7 +451,7 @@ describe('DashboardPage', () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData').mockResolvedValue({
-      points: [{ time: '2026-01-02', close: 100 }],
+      points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }],
       zones: [{ id: 1, price: 100, kind: 'support', strength: null, source: 'manual' }],
     });
     const deleteSpy = vi.spyOn(client, 'deleteZone').mockResolvedValue(undefined);
@@ -434,7 +470,7 @@ describe('DashboardPage', () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData').mockResolvedValue({
-      points: [{ time: '2026-01-02', close: 100 }],
+      points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }],
       zones: [{ id: 1, price: 95, kind: 'support', strength: null, source: 'manual' }],
     });
     const updateSpy = vi
@@ -447,6 +483,9 @@ describe('DashboardPage', () => {
     vi.mocked(createChart).mockReturnValue({
       addSeries: vi.fn(() => ({ setData: vi.fn(), createPriceLine, removePriceLine: vi.fn(), priceToCoordinate, coordinateToPrice })),
       remove: vi.fn(),
+      priceScale: vi.fn(() => ({ applyOptions: vi.fn() })),
+      timeScale: vi.fn(() => ({ fitContent: vi.fn() })),
+      resize: vi.fn(),
     } as unknown as ReturnType<typeof createChart>);
 
     render(<DashboardPage />);
@@ -469,7 +508,7 @@ describe('DashboardPage', () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData').mockResolvedValue({
-      points: [{ time: '2026-01-02', close: 100 }],
+      points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }],
       zones: [{ id: 1, price: 95, kind: 'support', strength: null, source: 'manual' }],
     });
     let resolveDelete: () => void;
@@ -486,6 +525,9 @@ describe('DashboardPage', () => {
     vi.mocked(createChart).mockReturnValue({
       addSeries: vi.fn(() => ({ setData: vi.fn(), createPriceLine, removePriceLine: vi.fn(), priceToCoordinate, coordinateToPrice })),
       remove: vi.fn(),
+      priceScale: vi.fn(() => ({ applyOptions: vi.fn() })),
+      timeScale: vi.fn(() => ({ fitContent: vi.fn() })),
+      resize: vi.fn(),
     } as unknown as ReturnType<typeof createChart>);
 
     render(<DashboardPage />);
@@ -508,7 +550,7 @@ describe('DashboardPage', () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData').mockResolvedValue({
-      points: [{ time: '2026-01-02', close: 100 }],
+      points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }],
       zones: [
         { id: null, price: 95, kind: 'support', strength: 3, source: 'auto' },
         { id: null, price: 110, kind: 'resistance', strength: 2, source: 'auto' },
@@ -522,6 +564,9 @@ describe('DashboardPage', () => {
     vi.mocked(createChart).mockReturnValue({
       addSeries: vi.fn(() => ({ setData: vi.fn(), createPriceLine, removePriceLine: vi.fn(), priceToCoordinate, coordinateToPrice })),
       remove: vi.fn(),
+      priceScale: vi.fn(() => ({ applyOptions: vi.fn() })),
+      timeScale: vi.fn(() => ({ fitContent: vi.fn() })),
+      resize: vi.fn(),
     } as unknown as ReturnType<typeof createChart>);
 
     render(<DashboardPage />);
@@ -546,8 +591,8 @@ describe('DashboardPage', () => {
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData').mockResolvedValue({
       points: [
-        { time: '2026-01-01', close: 100 },
-        { time: '2026-01-02', close: 105 },
+        { time: '2026-01-01', open: 100, high: 100, low: 100, close: 100, volume: 1000000 },
+        { time: '2026-01-02', open: 105, high: 105, low: 105, close: 105, volume: 1000000 },
       ],
       zones: [],
     });
@@ -567,8 +612,8 @@ describe('DashboardPage', () => {
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData').mockResolvedValue({
       points: [
-        { time: '2026-01-01', close: 100 },
-        { time: '2026-01-02', close: 95 },
+        { time: '2026-01-01', open: 100, high: 100, low: 100, close: 100, volume: 1000000 },
+        { time: '2026-01-02', open: 95, high: 95, low: 95, close: 95, volume: 1000000 },
       ],
       zones: [],
     });
@@ -585,7 +630,7 @@ describe('DashboardPage', () => {
     vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
     vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
     vi.spyOn(client, 'getChartData').mockResolvedValue({
-      points: [{ time: '2026-01-02', close: 100 }],
+      points: [{ time: '2026-01-02', open: 100, high: 100, low: 100, close: 100, volume: 1000000 }],
       zones: [],
     });
 
@@ -596,4 +641,202 @@ describe('DashboardPage', () => {
     await waitFor(() => expect(screen.getByRole('group', { name: /range/i })).toBeInTheDocument());
     expect(screen.queryByText(/%\)/)).not.toBeInTheDocument();
   });
+
+  describe('AI Technical Signal UI Components in DashboardPage', () => {
+    it('renders Confidence Score Bar and Rating Badge when a ticker is selected', async () => {
+      vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+      vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+      const points = Array.from({ length: 30 }, (_, i) => ({
+        time: `2026-01-${i + 1}`,
+        open: 100 + i,
+        high: 105 + i,
+        low: 99 + i,
+        close: 102 + i,
+        volume: 1000000 + i * 10000,
+      }));
+      vi.spyOn(client, 'getChartData').mockResolvedValue({ points, zones: [] });
+
+      render(<DashboardPage />);
+      await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+      fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+
+      await waitFor(() => expect(screen.getByText(/AI Technical Signal \(AAPL\)/i)).toBeInTheDocument());
+      expect(screen.getByText(/Confidence Score/i)).toBeInTheDocument();
+      expect(screen.getByText(/STRONG CONVICTION|BULLISH SETUP|NEUTRAL|WEAK|BEARISH/i)).toBeInTheDocument();
+    });
+
+    it('always shows an accuracy disclosure alongside the confidence score, not hidden behind a tooltip', async () => {
+      vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+      vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+      const points = Array.from({ length: 30 }, (_, i) => ({
+        time: `2026-01-${i + 1}`,
+        open: 100 + i,
+        high: 105 + i,
+        low: 99 + i,
+        close: 102 + i,
+        volume: 1000000 + i * 10000,
+      }));
+      vi.spyOn(client, 'getChartData').mockResolvedValue({ points, zones: [] });
+
+      render(<DashboardPage />);
+      await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+      fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+
+      await waitFor(() => expect(screen.getByText(/Confidence Score/i)).toBeInTheDocument());
+      // wayfinder ticket 02 (investor-upgrades map) — numbers must trace back to
+      // backend/app/backtest/results/model_fit_report.md, not be restated from memory.
+      expect(screen.getByText(/แม่นยำในอดีตประมาณ 62-63%/)).toBeInTheDocument();
+      expect(screen.getByText(/ไม่ใช่การรับประกันผลในอนาคต/)).toBeInTheDocument();
+    });
+
+    it('shows an earnings warning chip when the next earnings date is within the 14-day window', async () => {
+      vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+      vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+      const points = Array.from({ length: 30 }, (_, i) => ({
+        time: `2026-01-${i + 1}`,
+        open: 100 + i,
+        high: 105 + i,
+        low: 99 + i,
+        close: 102 + i,
+        volume: 1000000 + i * 10000,
+      }));
+      vi.spyOn(client, 'getChartData').mockResolvedValue({ points, zones: [] });
+      vi.spyOn(client, 'getNextEarnings').mockResolvedValue({ ticker: 'AAPL', next_earnings_date: '2026-08-20', days_until: 7 });
+
+      render(<DashboardPage />);
+      await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+      fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+
+      await waitFor(() => expect(screen.getByText(/ประกาศงบใน 7 วัน/)).toBeInTheDocument());
+    });
+
+    it('shows no earnings chip when the next earnings date is outside the 14-day window', async () => {
+      vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+      vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+      const points = Array.from({ length: 30 }, (_, i) => ({
+        time: `2026-01-${i + 1}`,
+        open: 100 + i,
+        high: 105 + i,
+        low: 99 + i,
+        close: 102 + i,
+        volume: 1000000 + i * 10000,
+      }));
+      vi.spyOn(client, 'getChartData').mockResolvedValue({ points, zones: [] });
+      vi.spyOn(client, 'getNextEarnings').mockResolvedValue({ ticker: 'AAPL', next_earnings_date: '2026-11-01', days_until: 90 });
+
+      render(<DashboardPage />);
+      await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+      fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+
+      await waitFor(() => expect(screen.getByText(/Confidence Score/i)).toBeInTheDocument());
+      expect(screen.queryByText(/ประกาศงบใน/)).not.toBeInTheDocument();
+    });
+
+    it('shows no earnings chip when the ticker has no known earnings date', async () => {
+      vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+      vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+      const points = Array.from({ length: 30 }, (_, i) => ({
+        time: `2026-01-${i + 1}`,
+        open: 100 + i,
+        high: 105 + i,
+        low: 99 + i,
+        close: 102 + i,
+        volume: 1000000 + i * 10000,
+      }));
+      vi.spyOn(client, 'getChartData').mockResolvedValue({ points, zones: [] });
+      vi.spyOn(client, 'getNextEarnings').mockResolvedValue({ ticker: 'AAPL', next_earnings_date: null, days_until: null });
+
+      render(<DashboardPage />);
+      await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+      fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+
+      await waitFor(() => expect(screen.getByText(/Confidence Score/i)).toBeInTheDocument());
+      expect(screen.queryByText(/ประกาศงบใน/)).not.toBeInTheDocument();
+    });
+
+    it('renders the 4 Trading Setup cards (Entry Zone, Target Price TP, Stop Loss SL, Risk-Reward R:R)', async () => {
+      vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+      vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+      const points = Array.from({ length: 30 }, (_, i) => ({
+        time: `2026-01-${i + 1}`,
+        open: 100 + i,
+        high: 105 + i,
+        low: 99 + i,
+        close: 102 + i,
+        volume: 1000000,
+      }));
+      vi.spyOn(client, 'getChartData').mockResolvedValue({ points, zones: [] });
+
+      render(<DashboardPage />);
+      await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+      fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+
+      await waitFor(() => expect(screen.getByText(/Entry Zone/i)).toBeInTheDocument());
+      expect(screen.getByText(/Target Price TP/i)).toBeInTheDocument();
+      expect(screen.getByText(/Stop Loss SL/i)).toBeInTheDocument();
+      expect(screen.getByText(/Risk-Reward R:R/i)).toBeInTheDocument();
+    });
+
+    it('renders Metric Chips Bar displaying live technical indicators', async () => {
+      vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+      vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+      const points = Array.from({ length: 30 }, (_, i) => ({
+        time: `2026-01-${i + 1}`,
+        open: 100 + i,
+        high: 105 + i,
+        low: 99 + i,
+        close: 102 + i,
+        volume: 1000000,
+      }));
+      const zones = [
+        { id: 1, kind: 'support' as const, price: 95, strength: null, source: 'manual' as const },
+        { id: 2, kind: 'resistance' as const, price: 150, strength: null, source: 'manual' as const },
+      ];
+      vi.spyOn(client, 'getChartData').mockResolvedValue({ points, zones });
+
+      render(<DashboardPage />);
+      await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+      fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+
+      await waitFor(() => expect(screen.getByText(/Live Indicators:/i)).toBeInTheDocument());
+      expect(screen.getByText(/RSI 14:/i)).toBeInTheDocument();
+      expect(screen.getByText(/MACD:/i)).toBeInTheDocument();
+      expect(screen.getByText(/Nearest S:/i)).toBeInTheDocument();
+      expect(screen.getByText(/Nearest R:/i)).toBeInTheDocument();
+    });
+
+    it('reacts dynamically to currency toggle (USD vs THB) with zero NaN safety', async () => {
+      vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+      vi.spyOn(client, 'listWatchlist').mockResolvedValue([{ id: 1, ticker: 'AAPL', category: null, created_at: '2026-01-01T00:00:00Z' }]);
+      const points = Array.from({ length: 30 }, (_, i) => ({
+        time: `2026-01-${i + 1}`,
+        open: 100 + i,
+        high: 105 + i,
+        low: 99 + i,
+        close: 102 + i,
+        volume: 1000000,
+      }));
+      vi.spyOn(client, 'getChartData').mockResolvedValue({ points, zones: [] });
+
+      render(<DashboardPage />);
+      await waitFor(() => expect(screen.getByLabelText(/ticker/i)).toBeInTheDocument());
+      fireEvent.change(screen.getByLabelText(/ticker/i), { target: { value: 'AAPL' } });
+
+      await waitFor(() => expect(screen.getByText(/Entry Zone/i)).toBeInTheDocument());
+
+      // Toggle currency to THB
+      const thbBtn = screen.getByRole('button', { name: /THB \(฿\)/i });
+      fireEvent.click(thbBtn);
+
+      // Verify THB currency symbol appears in UI
+      await waitFor(() => expect(screen.getAllByText(/฿/i).length).toBeGreaterThan(0));
+
+      // Verify zero NaN safety across rendered document
+      expect(document.body.innerHTML).not.toContain('NaN');
+    });
+  });
 });
+
+
+
+

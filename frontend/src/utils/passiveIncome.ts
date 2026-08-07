@@ -13,6 +13,10 @@ export interface PassiveIncomeYearProgress {
   year: number;
   portfolioValueThb: number;
   monthlyDividendThb: number;
+  annualContributionThb: number;
+  grossAnnualDividendThb: number;
+  annualTaxWithheldThb: number;
+  netAnnualDividendThb: number;
   progressPct: number;
 }
 
@@ -62,6 +66,10 @@ export function calculateRequiredPortfolio(input: PassiveIncomeInput): PassiveIn
       year: res.year,
       portfolioValueThb: res.portfolioValueThb,
       monthlyDividendThb: res.netMonthlyDividendThb,
+      annualContributionThb: res.annualContributionThb,
+      grossAnnualDividendThb: res.grossAnnualDividendThb,
+      annualTaxWithheldThb: res.annualTaxWithheldThb,
+      netAnnualDividendThb: res.netAnnualDividendThb,
       progressPct,
     };
   });

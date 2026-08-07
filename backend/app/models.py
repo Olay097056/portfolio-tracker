@@ -53,6 +53,25 @@ class Portfolio(Base):
     holdings: Mapped[list["Holding"]] = relationship(
         back_populates="portfolio", cascade="all, delete-orphan"
     )
+    transactions: Mapped[list["Transaction"]] = relationship(
+        back_populates="portfolio", cascade="all, delete-orphan"
+    )
+
+
+class Transaction(Base):
+    __tablename__ = "transactions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    portfolio_id: Mapped[int] = mapped_column(ForeignKey("portfolios.id"), nullable=False)
+    ticker: Mapped[str | None] = mapped_column(String, nullable=True)
+    type: Mapped[str] = mapped_column(String, nullable=False)
+    shares: Mapped[float | None] = mapped_column(Float, nullable=True)
+    price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    amount_usd: Mapped[float] = mapped_column(Float, nullable=False)
+    note: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=_utcnow)
+
+    portfolio: Mapped["Portfolio"] = relationship(back_populates="transactions")
 
 
 class Holding(Base):
@@ -90,3 +109,33 @@ class ManualZone(Base):
     kind: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=_utcnow, onupdate=_utcnow)
+
+
+class ScreenerStock(Base):
+    __tablename__ = "screener_stocks"
+
+    symbol: Mapped[str] = mapped_column(String, primary_key=True)
+    company_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    market_cap: Mapped[float | None] = mapped_column(Float, nullable=True)
+    sector: Mapped[str | None] = mapped_column(String, nullable=True)
+    industry: Mapped[str | None] = mapped_column(String, nullable=True)
+    price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    pe: Mapped[float | None] = mapped_column(Float, nullable=True)
+    peg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ps: Mapped[float | None] = mapped_column(Float, nullable=True)
+    pb: Mapped[float | None] = mapped_column(Float, nullable=True)
+    div_yield: Mapped[float | None] = mapped_column(Float, nullable=True)
+    eps: Mapped[float | None] = mapped_column(Float, nullable=True)
+    roe: Mapped[float | None] = mapped_column(Float, nullable=True)
+    roic: Mapped[float | None] = mapped_column(Float, nullable=True)
+    gross_margin: Mapped[float | None] = mapped_column(Float, nullable=True)
+    profit_margin: Mapped[float | None] = mapped_column(Float, nullable=True)
+    de_ratio: Mapped[float | None] = mapped_column(Float, nullable=True)
+    p_fcf: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ev_sales: Mapped[float | None] = mapped_column(Float, nullable=True)
+    upside_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    beta: Mapped[float | None] = mapped_column(Float, nullable=True)
+    volume: Mapped[float | None] = mapped_column(Float, nullable=True)
+    tags: Mapped[str | None] = mapped_column(String, nullable=True)
+    refreshed_at: Mapped[datetime] = mapped_column(UTCDateTime, default=_utcnow)
+

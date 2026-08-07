@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session
 from app.chart_service import ChartRange, get_chart_data
 from app.database import get_db
 from app.manual_zones_service import add_zone, delete_all_zones, delete_zone, freeze_zones, list_manual_zones, move_zone
-from app.schemas import ChartOut, FreezeZonesRequest, ManualZoneCreate, ManualZoneUpdate, TrendingOut, ZoneOut
+from app.models import Holding, Portfolio
+from app.price_service import get_prices
+from app.schemas import ChartOut, FreezeZonesRequest, ManualZoneCreate, ManualZoneUpdate, TickerPositionOut, TrendingOut, ZoneOut
 from app.trending_service import get_gainers, get_losers, get_most_active
 
 router = APIRouter(prefix="/market", tags=["market"])
@@ -45,6 +47,44 @@ def get_chart(ticker: str, range: ChartRange = "1Y", db: Session = Depends(get_d
         zones_out = []
 
     return ChartOut(points=points, zones=zones_out)
+
+
+@router.get("/chart/position", response_model=TickerPositionOut | None)
+def get_ticker_position(ticker: str, db: Session = Depends(get_db)):
+    """Find the first holding for this ticker across all portfolios and return position details."""
+    ticker = ticker.upper().strip()
+    holding: Holding | None = (
+        db.query(Holding)
+        .join(Portfolio)
+        .filter(Holding.ticker == ticker)
+        .order_by(Holding.created_at)
+        .first()
+    )
+    if holding is None:
+        return None
+
+    prices = get_prices([ticker])
+    current_price = prices.get(ticker)
+
+    market_value = (current_price * holding.shares) if current_price is not None else None
+    unrealized_pnl = ((current_price - holding.avg_cost_usd) * holding.shares) if current_price is not None else None
+    unrealized_pnl_pct = (
+        ((current_price - holding.avg_cost_usd) / holding.avg_cost_usd * 100)
+        if current_price is not None and holding.avg_cost_usd > 0
+        else None
+    )
+
+    return TickerPositionOut(
+        ticker=ticker,
+        portfolio_id=holding.portfolio_id,
+        portfolio_name=holding.portfolio.name,
+        shares=holding.shares,
+        avg_cost_usd=holding.avg_cost_usd,
+        current_price=current_price,
+        market_value_usd=market_value,
+        unrealized_pnl_usd=unrealized_pnl,
+        unrealized_pnl_pct=unrealized_pnl_pct,
+    )
 
 
 @router.post("/chart/zones/freeze", response_model=list[ZoneOut])

@@ -15,3 +15,4 @@ export function formatNumber(value: number | null | undefined): string {
 export function changeColor(value: number | null | undefined): string | undefined {
   return value == null ? undefined : value >= 0 ? 'var(--green)' : 'var(--red)';
 }
+

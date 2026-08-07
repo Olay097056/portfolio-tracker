@@ -133,31 +133,37 @@ def test_get_prices_with_empty_list_returns_empty_dict():
 def test_get_market_data_returns_price_yield_and_growth(monkeypatch):
     monkeypatch.setattr(price_service, "get_price", lambda ticker: 58.51)
     monkeypatch.setattr(price_service, "_fetch_dividend_yield_pct", lambda ticker: 11.1)
-    monkeypatch.setattr(price_service, "_fetch_growth_rate_pct", lambda ticker: 10.0)
+    monkeypatch.setattr(price_service, "_fetch_growth_rate_pct", lambda ticker: (10.0, 5.0))
 
     result = price_service.get_market_data(["JEPQ"])
 
-    assert result == {"JEPQ": {"price": 58.51, "dividend_yield_pct": 11.1, "growth_rate_pct": 10.0}}
+    assert result == {
+        "JEPQ": {"price": 58.51, "dividend_yield_pct": 11.1, "growth_rate_pct": 10.0, "growth_rate_years_used": 5.0}
+    }
 
 
 def test_get_market_data_leaves_yield_and_growth_none_when_they_fail(monkeypatch):
     monkeypatch.setattr(price_service, "get_price", lambda ticker: 58.51)
     monkeypatch.setattr(price_service, "_fetch_dividend_yield_pct", lambda ticker: None)
-    monkeypatch.setattr(price_service, "_fetch_growth_rate_pct", lambda ticker: None)
+    monkeypatch.setattr(price_service, "_fetch_growth_rate_pct", lambda ticker: (None, None))
 
     result = price_service.get_market_data(["JEPQ"])
 
-    assert result == {"JEPQ": {"price": 58.51, "dividend_yield_pct": None, "growth_rate_pct": None}}
+    assert result == {
+        "JEPQ": {"price": 58.51, "dividend_yield_pct": None, "growth_rate_pct": None, "growth_rate_years_used": None}
+    }
 
 
 def test_get_market_data_includes_ticker_even_when_price_fails(monkeypatch):
     monkeypatch.setattr(price_service, "get_price", lambda ticker: None)
     monkeypatch.setattr(price_service, "_fetch_dividend_yield_pct", lambda ticker: None)
-    monkeypatch.setattr(price_service, "_fetch_growth_rate_pct", lambda ticker: None)
+    monkeypatch.setattr(price_service, "_fetch_growth_rate_pct", lambda ticker: (None, None))
 
     result = price_service.get_market_data(["BADTICKER"])
 
-    assert result == {"BADTICKER": {"price": None, "dividend_yield_pct": None, "growth_rate_pct": None}}
+    assert result == {
+        "BADTICKER": {"price": None, "dividend_yield_pct": None, "growth_rate_pct": None, "growth_rate_years_used": None}
+    }
 
 
 def test_get_market_data_caches_and_does_not_refetch_within_ttl(monkeypatch):
@@ -169,7 +175,7 @@ def test_get_market_data_caches_and_does_not_refetch_within_ttl(monkeypatch):
 
     monkeypatch.setattr(price_service, "get_price", fake_get_price)
     monkeypatch.setattr(price_service, "_fetch_dividend_yield_pct", lambda ticker: 11.1)
-    monkeypatch.setattr(price_service, "_fetch_growth_rate_pct", lambda ticker: 10.0)
+    monkeypatch.setattr(price_service, "_fetch_growth_rate_pct", lambda ticker: (10.0, 5.0))
 
     price_service.get_market_data(["JEPQ"])
     price_service.get_market_data(["JEPQ"])
@@ -180,7 +186,7 @@ def test_get_market_data_caches_and_does_not_refetch_within_ttl(monkeypatch):
 def test_get_market_data_does_not_cache_when_price_fails(monkeypatch):
     monkeypatch.setattr(price_service, "get_price", lambda ticker: None)
     monkeypatch.setattr(price_service, "_fetch_dividend_yield_pct", lambda ticker: None)
-    monkeypatch.setattr(price_service, "_fetch_growth_rate_pct", lambda ticker: None)
+    monkeypatch.setattr(price_service, "_fetch_growth_rate_pct", lambda ticker: (None, None))
 
     price_service.get_market_data(["BADTICKER"])
 
@@ -203,61 +209,208 @@ def test_get_market_data_with_empty_list_returns_empty_dict():
     assert result == {}
 
 
-def test_fetch_dividend_yield_pct_leaves_already_percentage_value_unscaled(monkeypatch):
+def test_fetch_dividend_yield_pct_computes_trailing_12mo_from_real_payment_history(monkeypatch):
+    import pandas as pd
     import yfinance
 
     class FakeTicker:
         def __init__(self, ticker):
-            self.info = {"dividendYield": 11.1}
+            self.info = {"regularMarketPrice": 100.0, "dividendYield": 999.0}  # ignored -- history wins
+            self.dividends = pd.Series(
+                [1.0, 1.0, 1.0, 1.0],
+                index=pd.to_datetime(["2026-01-15", "2026-04-15", "2026-07-15", "2026-10-15"], utc=True),
+            )
 
     monkeypatch.setattr(yfinance, "Ticker", FakeTicker)
 
-    result = price_service._fetch_dividend_yield_pct("JEPQ")
+    result = price_service._fetch_dividend_yield_pct("SOMETICKER")
 
-    assert result == pytest.approx(11.1)
+    assert result == pytest.approx(4.0)  # 4.0 total paid / 100.0 price * 100
 
 
-def test_fetch_dividend_yield_pct_does_not_scale_a_sub_one_percent_value(monkeypatch):
-    # Regression test for a real bug: a prior ">1" heuristic treated any dividendYield under 1
-    # as a fraction and multiplied it by 100. Real low-yield tickers (e.g. AAPL, confirmed
-    # directly against a live yfinance==1.5.2 response returning 0.35 for its ~0.35% yield)
-    # would have been reported as 35% instead of 0.35%.
+def test_fetch_dividend_yield_pct_regression_qqqi_real_history_overrides_wrong_info_field(monkeypatch):
+    # Regression test for a real bug found 2026-08-05: yfinance's own `info['dividendYield']`
+    # was confirmed wrong for QQQI (reported 0.09 while its real trailing payment history
+    # works out to ~15%). Computing from real payment history instead of trusting that field
+    # fixes this — and any other ticker with the same kind of data-quality gap — at once.
+    import pandas as pd
     import yfinance
 
     class FakeTicker:
         def __init__(self, ticker):
-            self.info = {"dividendYield": 0.35}
+            self.info = {"regularMarketPrice": 55.16, "dividendYield": 0.09}
+            # These are the real trailing distributions for QQQI as of 2026-08-05, dated
+            # relative to "recently" so they land inside any reasonable test run's 365-day
+            # trailing window regardless of when the test suite executes.
+            recent_dates = pd.date_range(end=pd.Timestamp.now(tz="UTC"), periods=13, freq="30D")
+            self.dividends = pd.Series(
+                [0.629, 0.641, 0.645, 0.630, 0.641, 0.636, 0.614, 0.609, 0.630, 0.659, 0.657, 0.635, 0.62],
+                index=recent_dates,
+            )
 
     monkeypatch.setattr(yfinance, "Ticker", FakeTicker)
 
-    result = price_service._fetch_dividend_yield_pct("AAPL")
+    result = price_service._fetch_dividend_yield_pct("QQQI")
 
-    assert result == pytest.approx(0.35)
+    # The exact figure isn't the point (real distributions drift over time) -- what matters is
+    # that real payment history (~15%) wins over the wrong yfinance field (0.09%), not a precise
+    # historical snapshot.
+    assert result > 10.0
+    assert result != pytest.approx(0.09, abs=0.01)  # the wrong yfinance field must not win
 
 
-def test_fetch_dividend_yield_pct_returns_none_when_missing(monkeypatch):
+def test_fetch_dividend_yield_pct_excludes_payments_older_than_365_days(monkeypatch):
+    import pandas as pd
+    import yfinance
+
+    class FakeTicker:
+        def __init__(self, ticker):
+            self.info = {"regularMarketPrice": 100.0}
+            self.dividends = pd.Series(
+                [1.0, 1.0, 5.0],  # the 5.0 payment is over two years old
+                index=pd.to_datetime(["2026-01-15", "2026-07-15", "2023-01-01"], utc=True),
+            )
+
+    monkeypatch.setattr(yfinance, "Ticker", FakeTicker)
+
+    result = price_service._fetch_dividend_yield_pct("SOMETICKER")
+
+    assert result == pytest.approx(2.0)  # only the two 1.0 payments count, not the old 5.0
+
+
+def test_fetch_dividend_yield_pct_returns_real_zero_when_nothing_paid_in_trailing_year(monkeypatch):
+    import pandas as pd
+    import yfinance
+
+    class FakeTicker:
+        def __init__(self, ticker):
+            self.info = {"regularMarketPrice": 100.0, "dividendYield": 2.5}
+            # A dividend was paid once, long ago (e.g. a since-suspended payout) -- real history
+            # exists, so it's trusted completely, including this real 0% for the trailing year.
+            self.dividends = pd.Series([1.0], index=pd.to_datetime(["2020-01-01"], utc=True))
+
+    monkeypatch.setattr(yfinance, "Ticker", FakeTicker)
+
+    result = price_service._fetch_dividend_yield_pct("SOMETICKER")
+
+    assert result == 0.0
+
+
+def test_fetch_dividend_yield_pct_falls_back_to_info_field_when_no_dividend_history(monkeypatch):
+    import pandas as pd
+    import yfinance
+
+    class FakeTicker:
+        def __init__(self, ticker):
+            self.info = {"regularMarketPrice": 100.0, "dividendYield": 3.5}
+            self.dividends = pd.Series([], dtype=float)
+
+    monkeypatch.setattr(yfinance, "Ticker", FakeTicker)
+
+    result = price_service._fetch_dividend_yield_pct("SOMETICKER")
+
+    assert result == pytest.approx(3.5)
+
+
+def test_fetch_dividend_yield_pct_returns_none_when_no_history_and_no_info_field(monkeypatch):
+    import pandas as pd
+    import yfinance
+
+    class FakeTicker:
+        def __init__(self, ticker):
+            self.info = {"regularMarketPrice": 100.0}
+            self.dividends = pd.Series([], dtype=float)
+
+    monkeypatch.setattr(yfinance, "Ticker", FakeTicker)
+
+    result = price_service._fetch_dividend_yield_pct("SOMETICKER")
+
+    assert result is None
+
+
+def test_fetch_dividend_yield_pct_returns_none_when_price_missing(monkeypatch):
+    import pandas as pd
     import yfinance
 
     class FakeTicker:
         def __init__(self, ticker):
             self.info = {}
+            self.dividends = pd.Series([1.0], index=pd.to_datetime(["2026-01-01"], utc=True))
 
     monkeypatch.setattr(yfinance, "Ticker", FakeTicker)
 
-    result = price_service._fetch_dividend_yield_pct("JEPQ")
+    result = price_service._fetch_dividend_yield_pct("SOMETICKER")
 
     assert result is None
 
 
-def test_fetch_dividend_yield_pct_returns_none_for_negative_value(monkeypatch):
+def test_fetch_dividend_yield_pct_returns_none_on_exception(monkeypatch):
     import yfinance
 
     class FakeTicker:
         def __init__(self, ticker):
-            self.info = {"dividendYield": -0.5}
+            raise Exception("network error")
 
     monkeypatch.setattr(yfinance, "Ticker", FakeTicker)
 
-    result = price_service._fetch_dividend_yield_pct("JEPQ")
+    result = price_service._fetch_dividend_yield_pct("SOMETICKER")
 
     assert result is None
+
+
+def test_fetch_growth_rate_pct_reports_years_of_history_actually_used(monkeypatch):
+    # Regression case for a real ticker (QQQI, listed 2024-01-30): requesting 5 years of
+    # history returns whatever's actually available for a recently-listed ticker, which is
+    # much less than 5 -- the caller needs this number to know the resulting rate is a real
+    # calculation over a short, potentially unrepresentative window, not a long-term rate.
+    import pandas as pd
+    import yfinance
+
+    class FakeTicker:
+        def __init__(self, ticker):
+            pass
+
+        def history(self, period):
+            index = pd.date_range("2024-01-30", "2026-08-04", freq="D", tz="America/New_York")
+            return pd.DataFrame({"Close": [34.90] + [55.16] * (len(index) - 1)}, index=index)
+
+    monkeypatch.setattr(yfinance, "Ticker", FakeTicker)
+
+    rate, years_used = price_service._fetch_growth_rate_pct("QQQI")
+
+    assert years_used == pytest.approx(2.51, abs=0.01)
+    assert rate > 15.0  # a real, large CAGR -- the point of this test is years_used, not the rate itself
+
+
+def test_fetch_growth_rate_pct_reports_full_five_years_for_a_long_established_ticker(monkeypatch):
+    import pandas as pd
+    import yfinance
+
+    class FakeTicker:
+        def __init__(self, ticker):
+            pass
+
+        def history(self, period):
+            index = pd.date_range(end="2026-08-04", periods=5 * 252, freq="B", tz="America/New_York")
+            return pd.DataFrame({"Close": [100.0] * (len(index) - 1) + [150.0]}, index=index)
+
+    monkeypatch.setattr(yfinance, "Ticker", FakeTicker)
+
+    rate, years_used = price_service._fetch_growth_rate_pct("ESTABLISHEDCO")
+
+    assert years_used > 4.5
+
+
+def test_fetch_growth_rate_pct_returns_none_none_on_exception(monkeypatch):
+    import yfinance
+
+    class FakeTicker:
+        def __init__(self, ticker):
+            raise Exception("network error")
+
+    monkeypatch.setattr(yfinance, "Ticker", FakeTicker)
+
+    rate, years_used = price_service._fetch_growth_rate_pct("SOMETICKER")
+
+    assert rate is None
+    assert years_used is None

@@ -75,10 +75,29 @@ def _select_zones(clustered: list[tuple[float, int]], current_price: float) -> l
 
 
 def find_support_resistance_zones(highs: list[float], lows: list[float], closes: list[float]) -> list[Zone]:
-    if not highs or not closes:
+    if not highs or not closes or not lows or len(highs) < PIVOT_WINDOW * 2 + 1:
         return []
     pivots = _find_pivots(highs, lows)
-    if not pivots:
-        return []
-    clustered = _cluster_pivots(pivots)
-    return _select_zones(clustered, current_price=closes[-1])
+    if pivots:
+        clustered = _cluster_pivots(pivots)
+        zones = _select_zones(clustered, current_price=closes[-1])
+        if zones:
+            return zones
+
+    # Fallback to dynamic Standard Pivot Points if swing pivots yield no clusters
+    highest = max(highs)
+    lowest = min(lows)
+    current = closes[-1]
+
+    P = (highest + lowest + current) / 3.0
+    r1 = max(2 * P - lowest, current * 1.02)
+    r2 = max(P + (highest - lowest), r1 * 1.03)
+    s1 = min(2 * P - highest, current * 0.98)
+    s2 = min(P - (highest - lowest), s1 * 0.97)
+
+    return [
+        {"price": round(r2, 2), "kind": "resistance", "strength": 1, "source": "auto"},
+        {"price": round(r1, 2), "kind": "resistance", "strength": 2, "source": "auto"},
+        {"price": round(s1, 2), "kind": "support", "strength": 2, "source": "auto"},
+        {"price": round(s2, 2), "kind": "support", "strength": 1, "source": "auto"},
+    ]

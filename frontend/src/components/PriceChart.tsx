@@ -1,8 +1,15 @@
 // frontend/src/components/PriceChart.tsx
+// Renders a full wethaiinvest-style candlestick chart with:
+//   - CandlestickSeries for OHLC bars (แท่งเทียน)
+//   - HistogramSeries for volume bars (Volume)
+//   - 3 LineSeries overlays for Bollinger Bands (upper, middle, lower)
+//   - Drag-and-drop support/resistance price lines
 import {
+  CandlestickSeries,
   ColorType,
-  createChart,
+  HistogramSeries,
   LineSeries,
+  createChart,
   type IChartApi,
   type IPriceLine,
   type ISeriesApi,
@@ -32,76 +39,236 @@ function zoneTitle(zone: Zone): string {
 
 const HIT_TOLERANCE_PX = 6; // pixels of vertical slack around a zone's line for a mousedown to "grab" it
 
+// Compute Bollinger Bands (20-period SMA ± 2σ) from close prices
+function computeBollingerBands(
+  points: ChartPoint[],
+  period = 20,
+  multiplier = 2,
+): { time: Time; upper: number; middle: number; lower: number }[] {
+  const result: { time: Time; upper: number; middle: number; lower: number }[] = [];
+  for (let i = period - 1; i < points.length; i++) {
+    const slice = points.slice(i - period + 1, i + 1).map((p) => p.close);
+    const sma = slice.reduce((s, v) => s + v, 0) / period;
+    const variance = slice.reduce((s, v) => s + (v - sma) ** 2, 0) / period;
+    const stddev = Math.sqrt(variance);
+    const p = points[i];
+    const time = (typeof p.time === 'number' ? (p.time as UTCTimestamp) : p.time) as Time;
+    result.push({
+      time,
+      upper: sma + multiplier * stddev,
+      middle: sma,
+      lower: sma - multiplier * stddev,
+    });
+  }
+  return result;
+}
+
 interface PriceChartProps {
   points: ChartPoint[] | null;
   loading: boolean;
   error: string | null;
   zones: Zone[];
+  showBollinger?: boolean;
+  showVolume?: boolean;
   onZoneDragMove?: (zone: Zone, price: number) => void;
   onZoneDragEnd?: (zone: Zone, price: number) => void;
   disabled?: boolean;
 }
 
-export function PriceChart({ points, loading, error, zones, onZoneDragMove, onZoneDragEnd, disabled = false }: PriceChartProps) {
+export function PriceChart({
+  points,
+  loading,
+  error,
+  zones,
+  showBollinger = true,
+  showVolume = true,
+  onZoneDragMove,
+  onZoneDragEnd,
+  disabled = false,
+}: PriceChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const seriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  // Main candlestick series
+  const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  // Volume histogram
+  const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
+  // Bollinger Band series (upper, middle/SMA, lower)
+  const bbUpperRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const bbMiddleRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const bbLowerRef = useRef<ISeriesApi<'Line'> | null>(null);
+
   const priceLinesRef = useRef<IPriceLine[]>([]);
   const draggingRef = useRef<{ zone: Zone; priceLine: IPriceLine } | null>(null);
 
+  // Create chart once on mount
   useEffect(() => {
     if (!containerRef.current) return;
+
     const chart: IChartApi = createChart(containerRef.current, {
-      width: 600,
-      height: 300,
+      width: containerRef.current.clientWidth || 800,
+      height: 400,
       layout: {
-        background: { type: ColorType.Solid, color: resolveCssVar('--card-bg', '#18181b') },
-        textColor: resolveCssVar('--text', '#f8fafc'),
+        background: { type: ColorType.Solid, color: resolveCssVar('--card-bg', '#13192b') },
+        textColor: resolveCssVar('--text', '#e2e8f0'),
       },
       grid: {
-        vertLines: { color: resolveCssVar('--border', 'rgba(255, 255, 255, 0.08)') },
-        horzLines: { color: resolveCssVar('--border', 'rgba(255, 255, 255, 0.08)') },
+        vertLines: { color: 'rgba(255, 255, 255, 0.06)' },
+        horzLines: { color: 'rgba(255, 255, 255, 0.06)' },
+      },
+      crosshair: {
+        vertLine: { color: 'rgba(100, 200, 255, 0.4)', width: 1 },
+        horzLine: { color: 'rgba(100, 200, 255, 0.4)', width: 1 },
+      },
+      timeScale: {
+        borderColor: 'rgba(255,255,255,0.1)',
+        timeVisible: true,
+        secondsVisible: false,
+      },
+      rightPriceScale: {
+        borderColor: 'rgba(255,255,255,0.1)',
       },
     });
-    const series = chart.addSeries(LineSeries);
-    seriesRef.current = series;
+
+    chartRef.current = chart;
+
+    // Candlestick series (main OHLC bars)
+    const candleSeries = chart.addSeries(CandlestickSeries, {
+      upColor: '#10b981',
+      downColor: '#f43f5e',
+      borderUpColor: '#10b981',
+      borderDownColor: '#f43f5e',
+      wickUpColor: '#10b981',
+      wickDownColor: '#f43f5e',
+    });
+    candleSeriesRef.current = candleSeries;
+
+    // Volume histogram (secondary pane at bottom)
+    const volumeSeries = chart.addSeries(HistogramSeries, {
+      color: 'rgba(100, 180, 255, 0.35)',
+      priceFormat: { type: 'volume' },
+      priceScaleId: 'volume',
+    });
+    chart.priceScale('volume').applyOptions({
+      scaleMargins: { top: 0.82, bottom: 0 },
+      borderVisible: false,
+    });
+    volumeSeriesRef.current = volumeSeries;
+
+    // Bollinger Bands (3 line series — all on the same main price scale)
+    const bbUpper = chart.addSeries(LineSeries, {
+      color: 'rgba(251, 191, 36, 0.6)',
+      lineWidth: 1,
+      lineStyle: 2, // dashed
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: false,
+    });
+    const bbMiddle = chart.addSeries(LineSeries, {
+      color: 'rgba(251, 191, 36, 0.9)',
+      lineWidth: 1,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: false,
+    });
+    const bbLower = chart.addSeries(LineSeries, {
+      color: 'rgba(251, 191, 36, 0.6)',
+      lineWidth: 1,
+      lineStyle: 2,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: false,
+    });
+    bbUpperRef.current = bbUpper;
+    bbMiddleRef.current = bbMiddle;
+    bbLowerRef.current = bbLower;
+
+    // Auto-fit on resize
+    const ro = new ResizeObserver(() => {
+      if (containerRef.current) {
+        chart.resize(containerRef.current.clientWidth, 400);
+      }
+    });
+    ro.observe(containerRef.current);
+
     return () => {
+      ro.disconnect();
       chart.remove();
-      seriesRef.current = null;
+      chartRef.current = null;
+      candleSeriesRef.current = null;
+      volumeSeriesRef.current = null;
+      bbUpperRef.current = null;
+      bbMiddleRef.current = null;
+      bbLowerRef.current = null;
       priceLinesRef.current = [];
     };
-    // Created once on mount; PriceChart is remounted by its parent when that's needed (matches
-    // this codebase's existing pattern of remount-over-manual-teardown for provider-backed UI).
+    // Created once on mount — chart remounted by parent when needed
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Feed OHLCV data whenever points change
   useEffect(() => {
-    if (seriesRef.current === null || points === null) return;
-    seriesRef.current.setData(
-      points.map((point) => ({
-        time: (typeof point.time === 'number' ? (point.time as UTCTimestamp) : point.time) as Time,
-        value: point.close,
-      })),
-    );
-  }, [points]);
+    if (candleSeriesRef.current === null || points === null) return;
 
+    const candleData = points.map((p) => ({
+      time: (typeof p.time === 'number' ? (p.time as UTCTimestamp) : p.time) as Time,
+      open: p.open,
+      high: p.high,
+      low: p.low,
+      close: p.close,
+    }));
+    candleSeriesRef.current.setData(candleData);
+
+    // Volume bars — green when close >= open, red when down
+    if (volumeSeriesRef.current !== null && showVolume) {
+      volumeSeriesRef.current.setData(
+        points.map((p) => ({
+          time: (typeof p.time === 'number' ? (p.time as UTCTimestamp) : p.time) as Time,
+          value: p.volume,
+          color: p.close >= p.open ? 'rgba(16, 185, 129, 0.4)' : 'rgba(244, 63, 94, 0.4)',
+        })),
+      );
+    } else if (volumeSeriesRef.current !== null) {
+      volumeSeriesRef.current.setData([]);
+    }
+
+    // Bollinger Bands
+    if (showBollinger && points.length >= 20) {
+      const bb = computeBollingerBands(points);
+      bbUpperRef.current?.setData(bb.map((b) => ({ time: b.time, value: b.upper })));
+      bbMiddleRef.current?.setData(bb.map((b) => ({ time: b.time, value: b.middle })));
+      bbLowerRef.current?.setData(bb.map((b) => ({ time: b.time, value: b.lower })));
+    } else {
+      bbUpperRef.current?.setData([]);
+      bbMiddleRef.current?.setData([]);
+      bbLowerRef.current?.setData([]);
+    }
+
+    chartRef.current?.timeScale().fitContent();
+  }, [points, showBollinger, showVolume]);
+
+  // Draw S/R price lines from zones
   useEffect(() => {
-    if (seriesRef.current === null) return;
-    priceLinesRef.current.forEach((line) => seriesRef.current!.removePriceLine(line));
+    if (candleSeriesRef.current === null) return;
+    priceLinesRef.current.forEach((line) => candleSeriesRef.current!.removePriceLine(line));
     priceLinesRef.current = zones.map((zone) =>
-      seriesRef.current!.createPriceLine({
+      candleSeriesRef.current!.createPriceLine({
         price: zone.price,
         color: ZONE_STYLE[zone.kind].color,
+        lineWidth: 2,
+        lineStyle: zone.source === 'auto' ? 2 : 0,
+        axisLabelVisible: true,
         title: zoneTitle(zone),
       }),
     );
   }, [zones]);
 
+  // Drag-and-drop zone line handlers
   useEffect(() => {
     const container = containerRef.current;
     if (container === null) return;
 
     function findHit(y: number): { zone: Zone; priceLine: IPriceLine } | null {
-      const series = seriesRef.current;
+      const series = candleSeriesRef.current;
       if (series === null) return null;
       for (let i = 0; i < zones.length; i++) {
         const lineY = series.priceToCoordinate(zones[i].price);
@@ -114,7 +281,7 @@ export function PriceChart({ points, loading, error, zones, onZoneDragMove, onZo
     }
 
     function priceAt(y: number): number | null {
-      return seriesRef.current === null ? null : seriesRef.current.coordinateToPrice(y);
+      return candleSeriesRef.current === null ? null : candleSeriesRef.current.coordinateToPrice(y);
     }
 
     function handleMouseDown(event: MouseEvent) {
@@ -122,11 +289,6 @@ export function PriceChart({ points, loading, error, zones, onZoneDragMove, onZo
       const rect = container!.getBoundingClientRect();
       const hit = findHit(event.clientY - rect.top);
       if (hit === null) return;
-      // A zone line was actually grabbed: suppress this event before it reaches
-      // lightweight-charts' own canvas-level handlers (registered via capture below) so that
-      // dragging a zone line does not also pan/scale the chart or trigger text selection
-      // underneath it. An ordinary click on empty chart area (hit === null) must NOT be
-      // suppressed, so the chart keeps panning/zooming as normal for non-zone clicks.
       event.preventDefault();
       event.stopPropagation();
       draggingRef.current = hit;
@@ -148,20 +310,11 @@ export function PriceChart({ points, loading, error, zones, onZoneDragMove, onZo
       if (dragging === null) return;
       const rect = container!.getBoundingClientRect();
       const price = priceAt(event.clientY - rect.top);
-      // Always snap the price line back to the zone's last known-good price before attempting
-      // to commit the drag. If the commit succeeds, the [zones] effect re-run (triggered by the
-      // subsequent refetch) will redraw the server-confirmed price. If the commit is dropped by
-      // the busy-guard or fails, the line never keeps showing an unpersisted price — it already
-      // matches what ZoneList shows. A brief "snap back then forward" on the success path is an
-      // acceptable trade-off for never lying about what's persisted.
       dragging.priceLine.applyOptions({ price: dragging.zone.price });
       if (price === null) return;
       onZoneDragEnd?.(dragging.zone, price);
     }
 
-    // Capture phase: run before lightweight-charts' own listeners, which it attaches directly to
-    // the canvas elements it creates inside this container (closer to the target than a
-    // bubble-phase ancestor listener, so they'd otherwise fire first).
     container.addEventListener('mousedown', handleMouseDown, { capture: true });
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
@@ -176,7 +329,7 @@ export function PriceChart({ points, loading, error, zones, onZoneDragMove, onZo
     <div>
       {loading && <div role="status">Loading chart…</div>}
       {error && <div role="alert">{error}</div>}
-      <div ref={containerRef} data-testid="price-chart" />
+      <div ref={containerRef} data-testid="price-chart" style={{ width: '100%' }} />
     </div>
   );
 }

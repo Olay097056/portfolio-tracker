@@ -29,7 +29,11 @@ RANGE_TO_YFINANCE: dict[str, tuple[str, str, Literal["date", "timestamp"]]] = {
 
 class ChartPoint(TypedDict):
     time: str | int
+    open: float
+    high: float
+    low: float
     close: float
+    volume: float
 
 
 class ChartFetchResult(TypedDict):
@@ -79,12 +83,26 @@ def _fetch_from_provider(ticker: str, range_: str) -> ChartFetchResult | None:
 
         if encoding == "timestamp":
             points: list[ChartPoint] = [
-                {"time": int(row.Index.timestamp()), "close": float(row.Close)}
+                {
+                    "time": int(row.Index.timestamp()),
+                    "open": float(row.Open),
+                    "high": float(row.High),
+                    "low": float(row.Low),
+                    "close": float(row.Close),
+                    "volume": float(row.Volume) if hasattr(row, "Volume") else 0.0,
+                }
                 for row in history.itertuples()
             ]
         else:
             points = [
-                {"time": row.Index.strftime("%Y-%m-%d"), "close": float(row.Close)}
+                {
+                    "time": row.Index.strftime("%Y-%m-%d"),
+                    "open": float(row.Open),
+                    "high": float(row.High),
+                    "low": float(row.Low),
+                    "close": float(row.Close),
+                    "volume": float(row.Volume) if hasattr(row, "Volume") else 0.0,
+                }
                 for row in history.itertuples()
             ]
 

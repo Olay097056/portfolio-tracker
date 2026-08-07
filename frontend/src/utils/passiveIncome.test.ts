@@ -57,4 +57,21 @@ describe('calculateRequiredPortfolio', () => {
     expect(result.yearsToTarget).toBe(30);
     expect(result.isAchievableWithin30Years).toBe(false);
   });
+
+  it('includes yearly projection breakdown fields with tax withheld and contributions', () => {
+    const result = calculateRequiredPortfolio({
+      targetMonthlyIncomeThb: 10000,
+      initialInvestmentThb: 50000,
+      monthlyContributionThb: 5000,
+      dividendYieldPct: 6,
+      priceGrowthRatePct: 3,
+      taxRatePct: 15,
+    });
+
+    expect(result.yearlyProjection).toHaveLength(30);
+    expect(result.yearlyProjection[0].annualContributionThb).toBe(110000); // 50k + 12*5k
+    expect(result.yearlyProjection[0].annualTaxWithheldThb).toBeGreaterThan(0);
+    expect(result.yearlyProjection[0].netAnnualDividendThb).toBeGreaterThan(0);
+  });
 });
+

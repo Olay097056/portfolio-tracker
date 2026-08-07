@@ -23,6 +23,8 @@ import {
   updateZone,
   deleteZone,
   deleteAllZones,
+  getScreenerRefreshStatus,
+  startScreenerRefresh,
 } from './client';
 
 function mockFetchOnce(body: unknown, init: { status?: number } = {}) {
@@ -380,5 +382,56 @@ describe('api client', () => {
       'http://localhost:8000/market/chart/zones?ticker=VTI&range=1Y',
       expect.objectContaining({ method: 'DELETE' }),
     );
+  });
+
+  it('getScreenerRefreshStatus calls GET /api/screener/refresh-status', async () => {
+    const status = {
+      status: 'running', total: 100, completed: 40, skipped: 2,
+      currentSymbol: 'AAPL', startedAt: '2026-08-05T00:00:00Z', finishedAt: null, errorMessage: null,
+    };
+    mockFetchOnce(status);
+
+    const result = await getScreenerRefreshStatus();
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:8000/api/screener/refresh-status',
+      expect.objectContaining({ method: undefined }),
+    );
+    expect(result).toEqual(status);
+  });
+
+  it('startScreenerRefresh POSTs to /api/screener/refresh and returns the running status on 202', async () => {
+    const status = {
+      status: 'running', total: null, completed: 0, skipped: 0,
+      currentSymbol: null, startedAt: '2026-08-05T00:00:00Z', finishedAt: null, errorMessage: null,
+    };
+    mockFetchOnce(status, { status: 202 });
+
+    const result = await startScreenerRefresh();
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:8000/api/screener/refresh',
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ limit: null }) }),
+    );
+    expect(result).toEqual(status);
+  });
+
+  it('startScreenerRefresh treats a 409 "already running" response as success, returning the existing status', async () => {
+    const existingStatus = {
+      status: 'running', total: 50, completed: 10, skipped: 0,
+      currentSymbol: 'MSFT', startedAt: '2026-08-05T00:00:00Z', finishedAt: null, errorMessage: null,
+    };
+    mockFetchOnce({ detail: { message: 'A refresh is already running', status: existingStatus } }, { status: 409 });
+
+    const result = await startScreenerRefresh();
+
+    expect(result).toEqual(existingStatus);
+  });
+
+  it('startScreenerRefresh throws ApiError on other failures', async () => {
+    mockFetchOnce({ detail: { message: 'FINNHUB_API_KEY is not set' } }, { status: 500 });
+
+    await expect(startScreenerRefresh()).rejects.toBeInstanceOf(ApiError);
+    await expect(startScreenerRefresh()).rejects.toThrow('FINNHUB_API_KEY is not set');
   });
 });

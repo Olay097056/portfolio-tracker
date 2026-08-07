@@ -28,6 +28,43 @@ class PortfolioOut(BaseModel):
     created_at: datetime
 
 
+class CashAdjustmentCreate(BaseModel):
+    type: Literal["CASH_DEPOSIT", "CASH_WITHDRAW"]
+    amount: float
+    note: str | None = None
+
+
+class HoldingMoveCreate(BaseModel):
+    target_portfolio_id: int
+
+
+class DividendRecordCreate(BaseModel):
+    amount_usd: float
+    note: str | None = None
+
+
+class TransactionCreate(BaseModel):
+    ticker: str | None = None
+    type: Literal["BUY", "SELL", "CASH_DEPOSIT", "CASH_WITHDRAW", "DIVIDEND"]
+    shares: float | None = None
+    price: float | None = None
+    amount_usd: float
+    note: str | None = None
+
+
+class TransactionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    portfolio_id: int
+    ticker: str | None
+    type: str
+    shares: float | None
+    price: float | None
+    amount_usd: float
+    note: str | None
+    created_at: datetime
+
+
 class HoldingCreate(BaseModel):
     ticker: str
     shares: float
@@ -130,7 +167,11 @@ class TrendingOut(BaseModel):
 
 class ChartPointOut(BaseModel):
     time: str | int
+    open: float
+    high: float
+    low: float
     close: float
+    volume: float
 
 
 class ZoneOut(BaseModel):
@@ -166,3 +207,154 @@ class ManualZoneCreate(BaseModel):
 
 class ManualZoneUpdate(BaseModel):
     price: float
+
+
+class TickerPositionOut(BaseModel):
+    ticker: str
+    portfolio_id: int
+    portfolio_name: str
+    shares: float
+    avg_cost_usd: float
+    current_price: float | None
+    market_value_usd: float | None
+    unrealized_pnl_usd: float | None
+    unrealized_pnl_pct: float | None
+
+
+class DcaTickerItem(BaseModel):
+    symbol: str
+    name: str
+    # Real yfinance-fetched values, null when the fetch failed for this ticker -- never a
+    # guessed/hardcoded fallback number (see routers/dca.py).
+    default_yield: float | None
+    default_growth: float | None
+
+
+class DcaStockInfoOut(BaseModel):
+    symbol: str
+    company_name: str
+    current_price: float
+    dividend_yield_pct: float
+    capital_growth_pct: float
+
+
+class DcaCalculateRequest(BaseModel):
+    ticker: str | None = None
+    initial_amount: float = 0.0
+    monthly_dca: float = 0.0
+    duration_years: int = 10
+    div_yield_pct: float = 0.0
+    growth_pct: float = 0.0
+    tax_rate_pct: float = 15.0
+    reinvest_dividends: bool = True
+    currency: str = "THB"
+
+
+class DcaChartPoint(BaseModel):
+    year: int
+    portfolio_value: float
+    total_invested: float
+
+
+class DcaYearlyMilestone(BaseModel):
+    year: int
+    portfolio_value: float
+    total_invested: float
+    monthly_dividend: float
+    monthly_growth: float
+    monthly_total: float
+
+
+class DcaCalculateResponse(BaseModel):
+    final_portfolio_value: float
+    multiplier: float
+    total_invested: float
+    accumulated_dividend: float
+    capital_gain: float
+    total_return: float
+    tax_amount: float
+    final_monthly_dividend: float
+    final_monthly_growth: float
+    final_monthly_total: float
+    chart_data: list[DcaChartPoint]
+    yearly_milestones: list[DcaYearlyMilestone]
+
+
+# --- AI Narrative (wayfinder ticket 09) ---
+# Mirrors frontend/src/utils/aiTechnicalSignal.ts's AiSignalMetrics shape, request-side only —
+# the frontend already computes all of this; the backend never recomputes an indicator, it only
+# reads these values to build the LLM prompt (see app/ai_narrative_service.py).
+
+
+class ZoneRefIn(BaseModel):
+    label: str
+    price: float
+    distance_pct: float
+
+
+class MacdMetricsIn(BaseModel):
+    macd_line: float | None = None
+    signal_line: float | None = None
+    histogram: float | None = None
+    crossover: Literal["BULLISH", "BEARISH", "NEUTRAL"]
+    is_bullish_crossover: bool
+    is_bearish_crossover: bool
+
+
+class MovingAverageMetricsIn(BaseModel):
+    sma20: float | None = None
+    sma50: float | None = None
+    sma200: float | None = None
+    ma_cross_state: Literal["GOLDEN_CROSS", "DEATH_CROSS", "NEUTRAL"]
+    is_bullish_alignment: bool
+    distance_from_sma50_pct: float | None = None
+
+
+class ConfidenceScoreIn(BaseModel):
+    score: int
+    rating_badge: str
+    pillars: dict[str, float]
+
+
+class AiSignalMetricsIn(BaseModel):
+    rsi14: float | None = None
+    volume_ratio: float | None = None
+    distance_from_sma50_pct: float | None = None
+    bb_width_pct: float | None = None
+    is_squeeze: bool
+    nearest_support: ZoneRefIn | None = None
+    nearest_resistance: ZoneRefIn | None = None
+    macd: MacdMetricsIn
+    moving_averages: MovingAverageMetricsIn
+    atr14: float | None = None
+    trading_setup: dict
+    confidence_score: ConfidenceScoreIn
+
+
+class AiNarrativeRequest(BaseModel):
+    ticker: str
+    metrics: AiSignalMetricsIn
+
+
+class AiNarrativeOut(BaseModel):
+    sentiment: Literal["bullish", "bearish", "neutral"]
+    narrative: str
+    conflicting_signals: list[str] | None = None
+    caveats: list[str] = []
+
+
+# --- Per-ticker pattern lookup (wayfinder ticket 06, ai-signal-investor-upgrades map) ---
+
+
+class PatternHistoryOut(BaseModel):
+    ticker: str
+    signal_type: str
+    total_matches: int
+    resolved_count: int
+    win_count: int
+    loss_count: int
+    win_rate: float | None  # null if resolved_count < MIN_SAMPLE_FOR_WIN_RATE (5) -- not enough data for a %
+    avg_win_pct: float | None
+    avg_loss_pct: float | None
+    conflict_matches: int | None  # null unless the current call has an active conflict to compare against
+

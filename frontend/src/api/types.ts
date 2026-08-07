@@ -76,6 +76,10 @@ export interface MarketData {
   price: number | null;
   dividend_yield_pct: number | null;
   growth_rate_pct: number | null;
+  // How many years of real price history growth_rate_pct was computed over. A short window
+  // (a recently-listed ticker) means the annualized rate is real but less reliable as a
+  // long-term figure -- callers use this to show a warning, never to hide the number.
+  growth_rate_years_used: number | null;
 }
 
 export interface WatchlistItem {
@@ -129,7 +133,11 @@ export type ChartRange = '1D' | '5D' | '1M' | '6M' | 'YTD' | '1Y' | '5Y';
 
 export interface ChartPoint {
   time: string | number;
+  open: number;
+  high: number;
+  low: number;
   close: number;
+  volume: number;
 }
 
 export interface Zone {
@@ -148,4 +156,106 @@ export interface ZoneInput {
 export interface ChartData {
   points: ChartPoint[] | null;
   zones: Zone[];
+}
+
+export interface TickerPosition {
+  ticker: string;
+  portfolio_id: number;
+  portfolio_name: string;
+  shares: number;
+  avg_cost_usd: number;
+  current_price: number | null;
+  market_value_usd: number | null;
+  unrealized_pnl_usd: number | null;
+  unrealized_pnl_pct: number | null;
+}
+
+export type ScreenerRefreshStatusValue = 'idle' | 'running' | 'completed' | 'error';
+
+// Shared shape for every background-refresh-with-progress feature (Screener
+// fundamentals, technical signals, ...) -- the backend's manager modules for
+// each all report status in this same shape.
+export interface RefreshStatus {
+  status: ScreenerRefreshStatusValue;
+  total: number | null;
+  completed: number;
+  skipped: number;
+  currentSymbol: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  errorMessage: string | null;
+}
+
+// wayfinder ticket 03 (ai-signal-investor-upgrades map): next earnings date for a ticker.
+export interface NextEarnings {
+  ticker: string;
+  next_earnings_date: string | null;
+  days_until: number | null;
+}
+
+// wayfinder ticket 01/06 (ai-signal-investor-upgrades map): per-ticker pattern lookup.
+export interface PatternHistory {
+  ticker: string;
+  signal_type: string;
+  total_matches: number;
+  resolved_count: number;
+  win_count: number;
+  loss_count: number;
+  win_rate: number | null; // null when resolved_count < 5 (ticket 01's minimum sample size)
+  avg_win_pct: number | null;
+  avg_loss_pct: number | null;
+  conflict_matches: number | null; // null unless a conflict is currently active
+}
+
+// wayfinder ticket 04/09: local-LLM narrative for the AI Technical Signal feature. Wire format
+// is snake_case, matching backend/app/schemas.py's AiNarrativeOut (this repo's older API
+// convention -- see PriceSignalRow -- rather than RefreshStatus's newer camelCase one).
+export interface AiNarrativeResult {
+  sentiment: 'bullish' | 'bearish' | 'neutral';
+  narrative: string;
+  conflicting_signals: string[] | null;
+  caveats: string[];
+}
+
+// --- Investor Tracker Types (konbalongtun style) ---
+export interface InvestorHolding {
+  id: string;
+  name: string;
+  ticker: string;
+  portfolio_percent: number;
+  avg_buy_price: number;
+  current_price: number;
+  gain_percent: number;
+  activity_period: string;
+  activity_text: string;
+  sector?: string;
+  logo_url?: string;
+}
+
+export interface InvestorProfile {
+  id: string;
+  name: string;
+  slug: string;
+  fund_name: string;
+  performance_1y_pct: number;
+  portfolio_value_usd: string;
+  portfolio_value_num: number;
+  description: string;
+  avatar_url: string;
+  last_13f_filing: string;
+  top_holdings: InvestorHolding[];
+}
+
+export interface NewHoldingActivity {
+  id: string;
+  investor_name: string;
+  investor_slug: string;
+  ticker: string;
+  company_name: string;
+  action_type: 'BUY_NEW' | 'INCREASE' | 'SELL_FULL' | 'DECREASE';
+  action_label: string;
+  shares_changed_pct: number;
+  portfolio_percent: number;
+  filing_date: string;
+  quarter: string;
 }

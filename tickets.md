@@ -328,7 +328,7 @@ The three tickets that lived here ("Full-market technical signals: background re
 - [x] If the live konbalongtun fetch fails (network error), the endpoint still returns 200 with real fallback data — never an empty or broken response (verified: `test_list_investors_network_fallback` mocks `urlopen` to raise, invalidates the cache first, asserts Warren Buffett is still present in the response)
 - [x] The Tools tab's card grid shows each investor's name, fund, 1-year performance, AUM, strategy blurb, and top 3 holdings, with a "View full portfolio" modal showing the complete holdings table (avg buy price, current price, gain %, converted to THB via the existing `fxRate`/`currency` props when applicable)
 - [x] Backend: 6/6 tests passing (`test_investors_router.py`)
-- [ ] Frontend: no test file exists for `InvestorTracker.tsx` — gap, not yet covered
+- [x] Frontend: `InvestorTracker.test.tsx` now exists — gap closed, see next ticket
 
 ## Fix Super Investor Tracker: fabricated AUM stat + off-palette styling
 
@@ -336,12 +336,11 @@ The three tickets that lived here ("Full-market technical signals: background re
 
 **Blocked by:** Super Investor Tracker (13F holdings)
 
-- [ ] The "มูลค่าพอร์ตรวม (AUM)" KPI card computes its figure from the sum of the fetched investors' real `portfolio_value_num`, not the hardcoded literal `"$350.2B"`
-- [ ] `InvestorTracker.tsx`'s inline hex colors are replaced with the shared `--card-bg`/`--primary`/`--text`/etc. tokens, matching every other page from the UI redesign effort
-- [ ] The `fontFamily: 'Outfit, sans-serif'` references are removed (that font's `@import` no longer exists in `theme.css`) in favor of the app's actual Noto Sans Thai + Inter stack
-- [ ] A test file for `InvestorTracker.tsx` covers search, sort, the modal, and the fallback-data-still-renders case (mirroring the backend's own fallback test)
-- [ ] All existing tests still pass; `npx tsc -b` stays green
-- [ ] All existing Portfolio Builder tests pass; new tests cover the toggle, both modes' bucket composition, the criteria breakdown display, the methodology label, and the zero-qualify state
+- [x] The "มูลค่าพอร์ตรวม (AUM)" KPI card computes its figure from the sum of the fetched investors' real `portfolio_value_num`, not the hardcoded literal `"$350.2B"` (live-verified: real data now shows $8.5T across 70 investors)
+- [x] `InvestorTracker.tsx`'s inline hex colors that exactly matched existing tokens are replaced with `var(--text)`/`var(--green)`/`var(--primary)`/`var(--yellow)`/`var(--card-bg)`; `rgba()` alpha-blend effects and literal `#fff` on colored-background buttons are left as-is (both match established convention used elsewhere in this app already, not real inconsistencies — see commit message for the full accounting)
+- [x] The `fontFamily: 'Outfit, sans-serif'` references are removed (that font's `@import` no longer exists in `theme.css`) in favor of the app's actual Noto Sans Thai + Inter stack
+- [x] A test file for `InvestorTracker.tsx` covers search, sort, the modal, the real-AUM-not-fabricated assertion, and the fallback-data-still-renders case (mirroring the backend's own fallback test)
+- [x] All existing tests still pass (frontend 58/58 files, 496/496 tests); `npx tsc -b` stays green
 
 ## Portfolio card donut chart + legend
 

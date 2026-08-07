@@ -52,6 +52,12 @@ def _format_zone(label: str, zone) -> str:
 
 NO_DATA_LABEL = "ไม่มีข้อมูลในรอบนี้"
 
+# The JSON template's own placeholder strings -- named here (not just inline in _build_prompt's
+# template) so _is_degenerate_response can check for the model echoing them back verbatim
+# instead of writing real content, without the two copies drifting apart if the wording changes.
+NARRATIVE_PLACEHOLDER_TEXT = "บทวิเคราะห์ภาษาไทยแบบละเอียด 4-6 ย่อหน้า ตามลำดับที่กำหนดไว้ข้างบน"
+CAVEATS_PLACEHOLDER_TEXT = "ข้อควรระวังสั้นๆ"
+
 
 def _or_no_data(value, suffix: str = "") -> str:
     """Null-safe indicator formatting for the prompt -- previously a bare None/null could get
@@ -261,8 +267,8 @@ def _build_prompt(ticker: str, m: AiSignalMetricsIn, conflicts: list[str]) -> st
         "ในนี้ ระบบจะเติมให้เองจากรายการด้านบน):",
         "{",
         '  "sentiment": "bullish" | "bearish" | "neutral",',
-        '  "narrative": "บทวิเคราะห์ภาษาไทยแบบละเอียด 4-6 ย่อหน้า ตามลำดับที่กำหนดไว้ข้างบน",',
-        '  "caveats": ["ข้อควรระวังสั้นๆ"]',
+        f'  "narrative": "{NARRATIVE_PLACEHOLDER_TEXT}",',
+        f'  "caveats": ["{CAVEATS_PLACEHOLDER_TEXT}"]',
         "}",
     ]
     return "\n".join(lines)
@@ -347,6 +353,30 @@ def _parse_model_output(raw: str) -> AiNarrativeOut:
         raise AiNarrativeError(f"Model output didn't match the expected shape: {e}") from e
 
 
+# A real 4-6 paragraph Thai narrative is always far past this; anything shorter is almost
+# certainly a template echo or some other degenerate response, not real analysis.
+MIN_NARRATIVE_LENGTH = 80
+
+
+def _is_degenerate_response(result: AiNarrativeOut) -> bool:
+    """True when the model echoed the prompt's own JSON template instead of generating real
+    content. Live-observed 2026-08-07: a fast (12.7s, versus the usual 40-70s) response came
+    back with `narrative` literally equal to the prompt's own placeholder string. That's valid
+    JSON that passes AiNarrativeOut's schema fine -- without this check it would silently look
+    like a successful, real analysis instead of the empty non-answer it actually is.
+
+    Also flags a suspiciously short narrative as a general backstop beyond the literal
+    placeholder match (catches near-variants a future prompt-wording change might produce)."""
+    narrative = result.narrative.strip()
+    if NARRATIVE_PLACEHOLDER_TEXT in narrative:
+        return True
+    if len(narrative) < MIN_NARRATIVE_LENGTH:
+        return True
+    if any(c.strip() == CAVEATS_PLACEHOLDER_TEXT for c in result.caveats):
+        return True
+    return False
+
+
 def get_ai_narrative(ticker: str, metrics: AiSignalMetricsIn) -> AiNarrativeOut:
     """On-demand only — callers (the /ai-narrative/analyze route) decide when this runs; this
     function never runs on a timer or auto-refresh. Raises AiNarrativeError on any failure; the
@@ -366,6 +396,10 @@ def get_ai_narrative(ticker: str, metrics: AiSignalMetricsIn) -> AiNarrativeOut:
     prompt = _build_prompt(ticker, metrics, conflicts)
     raw = _call_ollama(prompt)
     result = _parse_model_output(raw)
+    if _is_degenerate_response(result):
+        # Never cache this -- a retry should actually re-call Ollama, not get stuck replaying
+        # the same empty non-answer for the rest of the day (see _is_degenerate_response).
+        raise AiNarrativeError("Model echoed the prompt's own JSON template instead of writing real analysis")
     # conflicting_signals is authoritative from the rule-based detector, not the model's own JSON
     # (which the prompt no longer even asks it to fill in) -- see MODEL's comment for why.
     result = result.model_copy(update={"conflicting_signals": conflicts or None})

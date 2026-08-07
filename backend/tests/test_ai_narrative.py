@@ -302,6 +302,67 @@ def test_sentiment_left_alone_when_no_squeeze_conflict():
     assert result.sentiment == "bearish"
 
 
+def test_fact_check_flags_rsi_called_high_when_it_is_neutral():
+    # Live-tested 2026-08-07: the model called RSI 51.0 "อยู่ในโซนสูง" (high zone).
+    metrics = _sample_metrics().model_copy(update={"rsi14": 51.0})
+    fake_response = '{"sentiment": "bullish", "narrative": "RSI ที่อยู่ในโซนสูง แสดงถึงความแข็งแกร่ง", "caveats": []}'
+    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+        result = get_ai_narrative("NVDA", metrics)
+
+    assert any("RSI" in c and "51.0" in c for c in result.caveats)
+
+
+def test_fact_check_does_not_flag_rsi_called_high_when_it_really_is():
+    metrics = _sample_metrics().model_copy(update={"rsi14": 78.0})
+    fake_response = '{"sentiment": "bullish", "narrative": "RSI ที่อยู่ในโซนสูง แสดงถึงความแข็งแกร่ง", "caveats": []}'
+    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+        result = get_ai_narrative("NVDA", metrics)
+
+    assert not any("RSI" in c and "โปรดตรวจสอบ" in c for c in result.caveats)
+
+
+def test_fact_check_flags_macd_called_confirming_when_it_is_neutral():
+    # Live-tested 2026-08-07: the model called a NEUTRAL MACD "ยืนยันแนวโน้มขาขึ้นที่ชัดเจน".
+    metrics = _sample_metrics().model_copy(
+        update={"macd": _sample_metrics().macd.model_copy(update={"crossover": "NEUTRAL", "is_bullish_crossover": False})}
+    )
+    fake_response = '{"sentiment": "bullish", "narrative": "MACD ยืนยันแนวโน้มขาขึ้นที่ชัดเจน", "caveats": []}'
+    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+        result = get_ai_narrative("NVDA", metrics)
+
+    assert any("MACD" in c and "NEUTRAL" in c for c in result.caveats)
+
+
+def test_fact_check_flags_volume_called_above_average_when_it_is_below():
+    # Live-tested 2026-08-07: the model called 0.8x volume "สูงกว่าค่าเฉลี่ย 20 วัน".
+    metrics = _sample_metrics().model_copy(update={"volume_ratio": 0.8})
+    fake_response = '{"sentiment": "bullish", "narrative": "Volume Ratio ที่สูงกว่าค่าเฉลี่ย 20 วัน", "caveats": []}'
+    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+        result = get_ai_narrative("NVDA", metrics)
+
+    assert any("Volume" in c and "0.8" in c for c in result.caveats)
+
+
+def test_fact_check_flags_ma_called_golden_cross_when_it_is_not():
+    # Live-tested 2026-08-07: the model called a NEUTRAL MA state "ตัดกันเป็นผลดี".
+    metrics = _sample_metrics().model_copy(
+        update={"moving_averages": _sample_metrics().moving_averages.model_copy(update={"ma_cross_state": "NEUTRAL", "is_bullish_alignment": False})}
+    )
+    fake_response = '{"sentiment": "bullish", "narrative": "Moving Average ยังตัดกันเป็นผลดีต่อการเคลื่อนไหวของราคา", "caveats": []}'
+    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+        result = get_ai_narrative("NVDA", metrics)
+
+    assert any("Moving Average" in c and "NEUTRAL" in c for c in result.caveats)
+
+
+def test_fact_check_adds_no_caveat_when_narrative_makes_no_flagged_claims():
+    fake_response = '{"sentiment": "neutral", "narrative": "หุ้นตัวนี้เคลื่อนไหวในกรอบ ยังไม่มีสัญญาณชัดเจน", "caveats": ["ตัวอย่างข้อควรระวังเดิม"]}'
+    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+        result = get_ai_narrative("NVDA", _sample_metrics())
+
+    assert result.caveats == ["ตัวอย่างข้อควรระวังเดิม"]
+
+
 def test_get_ai_narrative_raises_on_ollama_unreachable():
     import requests
 

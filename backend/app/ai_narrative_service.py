@@ -268,6 +268,47 @@ def _build_prompt(ticker: str, m: AiSignalMetricsIn, conflicts: list[str]) -> st
     return "\n".join(lines)
 
 
+def _fact_check_narrative(narrative: str, m: AiSignalMetricsIn) -> list[str]:
+    """Best-effort keyword scan for narrative claims that contradict the real input data.
+    Live-tested 2026-08-07: the model was independently observed twice claiming an indicator
+    was 'high'/'confirmed a trend'/'above average' when the real value said the opposite (RSI
+    51 called 'high', a NEUTRAL MACD called 'confirming an uptrend', 0.8x volume called 'above
+    average', a NEUTRAL MA state called 'crossing favorably').
+
+    This does NOT rewrite the narrative -- editing AI-generated Thai prose risks producing
+    broken grammar or a still-wrong replacement, and this project's other fixes fabricate
+    nothing rather than guess. It only appends a visible caveat telling the user which specific
+    claim to double-check against the real numbers already shown alongside this panel.
+
+    Coverage is necessarily partial: this is keyword matching against free-form natural
+    language, not a parse of the narrative's actual claims -- it will miss paraphrases the
+    model didn't happen to use here, and can in principle false-positive on a legitimate
+    mention that happens to contain one of these phrases in a different context."""
+    warnings: list[str] = []
+
+    rsi_high_phrases = ["RSI ที่อยู่ในโซนสูง", "RSI สูง", "RSI อยู่ในระดับสูง", "Overbought"]
+    if any(p in narrative for p in rsi_high_phrases) and not (m.rsi14 is not None and m.rsi14 > 60):
+        warnings.append(f"บทวิเคราะห์อาจอ้างถึง RSI ว่า 'สูง' ทั้งที่ค่าจริงคือ {_or_no_data(m.rsi14)} — โปรดตรวจสอบกับตัวเลขจริงด้านบน")
+
+    rsi_low_phrases = ["RSI ที่อยู่ในโซนต่ำ", "RSI ต่ำ", "RSI อยู่ในระดับต่ำ", "Oversold"]
+    if any(p in narrative for p in rsi_low_phrases) and not (m.rsi14 is not None and m.rsi14 < 40):
+        warnings.append(f"บทวิเคราะห์อาจอ้างถึง RSI ว่า 'ต่ำ' ทั้งที่ค่าจริงคือ {_or_no_data(m.rsi14)} — โปรดตรวจสอบกับตัวเลขจริงด้านบน")
+
+    macd_trend_phrases = ["ยืนยันแนวโน้มขาขึ้น", "ยืนยันขาขึ้น", "ยืนยันแนวโน้มขาลง", "ยืนยันขาลง", "MACD ยืนยัน"]
+    if any(p in narrative for p in macd_trend_phrases) and m.macd.crossover == "NEUTRAL":
+        warnings.append("บทวิเคราะห์อาจอ้างว่า MACD ยืนยันแนวโน้ม ทั้งที่สถานะจริงคือ NEUTRAL — โปรดตรวจสอบกับตัวเลขจริงด้านบน")
+
+    vol_high_phrases = ["สูงกว่าค่าเฉลี่ย", "วอลุ่มสูงกว่าค่าเฉลี่ย", "ปริมาณการซื้อขายสูงกว่าค่าเฉลี่ย"]
+    if any(p in narrative for p in vol_high_phrases) and not (m.volume_ratio is not None and m.volume_ratio >= 1.0):
+        warnings.append(f"บทวิเคราะห์อาจอ้างว่า Volume 'สูงกว่าค่าเฉลี่ย' ทั้งที่ค่าจริงคือ {_or_no_data(m.volume_ratio, 'x')} — โปรดตรวจสอบกับตัวเลขจริงด้านบน")
+
+    ma_bullish_phrases = ["ตัดกันเป็นผลดี", "Golden Cross", "ตัดขึ้น"]
+    if any(p in narrative for p in ma_bullish_phrases) and m.moving_averages.ma_cross_state != "GOLDEN_CROSS":
+        warnings.append(f"บทวิเคราะห์อาจอ้างว่า Moving Average ตัดกันเป็นขาขึ้น (Golden Cross) ทั้งที่สถานะจริงคือ {m.moving_averages.ma_cross_state} — โปรดตรวจสอบกับตัวเลขจริงด้านบน")
+
+    return warnings
+
+
 def _call_ollama(prompt: str) -> str:
     try:
         resp = requests.post(
@@ -332,6 +373,11 @@ def get_ai_narrative(ticker: str, metrics: AiSignalMetricsIn) -> AiNarrativeOut:
     # _direction_ambiguous's comment.
     if _direction_ambiguous(metrics) and result.sentiment != "neutral":
         result = result.model_copy(update={"sentiment": "neutral"})
+    # Best-effort scan for narrative claims that contradict the real numbers -- see
+    # _fact_check_narrative's comment for what this does and doesn't catch.
+    fact_check_warnings = _fact_check_narrative(result.narrative, metrics)
+    if fact_check_warnings:
+        result = result.model_copy(update={"caveats": result.caveats + fact_check_warnings})
 
     _cache[cache_key] = result
     return result

@@ -32,6 +32,10 @@ OLLAMA_URL = "http://host.docker.internal:11434/api/generate"
 MODEL = "scb10x/llama3.2-typhoon2-3b-instruct"
 TIMEOUT_SECONDS = 120  # typhoon2-3b measured slower (~70s) than llama3.2:3b (~39s) on this host
 
+# In-process memory only -- lives inside whichever uvicorn worker handles the request, not a
+# shared/persistent store. clear_cache() run from a separate script/process (e.g. a one-off
+# `python -c` check) does NOT touch the running server's actual cache; only the server process
+# reloading (a code change under --reload, or a real restart) resets it.
 _cache: dict[tuple[str, date], AiNarrativeOut] = {}
 
 
@@ -298,7 +302,21 @@ def _fact_check_narrative(narrative: str, m: AiSignalMetricsIn) -> list[str]:
     mention that happens to contain one of these phrases in a different context. It also can't
     catch a *correctly-quoted* number spun with a misleading interpretation (e.g. "only 9.6%
     above the 52-week low" framed as strength, when sitting near the yearly low is arguably the
-    opposite read) -- that's a judgment call, not a fact this function can check against data."""
+    opposite read) -- that's a judgment call, not a fact this function can check against data.
+
+    KNOWN GAP, not yet fixed (live-observed 2026-08-07, a second live SPCX re-test right after
+    shipping the fixes above): a different malformed claim slipped through in the same session --
+    "Moving Average ทั้ง 20 และ 50 วันไม่มีข้อมูล แต่ SMA200 มีค่าเป็น -19.24%". Real state was the
+    opposite (sma20 real, sma50/sma200 null) and the -19.24% quoted is actually
+    distance_from_sma50_pct, misattributed to sma200. The ma_no_data_phrases rule above requires
+    "Moving Average" and "ไม่มีข้อมูล" to be adjacent; this phrasing put "ทั้ง 20 และ 50 วัน" between
+    them, so it didn't match. Per-permutation keyword patching for every way the model can
+    scramble which SMA period got which value doesn't scale (this is the second miss on the MA
+    fields alone) -- a real fix would need either structured per-indicator fields in the
+    response schema (e.g. a `sma20_reading` enum validated deterministically, not free text) or
+    accepting keyword fact-checking's ceiling as "catches the worst/most common misses, not
+    everything." Deliberately not patched further right now -- noted for whoever picks this up
+    next, matching the user's call to stop iterating on individual patterns."""
     text = narrative.lower()
     warnings: list[str] = []
 

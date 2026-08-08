@@ -238,17 +238,28 @@ def _expire_stale(db: Session) -> int:
     return len(rows)
 
 
-def _refresh_current_prices(db: Session) -> None:
-    """Update current_price for active signals from live quotes."""
+def _refresh_current_prices(db: Session, skip_assets: set[str] | None = None) -> None:
+    """Update current_price for active signals from live quotes.
+
+    `skip_assets` holds assets whose price was just fetched by the signal
+    engine (a fresh generate) — re-fetching them serially doubled the page
+    latency for no new information. Remaining tickers fetch in parallel.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
     rows = db.execute(
         select(TradingSignal).where(TradingSignal.status == "active")
     ).scalars().all()
     if not rows:
         return
-    for row in rows:
+    pending = [r for r in rows if r.asset not in (skip_assets or set())]
+    if not pending:
+        return
+
+    def _quote(row: TradingSignal) -> None:
         ticker = signals_service._ASSET_TICKERS.get(row.asset)
         if not ticker:
-            continue
+            return
         try:
             import yfinance as yf
 
@@ -261,7 +272,10 @@ def _refresh_current_prices(db: Session) -> None:
                         (row.current_price - entry) / entry * 100 if row.direction == "long"
                         else (entry - row.current_price) / entry * 100, 2)
         except Exception:
-            continue
+            return
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(_quote, pending))
     db.commit()
 
 
@@ -278,7 +292,10 @@ def _get_or_fetch(db: Session, force: bool = False) -> SignalsOut:
         new_signals = signals_service.generate_signals()
         added = _persist_generated(new_signals, db)
         expired = _expire_stale(db)
-        _refresh_current_prices(db)
+        # Signals just generated carry a fresh price from their candles —
+        # skipping them avoids a second serial yfinance round per asset.
+        fresh_assets = {s["asset"] for s in new_signals}
+        _refresh_current_prices(db, skip_assets=fresh_assets)
         signals = _load_signals(db)
         stats = signals_service.compute_stats(signals)
 

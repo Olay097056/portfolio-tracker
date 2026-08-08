@@ -24,6 +24,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
+import time as _time
 
 import yfinance as yf
 
@@ -36,6 +37,16 @@ TA_THRESHOLD = 50.0          # a signal needs ta_score >= 50
 MODEL_BUILDING = 40.0        # model must be >= 40 (building) to emit
 SIGNAL_EXPIRY_DAYS = 14      # P54: expire after 14 days at current price
 MAX_SIGNALS_PER_MODEL = 4    # cap so one hot model doesn't flood the desk
+
+# Module-level candle cache (same 10-min TTL as the router) — yfinance is
+# the slowest source; without this every cache expiry re-downloaded ~20
+# tickers and a cold page load took ~40s.
+_CANDLE_CACHE_TTL = 600
+_CANDLE_CACHE: dict[str, tuple[float, list[dict]]] = {}
+
+
+def _clear_candle_cache() -> None:
+    _CANDLE_CACHE.clear()
 
 # yfinance tickers for the reference asset names.
 _ASSET_TICKERS = {
@@ -346,29 +357,58 @@ def generate_signals(now: datetime | None = None) -> list[dict]:
     # the payload's per-model dict only has score/factors/status.
     registry = {m["model_id"]: m for m in model_service.MODELS}
 
-    signals: list[dict] = []
+    # Fetch candles for every candidate asset in ONE parallel wave — the
+    # sequential version took 40s+ on a cold page load (several models ×
+    # ~8 assets each, all serial yfinance calls). Results are cached at the
+    # module level (same TTL as the router) so a 10-minute cache expiry
+    # re-scores without re-downloading every ticker.
+    from concurrent.futures import ThreadPoolExecutor
+
+    candidates: list[tuple[dict, dict, str, str]] = []  # (model, signal_map, asset, direction)
     for model in models_payload["models"]:
         if model["score"] < MODEL_BUILDING:
             continue
         reg = registry.get(model["model_id"]) or {}
-        candidates = []
         for sm in (reg.get("signal_map") or []):
             asset = sm.get("asset")
             direction = sm.get("direction", reg.get("trade_direction", "long"))
-            ticker = _ASSET_TICKERS.get(asset)
-            if not ticker:
-                continue
-            candles = _yf_candles(ticker)
-            if not candles:
-                continue
-            ta = compute_ta_snapshot(candles, direction)
-            if not ta or ta["ta_score"] < TA_THRESHOLD:
-                continue
-            candidates.append(_build_signal(model, sm, asset, direction, candles, ta, now))
-        # Keep the strongest signals per model, cap total.
-        candidates.sort(key=lambda s: s["signal_strength"], reverse=True)
-        signals.extend(candidates[:MAX_SIGNALS_PER_MODEL])
-    return signals
+            if _ASSET_TICKERS.get(asset):
+                candidates.append((model, sm, asset, direction))
+
+    def _cached_candles(asset: str) -> list[dict] | None:
+        cached = _CANDLE_CACHE.get(asset)
+        if cached and _time.time() - cached[0] < _CANDLE_CACHE_TTL:
+            return cached[1]
+        rows = _yf_candles(_ASSET_TICKERS[asset])
+        if rows:
+            _CANDLE_CACHE[asset] = (_time.time(), rows)
+        return rows
+
+    candle_results: dict[str, list[dict] | None] = {}
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        futures = {asset: pool.submit(_cached_candles, asset) for _, _, asset, _ in candidates}
+        candle_results = {asset: f.result() for asset, f in futures.items()}
+
+    signals: list[dict] = []
+    for model, sm, asset, direction in candidates:
+        candles = candle_results.get(asset)
+        if not candles:
+            continue
+        ta = compute_ta_snapshot(candles, direction)
+        if not ta or ta["ta_score"] < TA_THRESHOLD:
+            continue
+        signals.append(_build_signal(model, sm, asset, direction, candles, ta, now))
+    signals.sort(key=lambda s: s["signal_strength"], reverse=True)
+    # Cap per model so one hot model doesn't flood the desk.
+    capped: list[dict] = []
+    per_model: dict[str, int] = {}
+    for s in signals:
+        mid = s["model_id"] or ""
+        if per_model.get(mid, 0) >= MAX_SIGNALS_PER_MODEL:
+            continue
+        per_model[mid] = per_model.get(mid, 0) + 1
+        capped.append(s)
+    return capped
 
 
 def _build_signal(model: dict, sm: dict, asset: str, direction: str,

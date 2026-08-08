@@ -6,7 +6,8 @@ import {
 } from '../../api/client';
 import type { SignalsDashboard as SignalsData, TradingSignal } from '../../api/types';
 
-// Ink palette — same constants as ModelsDashboard (reference site's theme).
+// Ink palette — same constants as ModelsDashboard (the app has NO Tailwind,
+// so every visual is inline style, matching the reference site's dark theme).
 const INK = {
   bg: '#0a0f16',
   panel: '#101623',
@@ -21,18 +22,18 @@ const INK = {
   warn: '#f59e0b',
 } as const;
 
-const CATEGORY_COLORS: Record<string, string> = {
-  stocks: 'border-violet-500/30 text-violet-400',
-  crypto: 'border-amber-500/30 text-amber-400',
-  macro: 'border-sky-500/30 text-sky-400',
-  forex: 'border-emerald-500/30 text-emerald-400',
+const CATEGORY_BORDERS: Record<string, string> = {
+  stocks: '#8b5cf6',
+  crypto: '#f59e0b',
+  macro: '#38bdf8',
+  forex: '#34d399',
 };
 
-const STATUS_STYLES: Record<string, { cls: string; th: string }> = {
-  active: { cls: 'bg-sky-500/15 text-sky-400', th: 'ทำงาน' },
-  tp_hit: { cls: 'bg-emerald-500/15 text-emerald-400', th: 'TP ถึง' },
-  sl_hit: { cls: 'bg-red-500/15 text-red-400', th: 'SL โดน' },
-  expired: { cls: 'bg-amber-500/15 text-amber-400', th: 'หมดอายุ' },
+const STATUS_META: Record<string, { th: string; bg: string; fg: string }> = {
+  active: { th: 'ทำงาน', bg: 'rgba(56,189,248,0.15)', fg: '#38bdf8' },
+  tp_hit: { th: 'TP ถึง', bg: 'rgba(52,211,153,0.15)', fg: '#34d399' },
+  sl_hit: { th: 'SL โดน', bg: 'rgba(248,113,113,0.15)', fg: '#f87171' },
+  expired: { th: 'หมดอายุ', bg: 'rgba(245,158,11,0.15)', fg: '#f59e0b' },
 };
 
 const SORT_OPTIONS: [string, string][] = [
@@ -54,15 +55,32 @@ function fmtSigned(v: number | null | undefined): string {
 }
 
 function pnlCls(v: number | null | undefined): string {
-  if (v === null || v === undefined || v === 0) return '';
-  return v > 0 ? 'text-emerald-400' : 'text-red-400';
+  if (v === null || v === undefined || v === 0) return INK.ink;
+  return v > 0 ? INK.up : INK.down;
 }
 
+function fmtDate(iso: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
+  return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+}
+
+// ---------------------------------------------------------------------------
 function StatusBadge({ status }: { status: string }) {
-  const st = STATUS_STYLES[status] ?? { cls: 'bg-slate-600/20 text-slate-400', th: status };
+  const st = STATUS_META[status] ?? { th: status, bg: 'rgba(71,85,105,0.2)', fg: INK.inkFaint };
   return (
     <span
-      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${st.cls}`}
+      style={{
+        borderRadius: 4,
+        padding: '2px 6px',
+        fontSize: 10,
+        fontWeight: 600,
+        background: st.bg,
+        color: st.fg,
+        whiteSpace: 'nowrap',
+        textTransform: 'uppercase',
+      }}
       title={status === 'expired' ? 'เกิน 14 วันโดยไม่ชน TP/SL — ปิดที่ราคาปัจจุบัน (P54)' : undefined}
     >
       {status === 'expired' ? `⌛ ${st.th}` : st.th}
@@ -74,9 +92,15 @@ function DirectionPill({ direction }: { direction: string }) {
   const long = direction === 'long';
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${
-        long ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
-      }`}
+      style={{
+        borderRadius: 4,
+        padding: '2px 6px',
+        fontSize: 10,
+        fontWeight: 700,
+        background: long ? 'rgba(52,211,153,0.12)' : 'rgba(248,113,113,0.12)',
+        color: long ? INK.up : INK.down,
+        whiteSpace: 'nowrap',
+      }}
     >
       {long ? '▲ Long' : '▼ Short'}
     </span>
@@ -86,11 +110,20 @@ function DirectionPill({ direction }: { direction: string }) {
 function StrengthBar({ value }: { value: number }) {
   const pct = Math.max(0, Math.min(100, value));
   return (
-    <div className="h-1.5 w-16 overflow-hidden rounded bg-slate-700/40">
+    <div
+      style={{
+        width: 64,
+        height: 6,
+        borderRadius: 3,
+        background: 'rgba(71,85,105,0.4)',
+        overflow: 'hidden',
+      }}
+    >
       <div
-        className="h-full rounded"
         style={{
           width: `${pct}%`,
+          height: '100%',
+          borderRadius: 3,
           background: pct >= 70 ? INK.up : pct >= 40 ? INK.accent : INK.warn,
         }}
       />
@@ -101,7 +134,7 @@ function StrengthBar({ value }: { value: number }) {
 function Sparkline({ data }: { data: number[] | undefined }) {
   const points = data ?? [];
   if (points.length < 2) {
-    return <span className="text-[10px] text-ink-faint">—</span>;
+    return <span style={{ fontSize: 10, color: INK.inkFaint }}>—</span>;
   }
   const w = 64;
   const h = 20;
@@ -115,7 +148,7 @@ function Sparkline({ data }: { data: number[] | undefined }) {
   });
   const up = points[points.length - 1] >= points[0];
   return (
-    <svg width={w} height={h} className="overflow-visible">
+    <svg width={w} height={h} style={{ overflow: 'visible' }}>
       <polyline
         points={coords.join(' ')}
         fill="none"
@@ -131,10 +164,17 @@ function Sparkline({ data }: { data: number[] | undefined }) {
 // ---------------------------------------------------------------------------
 function StatCard({ label, value, sub, cls }: { label: string; value: string; sub?: string; cls?: string }) {
   return (
-    <div className="panel p-4">
-      <div className="text-[11px] text-ink-faint">{label}</div>
-      <div className={`num mt-1 text-xl font-bold sm:text-2xl ${cls ?? ''}`}>{value}</div>
-      {sub ? <div className="num mt-0.5 text-[10px] text-ink-faint">{sub}</div> : null}
+    <div
+      style={{
+        background: INK.panel,
+        border: `1px solid ${INK.edge}`,
+        borderRadius: 10,
+        padding: 14,
+      }}
+    >
+      <div style={{ fontSize: 11, color: INK.inkFaint }}>{label}</div>
+      <div style={{ fontSize: 20, fontWeight: 700, marginTop: 4, color: cls ?? INK.ink }}>{value}</div>
+      {sub ? <div style={{ fontSize: 10, marginTop: 2, color: INK.inkFaint }}>{sub}</div> : null}
     </div>
   );
 }
@@ -146,7 +186,7 @@ function SignalDetail({ signal }: { signal: TradingSignal }) {
   const ta = signal.ta_snapshot;
   if (!ta) {
     return (
-      <p className="text-xs text-ink-faint">
+      <p style={{ fontSize: 12, color: INK.inkFaint }}>
         {signal.rationale_th ?? 'สัญญาณนำเข้า — ไม่มีข้อมูลเทคนิคอล'}
       </p>
     );
@@ -161,55 +201,43 @@ function SignalDetail({ signal }: { signal: TradingSignal }) {
   };
   const lv = ta.levels;
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
       <div>
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
-          คะแนนเทคนิคอล: <span className="num text-accent">{ta.ta_score}</span>
-          <span className="text-ink-faint"> / เกณฑ์ {ta.threshold}</span>
+        <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, color: INK.inkFaint }}>
+          คะแนนเทคนิคอล: <span style={{ color: INK.accent }}>{ta.ta_score}</span>
+          <span style={{ color: INK.inkFaint }}> / เกณฑ์ {ta.threshold}</span>
         </div>
-        <div className="mt-2 space-y-1">
+        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
           {ta.conditions.map((c) => (
-            <div key={c.key} className="flex items-center gap-2 text-xs">
-              <span className={`shrink-0 ${c.pass ? 'text-emerald-400' : 'text-red-400/70'}`}>
-                {c.pass ? '✓' : '✗'}
-              </span>
-              <span className="text-ink-dim">{c.key}</span>
-              <span className="num ml-auto text-ink-faint">
+            <div key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+              <span style={{ color: c.pass ? INK.up : 'rgba(248,113,113,0.7)' }}>{c.pass ? '✓' : '✗'}</span>
+              <span style={{ color: INK.inkDim }}>{c.key}</span>
+              <span style={{ marginLeft: 'auto', color: INK.inkFaint }}>
                 {c.score}/{c.max}
               </span>
             </div>
           ))}
         </div>
       </div>
-      <div className="text-xs">
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
+      <div style={{ fontSize: 12 }}>
+        <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, color: INK.inkFaint }}>
           Indicators
         </div>
-        <div className="num mt-2 space-y-1 text-ink-dim">
+        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4, color: INK.inkDim }}>
           <div>RSI14: {fmtNum(ind.rsi14, 1)}</div>
-          <div>
-            MACD: {fmtNum(ind.macd?.line)} / sig {fmtNum(ind.macd?.signal)}
-          </div>
-          <div>
-            EMA20: {fmtNum(ind.ema20)} · SMA50: {fmtNum(ind.sma50)}
-          </div>
-          <div>
-            Stoch: %K {fmtNum(ind.stoch?.k, 1)} %D {fmtNum(ind.stoch?.d, 1)}
-          </div>
+          <div>MACD: {fmtNum(ind.macd?.line)} / sig {fmtNum(ind.macd?.signal)}</div>
+          <div>EMA20: {fmtNum(ind.ema20)} · SMA50: {fmtNum(ind.sma50)}</div>
+          <div>Stoch: %K {fmtNum(ind.stoch?.k, 1)} %D {fmtNum(ind.stoch?.d, 1)}</div>
           <div>ATR14: {fmtNum(ind.atr14)}</div>
         </div>
       </div>
-      <div className="text-xs">
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
+      <div style={{ fontSize: 12 }}>
+        <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, color: INK.inkFaint }}>
           Levels · RR {fmtNum(lv.rr, 1)}
         </div>
-        <div className="num mt-2 space-y-1 text-ink-dim">
-          <div>
-            แนวต้าน: {lv.resistance.length ? lv.resistance.map((r) => fmtNum(r)).join(' · ') : '—'}
-          </div>
-          <div>
-            แนวรับ: {lv.support.length ? lv.support.map((r) => fmtNum(r)).join(' · ') : '—'}
-          </div>
+        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4, color: INK.inkDim }}>
+          <div>แนวต้าน: {lv.resistance.length ? lv.resistance.map((r) => fmtNum(r)).join(' · ') : '—'}</div>
+          <div>แนวรับ: {lv.support.length ? lv.support.map((r) => fmtNum(r)).join(' · ') : '—'}</div>
           <div>SL: {lv.sl_basis === 'swing' ? 'จาก swing level' : 'ATR fallback'}</div>
           <div>TP: {lv.tp_basis === 'level' ? 'จากแนวรับ/ต้าน' : 'RR fallback'}</div>
         </div>
@@ -324,9 +352,18 @@ export function SignalsDashboard() {
 
   if (loading && !data) {
     return (
-      <div className="space-y-4">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {[1, 2, 3].map((i) => (
-          <div key={i} className="panel h-24 animate-pulse bg-panel-2/40" />
+          <div
+            key={i}
+            style={{
+              height: 96,
+              background: 'rgba(21,29,44,0.4)',
+              border: `1px solid ${INK.edge}`,
+              borderRadius: 10,
+              animation: 'pulse 1.5s infinite',
+            }}
+          />
         ))}
       </div>
     );
@@ -334,11 +371,28 @@ export function SignalsDashboard() {
 
   if (error && !data) {
     return (
-      <div className="panel p-8 text-center">
-        <p className="text-sm text-red-400">{error}</p>
+      <div
+        style={{
+          background: INK.panel,
+          border: `1px solid ${INK.edge}`,
+          borderRadius: 10,
+          padding: 32,
+          textAlign: 'center',
+        }}
+      >
+        <p style={{ fontSize: 13, color: INK.down }}>{error}</p>
         <button
           onClick={() => void load()}
-          className="mt-3 rounded-lg border border-edge bg-panel px-4 py-2 text-xs text-ink-dim hover:text-ink"
+          style={{
+            marginTop: 12,
+            borderRadius: 8,
+            border: `1px solid ${INK.edge}`,
+            background: INK.panel,
+            padding: '8px 16px',
+            fontSize: 12,
+            color: INK.inkDim,
+            cursor: 'pointer',
+          }}
         >
           ลองใหม่
         </button>
@@ -347,21 +401,34 @@ export function SignalsDashboard() {
   }
 
   return (
-    <div className="space-y-5">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-base font-semibold text-ink">สัญญาณเทรด</h2>
-        <div className="flex items-center gap-2">
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: INK.ink }}>สัญญาณเทรด</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
             onClick={() => void load(true)}
             disabled={loading}
-            className="flex items-center gap-2 rounded-lg border border-edge bg-panel px-3 py-2 text-xs font-medium text-ink-dim hover:border-accent/40 hover:text-ink disabled:opacity-50"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              borderRadius: 8,
+              border: `1px solid ${INK.edge}`,
+              background: INK.panel,
+              padding: '8px 12px',
+              fontSize: 12,
+              fontWeight: 500,
+              color: INK.inkDim,
+              cursor: loading ? 'default' : 'pointer',
+              opacity: loading ? 0.5 : 1,
+            }}
           >
-            <span className={loading ? 'animate-spin' : ''}>⟳</span>
+            <span style={loading ? { animation: 'spin 1s linear infinite' } : undefined}>⟳</span>
             สร้างสัญญาณจาก Regime
           </button>
           {data?.generated_at ? (
-            <span className="whitespace-nowrap text-[10px] text-ink-faint">
+            <span style={{ whiteSpace: 'nowrap', fontSize: 10, color: INK.inkFaint }}>
               🕐 ดึงข้อมูลล่าสุด {data.generated_at}
             </span>
           ) : null}
@@ -370,9 +437,9 @@ export function SignalsDashboard() {
 
       {/* Notes */}
       {data?.notes?.length ? (
-        <div className="space-y-1">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {data.notes.map((n) => (
-            <p key={n} className="text-[11px] text-ink-faint">
+            <p key={n} style={{ margin: 0, fontSize: 11, color: INK.inkFaint }}>
               {n}
             </p>
           ))}
@@ -380,7 +447,7 @@ export function SignalsDashboard() {
       ) : null}
 
       {/* Stats panel */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
         <StatCard label="สัญญาณที่ทำงาน" value={String(stats?.active_count ?? 0)} />
         <StatCard
           label="P&L ลอยตัว"
@@ -406,29 +473,29 @@ export function SignalsDashboard() {
         <StatCard
           label="Drawdown สูงสุด"
           value={stats?.max_drawdown !== null && stats?.max_drawdown !== undefined ? `-${fmtNum(stats.max_drawdown)}` : '—'}
-          cls={stats?.max_drawdown ? 'text-red-400' : ''}
+          cls={stats?.max_drawdown ? INK.down : undefined}
           sub="จากเส้นทุนสะสม"
         />
       </div>
 
       {/* Detailed stats */}
-      <div className="panel p-4">
-        <h3 className="mb-3 text-sm font-semibold text-ink-dim">สถิติละเอียด</h3>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div style={{ background: INK.panel, border: `1px solid ${INK.edge}`, borderRadius: 10, padding: 16 }}>
+        <h3 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 600, color: INK.inkDim }}>สถิติละเอียด</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px 16px' }}>
           {[
             { label: 'ค่าคาดหวังต่อออเดอร์', value: fmtSigned(stats?.expectancy), cls: pnlCls(stats?.expectancy) },
-            { label: 'กำไรเฉลี่ย (ออเดอร์ชนะ)', value: fmtSigned(stats?.avg_win), cls: stats?.avg_win ? 'text-emerald-400' : '' },
-            { label: 'ขาดทุนเฉลี่ย (ออเดอร์แพ้)', value: fmtSigned(stats?.avg_loss), cls: stats?.avg_loss ? 'text-red-400' : '' },
-            { label: 'Payoff Ratio', value: fmtNum(stats?.payoff_ratio), cls: '' },
+            { label: 'กำไรเฉลี่ย (ออเดอร์ชนะ)', value: fmtSigned(stats?.avg_win), cls: stats?.avg_win ? INK.up : INK.ink },
+            { label: 'ขาดทุนเฉลี่ย (ออเดอร์แพ้)', value: fmtSigned(stats?.avg_loss), cls: stats?.avg_loss ? INK.down : INK.ink },
+            { label: 'Payoff Ratio', value: fmtNum(stats?.payoff_ratio), cls: INK.ink },
             { label: 'ออเดอร์ดีที่สุด', value: fmtSigned(stats?.best_trade), cls: pnlCls(stats?.best_trade) },
             { label: 'ออเดอร์แย่ที่สุด', value: fmtSigned(stats?.worst_trade), cls: pnlCls(stats?.worst_trade) },
-            { label: 'ถือเฉลี่ย', value: stats?.avg_hold_hours !== null && stats?.avg_hold_hours !== undefined ? `${fmtNum(stats.avg_hold_hours, 0)}h` : '—' },
-            { label: 'R:R เฉลี่ย', value: stats?.avg_rr ? `1:${fmtNum(stats.avg_rr, 1)}` : '—' },
-            { label: 'ปิดแล้ว', value: String(stats?.closed_count ?? 0) },
+            { label: 'ถือเฉลี่ย', value: stats?.avg_hold_hours !== null && stats?.avg_hold_hours !== undefined ? `${fmtNum(stats.avg_hold_hours, 0)}h` : '—', cls: INK.ink },
+            { label: 'R:R เฉลี่ย', value: stats?.avg_rr ? `1:${fmtNum(stats.avg_rr, 1)}` : '—', cls: INK.ink },
+            { label: 'ปิดแล้ว', value: String(stats?.closed_count ?? 0), cls: INK.ink },
           ].map((it) => (
             <div key={it.label}>
-              <div className="text-[10px] text-ink-faint">{it.label}</div>
-              <div className={`num mt-0.5 text-sm font-semibold ${it.cls ?? ''}`}>{it.value}</div>
+              <div style={{ fontSize: 10, color: INK.inkFaint }}>{it.label}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2, color: it.cls ?? INK.ink }}>{it.value}</div>
             </div>
           ))}
         </div>
@@ -437,15 +504,24 @@ export function SignalsDashboard() {
       {/* Category breakdown */}
       {categories.length ? (
         <div>
-          <h3 className="mb-2 text-sm font-semibold text-ink-dim">แยกตามหมวด</h3>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <h3 style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600, color: INK.inkDim }}>แยกตามหมวด</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
             {categories.map((c) => (
-              <div key={c.category} className={`panel border-l-2 p-4 ${CATEGORY_COLORS[c.category] ?? ''}`}>
-                <div className="text-xs font-bold uppercase">{c.category}</div>
-                <div className="num mt-1 text-lg font-bold text-ink">
-                  {c.active} <span className="text-xs font-normal text-ink-faint">ทำงาน</span>
+              <div
+                key={c.category}
+                style={{
+                  background: INK.panel,
+                  border: `1px solid ${INK.edge}`,
+                  borderLeft: `3px solid ${CATEGORY_BORDERS[c.category] ?? INK.inkFaint}`,
+                  borderRadius: 10,
+                  padding: 14,
+                }}
+              >
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase' }}>{c.category}</div>
+                <div style={{ fontSize: 17, fontWeight: 700, marginTop: 4 }}>
+                  {c.active} <span style={{ fontSize: 11, fontWeight: 400, color: INK.inkFaint }}>ทำงาน</span>
                 </div>
-                <div className="mt-0.5 text-[11px] text-ink-faint">
+                <div style={{ fontSize: 11, marginTop: 2, color: INK.inkFaint }}>
                   {c.wins}W / {c.losses}L · WR {c.winRate !== null ? `${c.winRate}%` : '—'}
                 </div>
               </div>
@@ -455,26 +531,40 @@ export function SignalsDashboard() {
       ) : null}
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex max-w-full overflow-x-auto rounded-lg border border-edge p-0.5 text-xs">
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <div style={{ display: 'flex', overflowX: 'auto', borderRadius: 8, border: `1px solid ${INK.edge}`, padding: 2, fontSize: 12 }}>
           {['all', 'macro', 'crypto', 'forex', 'stocks'].map((cat) => (
             <button
               key={cat}
               onClick={() => setCategory(cat)}
-              className={`whitespace-nowrap rounded-md px-3 py-1.5 font-medium capitalize ${
-                category === cat ? 'bg-panel-2 text-ink' : 'text-ink-faint hover:text-ink-dim'
-              }`}
+              style={{
+                whiteSpace: 'nowrap',
+                borderRadius: 6,
+                padding: '6px 12px',
+                fontWeight: 500,
+                background: category === cat ? INK.panel2 : 'transparent',
+                color: category === cat ? INK.ink : INK.inkFaint,
+                border: 'none',
+                cursor: 'pointer',
+              }}
             >
               {cat === 'all' ? 'ทั้งหมด' : cat}
             </button>
           ))}
         </div>
-        <div className="flex flex-wrap items-center gap-1 text-xs text-ink-faint">
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, fontSize: 12, color: INK.inkFaint }}>
           {SORT_OPTIONS.map(([key, label]) => (
             <button
               key={key}
               onClick={() => setSortKey(key)}
-              className={`rounded px-2 py-1 ${sortKey === key ? 'bg-panel-2 text-ink' : 'hover:text-ink-dim'}`}
+              style={{
+                borderRadius: 6,
+                padding: '4px 8px',
+                background: sortKey === key ? INK.panel2 : 'transparent',
+                color: sortKey === key ? INK.ink : INK.inkFaint,
+                border: 'none',
+                cursor: 'pointer',
+              }}
             >
               {label}
             </button>
@@ -484,27 +574,42 @@ export function SignalsDashboard() {
 
       {/* Signal table */}
       {filtered.length === 0 ? (
-        <div className="panel p-10 text-center text-sm text-ink-dim">
+        <div
+          style={{
+            background: INK.panel,
+            border: `1px solid ${INK.edge}`,
+            borderRadius: 10,
+            padding: 40,
+            textAlign: 'center',
+            fontSize: 13,
+            color: INK.inkDim,
+          }}
+        >
           {data?.signals.length === 0
             ? 'ยังไม่มีสัญญาณ — สัญญาณจะสร้างอัตโนมัติเมื่อโมเดลใดแตะระดับก่อตัว (≥40) และกราฟผ่านเกณฑ์เทคนิคอล'
             : 'ไม่มีสัญญาณในหมวดนี้'}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-edge">
-          <table className="w-full min-w-[900px] text-xs">
+        <div style={{ overflowX: 'auto', borderRadius: 8, border: `1px solid ${INK.edge}` }}>
+          <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
-              <tr className="border-b border-edge text-left text-[10px] uppercase tracking-wider text-ink-faint">
-                <th className="px-4 py-3">Asset</th>
-                <th className="px-3 py-3">Direction</th>
-                <th className="px-3 py-3">Entry</th>
-                <th className="px-3 py-3">TP</th>
-                <th className="px-3 py-3">SL</th>
-                <th className="px-3 py-3">Current</th>
-                <th className="px-3 py-3">P&L</th>
-                <th className="px-3 py-3">Strength</th>
-                <th className="px-3 py-3">Chart</th>
-                <th className="px-3 py-3">Status</th>
-                <th className="px-3 py-3" />
+              <tr style={{ borderBottom: `1px solid ${INK.edge}` }}>
+                {['Asset', 'Direction', 'Entry', 'TP', 'SL', 'Current', 'P&L', 'Strength', 'Chart', 'Status', ''].map((h) => (
+                  <th
+                    key={h || 'action'}
+                    style={{
+                      textAlign: 'left',
+                      padding: '10px 12px',
+                      fontSize: 10,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.5,
+                      color: INK.inkFaint,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -528,8 +633,8 @@ export function SignalsDashboard() {
 
       {/* Equity curve */}
       {equity.length >= 2 ? (
-        <div className="panel p-5">
-          <h3 className="mb-3 text-sm font-semibold text-ink-dim">
+        <div style={{ background: INK.panel, border: `1px solid ${INK.edge}`, borderRadius: 10, padding: 20 }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 600, color: INK.inkDim }}>
             เส้นทุนสะสม (จากออเดอร์ที่ปิดแล้ว)
           </h3>
           <EquityCurve points={equity} />
@@ -553,51 +658,52 @@ function SignalRow({
   closing: boolean;
   onClose: () => void;
 }) {
-  const modelId = signal.model_id;
   return (
     <>
       <tr
         onClick={onToggle}
-        className="cursor-pointer border-b border-edge/50 last:border-0 hover:bg-panel-2/40"
+        style={{
+          cursor: 'pointer',
+          borderBottom: `1px solid rgba(30,41,64,0.5)`,
+          background: expanded ? 'rgba(21,29,44,0.3)' : 'transparent',
+        }}
       >
-        <td className="px-4 py-2.5">
-          <div className="flex items-center gap-1.5">
-            <span
-              className={`text-ink-faint transition-transform ${expanded ? 'rotate-180' : ''}`}
-            >
+        <td style={{ padding: '10px 12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ color: INK.inkFaint, transform: expanded ? 'rotate(180deg)' : undefined, display: 'inline-block' }}>
               ▾
             </span>
-            <span className="num font-semibold">{signal.asset}</span>
+            <span style={{ fontWeight: 600 }}>{signal.asset}</span>
           </div>
-          <div className="pl-[18px] text-[10px] capitalize text-ink-faint">
-            {modelId ?? signal.category} · {fmtDate(signal.created_at)}
+          <div style={{ paddingLeft: 18, fontSize: 10, textTransform: 'capitalize', color: INK.inkFaint }}>
+            {signal.model_id ?? signal.category} · {fmtDate(signal.created_at)}
           </div>
         </td>
-        <td className="px-3 py-2.5">
+        <td style={{ padding: '10px 12px' }}>
           <DirectionPill direction={signal.direction} />
         </td>
-        <td className="num px-3 py-2.5">{fmtNum(signal.entry_price)}</td>
-        <td className="num px-3 py-2.5 text-emerald-400/80">{fmtNum(signal.tp)}</td>
-        <td className="num px-3 py-2.5 text-red-400/80">{fmtNum(signal.sl)}</td>
-        <td className="px-3 py-2.5">
-          <div className="num">{fmtNum(signal.current_price)}</div>
+        <td style={{ padding: '10px 12px' }}>{fmtNum(signal.entry_price)}</td>
+        <td style={{ padding: '10px 12px', color: 'rgba(52,211,153,0.8)' }}>{fmtNum(signal.tp)}</td>
+        <td style={{ padding: '10px 12px', color: 'rgba(248,113,113,0.8)' }}>{fmtNum(signal.sl)}</td>
+        <td style={{ padding: '10px 12px' }}>
+          <div>{fmtNum(signal.current_price)}</div>
           {signal.status !== 'active' && signal.closed_at ? (
-            <div className="text-[9px] text-ink-faint">ปิดเมื่อ {fmtDate(signal.closed_at)}</div>
+            <div style={{ fontSize: 9, color: INK.inkFaint }}>ปิดเมื่อ {fmtDate(signal.closed_at)}</div>
           ) : null}
         </td>
-        <td className={`num px-3 py-2.5 font-semibold ${pnlCls(signal.pnl_pct)}`}>
+        <td style={{ padding: '10px 12px', fontWeight: 600, color: pnlCls(signal.pnl_pct) }}>
           {fmtSigned(signal.pnl_pct)}
         </td>
-        <td className="px-3 py-2.5">
+        <td style={{ padding: '10px 12px' }}>
           <StrengthBar value={signal.signal_strength} />
         </td>
-        <td className="px-3 py-2.5">
+        <td style={{ padding: '10px 12px' }}>
           <Sparkline data={signal.sparkline ?? undefined} />
         </td>
-        <td className="px-3 py-2.5">
+        <td style={{ padding: '10px 12px' }}>
           <StatusBadge status={signal.status} />
         </td>
-        <td className="px-3 py-2.5">
+        <td style={{ padding: '10px 12px' }}>
           {signal.status === 'active' ? (
             <button
               onClick={(e) => {
@@ -605,7 +711,16 @@ function SignalRow({
                 onClose();
               }}
               disabled={closing}
-              className="rounded border border-edge px-2 py-1 text-[10px] text-ink-faint hover:border-red-400/40 hover:text-red-400 disabled:opacity-50"
+              style={{
+                borderRadius: 6,
+                border: `1px solid ${INK.edge}`,
+                padding: '4px 8px',
+                fontSize: 10,
+                color: INK.inkFaint,
+                background: 'transparent',
+                cursor: closing ? 'default' : 'pointer',
+                opacity: closing ? 0.5 : 1,
+              }}
             >
               {closing ? '…' : 'ปิดออเดอร์'}
             </button>
@@ -613,21 +728,14 @@ function SignalRow({
         </td>
       </tr>
       {expanded ? (
-        <tr className="border-b border-edge/50 bg-panel-2/30">
-          <td colSpan={11} className="px-5 py-4">
+        <tr style={{ background: 'rgba(21,29,44,0.3)' }}>
+          <td colSpan={11} style={{ padding: '16px 20px' }}>
             <SignalDetail signal={signal} />
           </td>
         </tr>
       ) : null}
     </>
   );
-}
-
-function fmtDate(iso: string | null): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
-  return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
 }
 
 // ---------------------------------------------------------------------------
@@ -646,10 +754,11 @@ function EquityCurve({ points }: { points: { t: string; equity: number }[] }) {
   });
   const last = vals[vals.length - 1];
   const color = last >= 0 ? INK.up : INK.down;
+  const zeroY = h - pad - ((0 - min) / range) * (h - pad * 2);
   return (
-    <div className="overflow-x-auto">
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ minWidth: 400 }}>
-        <line x1={pad} y1={h - pad - ((0 - min) / range) * (h - pad * 2)} x2={w - pad} y2={h - pad - ((0 - min) / range) * (h - pad * 2)} stroke={INK.edge} strokeDasharray="3 3" strokeWidth={1} />
+    <div style={{ overflowX: 'auto' }}>
+      <svg viewBox={`0 0 ${w} ${h}`} style={{ width: '100%', minWidth: 400 }}>
+        <line x1={pad} y1={zeroY} x2={w - pad} y2={zeroY} stroke={INK.edge} strokeDasharray="3 3" strokeWidth={1} />
         <polyline points={coords.join(' ')} fill="none" stroke={color} strokeWidth={2} />
         {points.map((p, i) => (
           <circle

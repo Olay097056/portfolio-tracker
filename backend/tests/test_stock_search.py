@@ -85,6 +85,28 @@ def test_search_merges_db_rows_with_fallback_stocks_not_either_or(client, db_ses
     assert any(row["symbol"] == "NVDA" for row in fallback_still_found)
 
 
+def test_symbol_prefix_outranks_a_name_match_from_the_other_source(client, db_session):
+    """Ranking used to be applied per-source and then concatenated, so any DB hit beat any
+    fallback hit. Typing "VO" surfaced International Flavors ("Fla-VO-rs") from the DB
+    while VOO -- a literal ticker match in the fallback list -- never appeared at all.
+    Someone typing letters into a ticker box means the ticker."""
+    db_session.add(
+        ScreenerStock(symbol="IFF", company_name="International Flavors & Fragrances Inc", market_cap=9e10)
+    )
+    db_session.commit()
+
+    data = client.get("/api/screener/search?q=VO&limit=5").json()
+    symbols = [row["symbol"] for row in data]
+
+    assert "VOO" in symbols
+    assert symbols.index("VOO") < symbols.index("IFF")
+
+
+def test_exact_ticker_match_ranks_first(client):
+    data = client.get("/api/screener/search?q=V&limit=8").json()
+    assert data[0]["symbol"] == "V"
+
+
 def test_search_db_row_wins_over_fallback_on_symbol_overlap(client, db_session):
     # NVDA exists in both FALLBACK_STOCKS and (here) the DB, with a different company_name --
     # the DB's real, potentially-fresher data should win, and NVDA must appear only once.

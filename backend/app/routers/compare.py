@@ -4,14 +4,27 @@ import time
 import urllib.request
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app import compare_service
+from app.database import get_db
+from app.routers.screener import search_stock_universe
 
 router = APIRouter(prefix="/api/compare", tags=["compare"])
 
-# Same public konbalongtun api-server this app already proxies for the Investor Tracker
-# (see routers/investors.py) -- no auth required, confirmed 2026-08-08 by inspecting their
-# own /compare page's network calls. Two endpoints back that page:
+# Data sources, in precedence order:
+#   1. Finnhub + yfinance (app/compare_service.py) -- documented, officially-published
+#      APIs. This is the primary source.
+#   2. konbalongtun's api-server -- kept only as a fallback for when the standard sources
+#      return nothing usable (no FINNHUB_API_KEY configured, an outage, or a symbol
+#      neither of them recognises). It's an undocumented endpoint on someone else's site
+#      that could change or close without notice, which is exactly why it is no longer
+#      what the tool depends on day to day.
+#
+# konbalongtun's two endpoints, for reference (no auth; confirmed 2026-08-08 by inspecting
+# their own /compare page's network calls):
 #   POST /stock-summaries/stock-autocomplete  {query}   -> [{company, name, sector, logoFile}]
 #   POST /stock-summaries/findStockByCompany  {company} -> {success, data: {...97 fields}}
 _KONBALONGTUN_API = "https://www.konbalongtun.com/api-server/stock-summaries"
@@ -221,11 +234,20 @@ def _cached(store: dict, key: str):
 def compare_autocomplete(
     q: str = Query(..., min_length=1, description="Ticker or company-name fragment"),
     limit: int = Query(8, ge=1, le=20),
+    db: Session = Depends(get_db),
 ):
-    """Deliberately backed by konbalongtun's own autocomplete rather than this app's
-    /api/screener/search: only symbols present in konbalongtun's stock-summaries
-    collection can actually be compared, so suggesting from any other universe would
-    offer picks that then fail to load."""
+    """This app's own stock universe first, then Finnhub, then konbalongtun.
+
+    The tool originally had to use konbalongtun's autocomplete, because only symbols in
+    its collection could be compared. That constraint is gone: the data now comes from
+    Finnhub + yfinance, which resolve any US listing, so the picker is free to use the
+    best-ranked source instead of the one that dictated coverage.
+
+    Local-first is a quality decision, not just a dependency one. Finnhub's /search is a
+    symbol lookup rather than a typeahead -- measured 2026-08-08, "AAP" does not return
+    AAPL, "MSF" does not return MSFT, and most hits are foreign venue listings. It is
+    kept underneath purely to extend reach past the local universe.
+    """
     query = q.strip()
     if not query:
         return []
@@ -235,27 +257,65 @@ def compare_autocomplete(
     if hit is not None:
         return hit
 
+    results: list[CompareSuggestion] = []
+    seen: set[str] = set()
+
+    def add(symbol: str, name: str, sector: str | None = None, logo_url: str | None = None) -> None:
+        key = symbol.strip().upper()
+        if not key or key in seen or len(results) >= limit:
+            return
+        seen.add(key)
+        results.append(CompareSuggestion(symbol=key, name=name or key, sector=sector, logo_url=logo_url))
+
     try:
-        raw = _post_konbalongtun("stock-autocomplete", {"query": query})
+        for local in search_stock_universe(query, limit, db):
+            add(local.symbol, local.company_name)
     except Exception:
-        return []
+        pass
 
-    if not isinstance(raw, list):
-        return []
+    # Only when the local universe draws a blank. Topping up every partially-filled
+    # response would put an outbound call on each keystroke to pad a list that already
+    # has the right answer at the top.
+    if not results:
+        for item in compare_service.search_finnhub_symbols(query, limit):
+            add(item["symbol"], item["name"])
 
-    results = [
-        CompareSuggestion(
-            symbol=str(item.get("company") or "").upper(),
-            name=str(item.get("name") or item.get("company") or ""),
-            sector=item.get("sector") or None,
-            logo_url=_cdn_url(item.get("logoFile")),
-        )
-        for item in raw
-        if item.get("company")
-    ][:limit]
+    if not results:
+        try:
+            raw = _post_konbalongtun("stock-autocomplete", {"query": query})
+        except Exception:
+            raw = None
+        if isinstance(raw, list):
+            for item in raw:
+                if item.get("company"):
+                    add(
+                        str(item["company"]),
+                        str(item.get("name") or item["company"]),
+                        item.get("sector") or None,
+                        _cdn_url(item.get("logoFile")),
+                    )
 
-    _autocomplete_cache[cache_key] = (time.time(), results)
+    if results:
+        _autocomplete_cache[cache_key] = (time.time(), results)
     return results
+
+
+def _build_from_standard_sources(symbol: str) -> ComparableStock | None:
+    """Finnhub + yfinance. Returns None (rather than an empty row) when neither source
+    knows the symbol, so the caller can fall through to the legacy source."""
+    try:
+        finnhub_metric = compare_service.fetch_finnhub_metrics(symbol)
+        finnhub_profile = compare_service.fetch_finnhub_profile(symbol)
+        yf_bundle = compare_service.fetch_yfinance_bundle(symbol)
+    except Exception:
+        return None
+
+    metrics = compare_service.build_metrics(finnhub_metric, finnhub_profile, yf_bundle)
+    if not compare_service.has_usable_data(metrics):
+        return None
+
+    identity = compare_service.build_identity(symbol, finnhub_profile, yf_bundle)
+    return ComparableStock(symbol=symbol, metrics=metrics, **identity)
 
 
 @router.get("/stock/{symbol}", response_model=CompareStockOut)
@@ -267,6 +327,11 @@ def get_compare_stock(symbol: str):
     hit = _cached(_stock_cache, key)
     if hit is not None:
         return CompareStockOut(stock=hit)
+
+    standard = _build_from_standard_sources(key)
+    if standard is not None:
+        _stock_cache[key] = (time.time(), standard)
+        return CompareStockOut(stock=standard)
 
     try:
         raw = _post_konbalongtun("findStockByCompany", {"company": key})

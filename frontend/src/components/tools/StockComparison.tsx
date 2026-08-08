@@ -73,9 +73,6 @@ const SECTIONS: SectionDef[] = [
       { key: 'eps_yy_ttm', label: 'EPS Y/Y TTM' },
       { key: 'eps_past_35y', label: 'EPS Past 5Y/3Y' },
       { key: 'eps_next_y', label: 'EPS Next Y' },
-      { key: 'eps_next_q', label: 'EPS Next Q' },
-      { key: 'eps_next_5y', label: 'EPS Next 5Y' },
-      { key: 'eps_this_y', label: 'EPS This Y' },
     ],
   },
   {
@@ -102,10 +99,11 @@ const SECTIONS: SectionDef[] = [
     title: 'โครงสร้างผู้ถือหุ้น',
     icon: '🏛️',
     rows: [
+      // Insider Trans / Inst Trans (period-over-period ownership *change*) are
+      // deliberately absent: neither Finnhub nor yfinance publishes them, and inventing
+      // or leaving a permanently-blank row is worse than not offering the row at all.
       { key: 'insider_own', label: 'Insider Own' },
-      { key: 'insider_trans', label: 'Insider Trans' },
       { key: 'inst_own', label: 'Inst Own' },
-      { key: 'inst_trans', label: 'Inst Trans' },
       { key: 'short_float', label: 'Short Float' },
       { key: 'short_ratio', label: 'Short Ratio' },
       { key: 'short_interest', label: 'Short Interest' },
@@ -147,12 +145,10 @@ const SECTIONS: SectionDef[] = [
     title: 'ข้อมูลทั่วไปและนักวิเคราะห์',
     icon: '🎯',
     rows: [
-      { key: 'eps_sales_surprise', label: 'EPS/Sales Surprise' },
       { key: 'earnings_date', label: 'Earnings Date' },
       { key: 'target_price', label: 'Target Price' },
       { key: 'recom', label: 'Recom (1-5)' },
       { key: 'employees', label: 'Employees' },
-      { key: 'option_short', label: 'Option/Short' },
       { key: 'ipo', label: 'IPO' },
     ],
   },
@@ -465,8 +461,9 @@ export function StockComparison() {
 
       {stocks.length > 0 && (
         <p style={{ margin: 0, fontSize: '0.73rem', color: 'var(--text-dim)', lineHeight: 1.5 }}>
-          ข้อมูลตัวเลขดึงสดจาก Konbalongtun stock-summaries API · ช่อง "สรุป" สร้างจากเกณฑ์ของแอปนี้เอง
-          (API ต้นทางไม่มีข้อความสรุป) · ช่องที่ขึ้น "-" คือไม่มีข้อมูลจริงสำหรับหลักทรัพย์นั้น ไม่ใช่ค่าศูนย์
+          ข้อมูลตัวเลขจาก Finnhub และ Yahoo Finance (yfinance) · RSI/ATR/SMA และผลตอบแทนหลายปี
+          คำนวณจากราคาย้อนหลังจริง · ช่อง "สรุป" สร้างจากเกณฑ์ของแอปนี้เอง ไม่ใช่ของผู้ให้ข้อมูล ·
+          ช่องที่ขึ้น "-" คือไม่มีข้อมูลจริงสำหรับหลักทรัพย์นั้น ไม่ใช่ค่าศูนย์
         </p>
       )}
     </div>

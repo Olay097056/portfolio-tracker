@@ -46,7 +46,10 @@ describe('StockComparison', () => {
     expect(screen.getByText(`0/${MAX_COMPARE_STOCKS}`)).toBeInTheDocument();
   });
 
-  it('suggests from konbalongtun\'s universe, not this app\'s own screener search', async () => {
+  // The compare endpoint resolves symbols against the sources that can actually be
+  // compared (Finnhub, then konbalongtun as fallback). The screener's own search is a
+  // point-in-time snapshot of a different universe, so it must not be used here.
+  it('suggests via the compare endpoint, not this app\'s screener search', async () => {
     const compareSpy = vi.spyOn(client, 'compareAutocomplete').mockResolvedValue([
       { symbol: 'AAPL', name: 'Apple Inc', sector: 'Technology', logo_url: null },
     ]);

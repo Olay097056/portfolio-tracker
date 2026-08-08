@@ -55,44 +55,65 @@ class StockSearchResult(BaseModel):
 # most commonly searched tickers in the app; the 51-stock FALLBACK_STOCKS set exists
 # specifically to cover those, so it's included unconditionally, not just as a
 # last-resort when the DB is completely empty.
-@router.get("/search", response_model=list[StockSearchResult])
-def search_stocks(
-    q: str = Query(..., min_length=1, description="Ticker prefix or company name substring"),
-    limit: int = Query(8, ge=1, le=20),
-    db: Session = Depends(get_db),
-):
-    query = q.strip()
+def search_stock_universe(query: str, limit: int, db: Session) -> list[StockSearchResult]:
+    """Shared by GET /search and the Compare tool's picker.
+
+    Ranking is applied across BOTH sources together, not per-source. Ranking within each
+    source and then concatenating put a DB name-substring hit above a fallback symbol
+    hit: typing "VO" surfaced International Flavors ("Fla-vo-rs") while VOO never
+    appeared. Someone typing letters into a ticker box means the ticker.
+    """
+    query = query.strip()
     if not query:
         return []
 
     q_upper = query.upper()
     q_lower = query.lower()
-    seen: set[str] = set()
-    merged: list[StockSearchResult] = []
+
+    # (symbol, name, market_cap) candidates from both sources, deduped with the DB winning.
+    candidates: dict[str, tuple[str, str, float]] = {}
 
     try:
         stmt = (
             select(ScreenerStock)
             .where(or_(ScreenerStock.symbol.ilike(f"{query}%"), ScreenerStock.company_name.ilike(f"%{query}%")))
             .order_by(ScreenerStock.market_cap.desc().nullslast())
-            .limit(limit)
+            .limit(limit * 4)
         )
         for row in db.execute(stmt).scalars().all():
-            seen.add(row.symbol.upper())
-            merged.append(StockSearchResult(symbol=row.symbol, company_name=row.company_name or row.symbol))
+            candidates[row.symbol.upper()] = (row.symbol, row.company_name or row.symbol, row.market_cap or 0.0)
     except Exception:
         pass
 
-    fallback_matches = [
-        s for s in FALLBACK_STOCKS
-        if s["symbol"].upper() not in seen
-        and (s["symbol"].upper().startswith(q_upper) or q_lower in s["company_name"].lower())
-    ]
-    # Symbol-prefix matches (someone typing a ticker) rank above name-substring matches.
-    fallback_matches.sort(key=lambda s: 0 if s["symbol"].upper().startswith(q_upper) else 1)
-    merged.extend(StockSearchResult(symbol=s["symbol"], company_name=s["company_name"]) for s in fallback_matches)
+    for s in FALLBACK_STOCKS:
+        symbol = s["symbol"].upper()
+        if symbol in candidates:
+            continue
+        if symbol.startswith(q_upper) or q_lower in s["company_name"].lower():
+            candidates[symbol] = (s["symbol"], s["company_name"], float(s.get("market_cap") or 0.0))
 
-    return merged[:limit]
+    def rank(item: tuple[str, str, float]) -> tuple[int, float]:
+        symbol, _name, market_cap = item
+        upper = symbol.upper()
+        if upper == q_upper:
+            tier = 0  # exact ticker
+        elif upper.startswith(q_upper):
+            tier = 1  # ticker prefix
+        else:
+            tier = 2  # name match only
+        return (tier, -market_cap)
+
+    ordered = sorted(candidates.values(), key=rank)
+    return [StockSearchResult(symbol=sym, company_name=name) for sym, name, _ in ordered[:limit]]
+
+
+@router.get("/search", response_model=list[StockSearchResult])
+def search_stocks(
+    q: str = Query(..., min_length=1, description="Ticker prefix or company name substring"),
+    limit: int = Query(8, ge=1, le=20),
+    db: Session = Depends(get_db),
+):
+    return search_stock_universe(q, limit, db)
 
 class SortParams(BaseModel):
     field: Optional[str] = "marketCap"

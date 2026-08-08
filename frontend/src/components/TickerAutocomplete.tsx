@@ -27,6 +27,14 @@ interface TickerAutocompleteProps {
   autoFocus?: boolean;
   required?: boolean;
   'aria-label'?: string;
+  // Override where suggestions come from. Defaults to this app's own stock universe
+  // (/api/screener/search). The Stock Comparison tool passes konbalongtun's autocomplete
+  // instead, because only symbols in that upstream's collection can actually be compared --
+  // same dropdown look and keyboard behaviour, different source of truth.
+  searchFn?: (query: string) => Promise<StockSearchResult[]>;
+  // Cleared automatically after a suggestion is picked -- for pickers that add to a list
+  // (the compare tool's "add a stock" box) rather than ones that keep the chosen value.
+  clearOnSelect?: boolean;
 }
 
 // Shared "type a ticker, see a dropdown of {badge: SYMBOL} {name}" suggestion list, used
@@ -47,12 +55,18 @@ export function TickerAutocomplete({
   autoFocus,
   required,
   'aria-label': ariaLabel,
+  searchFn,
+  clearOnSelect,
 }: TickerAutocompleteProps) {
   const [results, setResults] = useState<StockSearchResult[]>([]);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Held in a ref, not an effect dependency: callers routinely pass an inline arrow, whose
+  // identity changes every render -- depending on it directly would refetch in a loop.
+  const searchFnRef = useRef(searchFn);
+  searchFnRef.current = searchFn;
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -62,7 +76,8 @@ export function TickerAutocomplete({
       return;
     }
     debounceRef.current = setTimeout(() => {
-      searchStocks(query)
+      const run = searchFnRef.current ?? searchStocks;
+      run(query)
         .then((data) => {
           setResults(data);
           setActiveIndex(-1);
@@ -86,6 +101,7 @@ export function TickerAutocomplete({
 
   function pick(item: StockSearchResult) {
     onSelect?.(item);
+    if (clearOnSelect) onChange('');
     setOpen(false);
     setResults([]);
   }

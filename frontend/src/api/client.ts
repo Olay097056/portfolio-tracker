@@ -3,6 +3,8 @@ import type {
   AiNarrativeResult,
   ChartData,
   ChartRange,
+  ComparableStock,
+  CompareSuggestion,
   DividendSignalRow,
   Holding,
   HoldingCreateInput,
@@ -295,6 +297,21 @@ export function getScreenerRefreshStatus(): Promise<RefreshStatus> {
 
 export function startScreenerRefresh(limit?: number): Promise<RefreshStatus> {
   return startRefresh('/api/screener/refresh', { limit: limit ?? null });
+}
+
+// --- Stock Comparison tool ---
+// Deliberately a different universe from searchStocks() below: only symbols that exist
+// in konbalongtun's stock-summaries collection can actually be compared, so the compare
+// tool's picker must suggest from that same source or it would offer dead picks.
+export function compareAutocomplete(query: string, limit: number = 8): Promise<CompareSuggestion[]> {
+  const trimmed = query.trim();
+  if (!trimmed) return Promise.resolve([]);
+  const params = new URLSearchParams({ q: trimmed, limit: String(limit) });
+  return request<CompareSuggestion[]>(`/api/compare/autocomplete?${params.toString()}`);
+}
+
+export function getCompareStock(symbol: string): Promise<ComparableStock> {
+  return request<{ stock: ComparableStock }>(`/api/compare/stock/${encodeURIComponent(symbol)}`).then((r) => r.stock);
 }
 
 // Shared ticker-autocomplete typeahead -- see components/TickerAutocomplete.tsx.

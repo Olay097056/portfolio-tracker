@@ -7,6 +7,30 @@ export interface StockSearchResult {
   company_name: string;
 }
 
+// --- Stock Comparison tool (proxies konbalongtun's public stock-summaries API) ---
+
+export interface CompareSuggestion {
+  symbol: string;
+  name: string;
+  sector: string | null;
+  logo_url: string | null;
+}
+
+// `metrics` values are upstream-formatted strings ("4,559.02B", "-7.24%", "344.57 -10.35%")
+// carried through verbatim, or null when the field genuinely doesn't exist for that
+// instrument (an ETF has no P/E, no margins, no EPS) -- rendered as "-", never 0.
+export interface ComparableStock {
+  symbol: string;
+  name: string;
+  sector: string | null;
+  industry: string | null;
+  logo_url: string | null;
+  price: number | null;
+  target_price: number | null;
+  analyst_target_upside_pct: number | null;
+  metrics: Record<string, string | null>;
+}
+
 export interface Portfolio {
   id: number;
   name: string;

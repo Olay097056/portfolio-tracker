@@ -4,6 +4,7 @@ import { PassiveIncomeCalculator } from '../components/tools/PassiveIncomeCalcul
 import { PortfolioBuilderWizard } from '../components/tools/PortfolioBuilderWizard';
 import { StockScreener } from '../components/tools/StockScreener';
 import { InvestorTracker } from '../components/tools/InvestorTracker';
+import { StockComparison } from '../components/tools/StockComparison';
 import { TabStrip } from '../components/TabStrip';
 import { getUsdToThbRate } from '../api/client';
 
@@ -12,7 +13,8 @@ type ToolsTab =
   | 'passive-income'
   | 'portfolio-builder'
   | 'stock-screener'
-  | 'investor-tracker';
+  | 'investor-tracker'
+  | 'stock-comparison';
 
 const TABS = [
   { id: 'dca-projection', label: '🧮 DCA Projection' },
@@ -20,6 +22,7 @@ const TABS = [
   { id: 'portfolio-builder', label: '🏗️ Portfolio Builder' },
   { id: 'stock-screener', label: '📡 Stock Screener' },
   { id: 'investor-tracker', label: '🕵️‍♂️ Investor Tracker' },
+  { id: 'stock-comparison', label: '⚖️ Stock Comparison' },
 ] as const satisfies { id: ToolsTab; label: string }[];
 
 const FEATURE_CARDS = [
@@ -72,6 +75,16 @@ const FEATURE_CARDS = [
     border: 'rgba(16, 185, 129, 0.35)',
     color: '#10b981',
     description: 'ติดตามพอร์ตเซียนหุ้นระดับโลก (Buffett, Cathie, Dalio, Gates, Burry) และรายงาน 13F Filings',
+  },
+  {
+    id: 'stock-comparison' as const,
+    title: 'Stock Comparison',
+    badge: '⚖️ SIDE-BY-SIDE',
+    icon: '⚖️',
+    gradient: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(126, 34, 206, 0.25) 100%)',
+    border: 'rgba(168, 85, 247, 0.35)',
+    color: '#c084fc',
+    description: 'เทียบหุ้นสูงสุด 4 ตัวแบบเคียงข้างกัน ทั้งมูลค่า ผลตอบแทน การเติบโต งบการเงิน และเทคนิค',
   },
 ];
 
@@ -232,6 +245,7 @@ export function ToolsPage() {
         {activeTab === 'portfolio-builder' && <PortfolioBuilderWizard />}
         {activeTab === 'stock-screener' && <StockScreener currency={currency} fxRate={fxRate} />}
         {activeTab === 'investor-tracker' && <InvestorTracker currency={currency} fxRate={fxRate} />}
+        {activeTab === 'stock-comparison' && <StockComparison />}
       </div>
     </div>
   );

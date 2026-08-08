@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.database import Base, engine
-from app.routers import ai_narrative, compare, dca, fear_greed, fx, holdings, investors, macro, market, market_data, models, portfolios, prices, screener, watchlist
+from app.routers import ai_narrative, compare, dca, fear_greed, fx, holdings, investors, macro, market, market_data, models, portfolios, prices, screener, signals, watchlist
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -16,6 +16,12 @@ async def lifespan(app: FastAPI):
     # explicitly here for upgrades from before this constraint existed.
     with engine.connect() as conn:
         conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ux_watchlist_items_ticker ON watchlist_items (ticker)"))
+        # trading_signals gained a sparkline column after the first deployment;
+        # SQLite ALTER TABLE ADD COLUMN is idempotent only if the column is
+        # missing, so check the pragma first (create_all never alters existing tables).
+        cols = [r[1] for r in conn.execute(text("PRAGMA table_info(trading_signals)")).fetchall()]
+        if "sparkline" not in cols:
+            conn.execute(text("ALTER TABLE trading_signals ADD COLUMN sparkline TEXT"))
         conn.commit()
     yield
 
@@ -48,6 +54,7 @@ app.include_router(compare.router)
 app.include_router(fear_greed.router)
 app.include_router(macro.router)
 app.include_router(models.router)
+app.include_router(signals.router)
 
 
 @app.get("/health")

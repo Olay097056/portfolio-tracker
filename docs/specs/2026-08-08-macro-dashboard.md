@@ -30,6 +30,7 @@ borders, #38bdf8 accent) and Thai labels:
 6. **Banking Indicators** — banking-stress composite, bank deposits + small-bank deposits (via FRED), Fed discount window, StL financial stress index, bank reserves, 90-day CP rate, FIMA repo pool/usage, EIA crude/gasoline/distillate inventories (+ WoW changes, needs free `EIA_API_KEY`).
 
 7. **Profit Models (โมเดลทำกำไร)** — six regime models scored 0-100 (matching the reference site's model set, names, weights and signal maps, captured from its public frontend bundle): a 30-day score-history chart with building (40) / active (60) threshold lines, and one expandable card per model showing rank, score, confidence, status badge (ไม่ทำงาน / กำลังก่อตัว / ทำงาน / อ่อนแรง), the five factor bars (โครงสร้างตลาด / มหภาค / ข่าว / ยืนยัน / บทลงโทษ), trade direction, suitable regime, activation conditions and the asset signal table.
+8. **Trading Signals (สัญญาณเทรด)** — the reference site's `/signals` trade desk: signals generated from the regime models (model ≥40 building) + a technical gate (ta_score ≥50, six conditions from 60 daily candles: EMA20/SMA50/RSI/MACD/Bollinger/Stoch/ATR + swing levels), stored in SQLite `trading_signals` with a 14-day expiry (P54); a stats panel (win rate, P&L ที่ปิดแล้ว/ลอยตัว, profit factor, expectancy, avg RR, payoff ratio, best/worst trade, max drawdown, equity curve), category breakdown, filters (category/sort), a 12-column expandable signal table with sparkline, and ปิดออเดอร์ action. History starts empty and accumulates from real closes — stats honestly show "—" until then (never seeded).
 
 Every section carries an `available` flag and the response names its data
 sources; the UI renders missing sections as "—" — never a fabricated number.
@@ -82,6 +83,13 @@ sources; the UI renders missing sections as "—" — never a fabricated number.
   - Score-history chart is a hand-rolled SVG multi-line (six coloured lines, threshold reference lines at 40/60, hover crosshair + tooltip, thinned x labels) — no new chart dependency, matching the yield-curve approach.
   - Model cards mirror the reference layout: rank badge + name + status badge + concept in the header row with score/confidence on the right; five factor bars underneath; click to expand trade direction, suitable regime, activation conditions (name + score bar) and the signal table (asset / category / long-short pill / reason).
   - Ink palette constants + per-model colours copied from the reference site (recovery #38bdf8, oil #f59e0b, pivot #a78bfa, yield-shock #f97316, credit-panic #f87171, bank-run #34d399).
+- **Signals backend** (`backend/app/signals_service.py` + `backend/app/routers/signals.py`, prefix `/api/signals`):
+  - Signal engine: models building (≥40) whose signal-map asset passes the TA gate (ta_score ≥50) emit a signal; entry = current price, TP/SL from swing levels or RR fallback; signal_strength = Σ 5 factors (confluence, rr_quality, ta_quality, atr_quality, model_conviction); expires_at = +14 days (P54).
+  - TA snapshot = 6 conditions (price_vs_ema20 15 / ema20_vs_sma50 10 / rsi_zone 20 / macd_state 20 / bb_room 20 / stoch_confirm 15) computed from 60 daily yfinance candles — formula verified against the reference's 31 real snapshots (ticket 03); bb_room measures room to the nearest swing level (band-edge fallback in strong trends).
+  - SQLite table `trading_signals` (same columns as the reference) with a `sparkline` column added via an idempotent lifespan migration for pre-existing databases; de-dup per asset+model+day; active signals auto-expire past `expires_at` at the current price.
+  - `GET /api/signals` generates on cache expiry (10 min), persists, refreshes current prices and returns signals + stats; `POST /api/signals/refresh` forces regeneration; `POST /api/signals/close` closes an active signal at the live price → tp_hit/sl_hit + pnl_pct.
+  - Stats implement the reference module-26079 formulas exactly (win rate, realized/unrealized P&L, profit factor with ∞ handling, expectancy, avg RR, payoff ratio, equity curve, max drawdown); history starts empty and is never seeded.
+- **Signals frontend** (`frontend/src/components/tools/SignalsDashboard.tsx`, rendered as the "สัญญาณเทรด" sub-tab): stats panels (6 + 9 detailed) with honest "—" when empty, category breakdown with per-category W/L/WR, category + sort filters, a 12-column expandable signal table (asset/direction/entry/TP/SL/current/P&L/strength bar/sparkline/status/ปิดออเดอร์) with TA detail on expand, and an equity-curve SVG — all in the reference ink palette, Thai-first labels.
 - **Currency:** all instruments are USD-denominated; yields/spreads have no FX dimension. No THB conversion (unlike tools that convert holding prices).
 
 ## Testing Decisions
@@ -99,6 +107,11 @@ sources; the UI renders missing sections as "—" — never a fabricated number.
   - History: fresh snapshots recorded, 40-day-old rows pruned.
 - Frontend (`frontend/src/components/tools/MacroDashboard.test.tsx`): renders the four sections with fixture data; renders "Unavailable" states when a section is `available: false`; refresh button calls the API again.
 - Frontend (`frontend/src/components/tools/ModelsDashboard.test.tsx`): renders all model cards with scores/status/factor labels; expanding a card reveals trade direction, regime, conditions and signal table; the 30-day chart shows threshold labels; empty-history placeholder; refresh calls the API; error state shows retry.
+- Signals (`backend/tests/test_signals_router.py`): signal engine stubbed (model scores + candles); the router's SQLite persistence, stats, close flow and P54 expiry run against a real test database.
+  - Building model + rising candles → signals generated & persisted with ta_score ≥ threshold and strength = Σ factors; inactive models emit nothing with an honest note.
+  - Close flow: POST /close sets tp_hit/sl_hit + pnl_pct + closed_at, feeds the stats panel; unknown id → 404; double close → 400; stale signal past expires_at auto-expires.
+  - Cache: two GETs hit the engine once, refresh forces a second; stats formulas match the reference (win rate 50, profit factor 1.6, avg RR 2, equity curve cumulative).
+- Frontend (`frontend/src/components/tools/SignalsDashboard.test.tsx`): renders stats + signal table; empty state with honest note; category filter + sort; expanding a row reveals TA detail; close button calls the API and reloads; refresh; error retry; equity curve appears with 2+ closed trades.
 
 ## Out of Scope
 

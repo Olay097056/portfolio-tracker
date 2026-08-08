@@ -469,3 +469,82 @@ export interface ModelsDashboard {
   updated_at: string;
   data_sources: string[];
 }
+
+// --- Trading Signals (mirrors the reference /signals trade desk)
+
+export interface SignalCondition {
+  key: string;
+  max: number;
+  pass: boolean;
+  score: number;
+  value: string;
+}
+
+export interface SignalLevels {
+  rr: number;
+  support: number[];
+  resistance: number[];
+  sl_basis: string;
+  tp_basis: string;
+}
+
+export interface SignalTaSnapshot {
+  bars: number;
+  ta_score: number;
+  threshold: number;
+  conditions: SignalCondition[];
+  indicators: Record<string, unknown>;
+  levels: SignalLevels;
+}
+
+export interface TradingSignal {
+  id: string;
+  asset: string;
+  category: string;
+  direction: string;
+  entry_price: number;
+  tp: number;
+  sl: number;
+  current_price: number;
+  pnl_pct: number | null;
+  signal_strength: number;
+  strength_factors: Record<string, number>;
+  status: string; // active | tp_hit | sl_hit | expired
+  model_id: string | null;
+  rationale_th: string | null;
+  rationale_en: string | null;
+  ta_snapshot: SignalTaSnapshot | null;
+  sparkline: number[] | null;
+  created_at: string;
+  closed_at: string | null;
+  expires_at: string | null;
+}
+
+export interface SignalStats {
+  active_count: number;
+  closed_count: number;
+  win_count: number;
+  loss_count: number;
+  win_rate: number | null;
+  realized_pnl: number;
+  unrealized_pnl: number;
+  avg_hold_hours: number | null;
+  avg_rr: number | null;
+  profit_factor: number | null;
+  expectancy: number | null;
+  avg_win: number | null;
+  avg_loss: number | null;
+  payoff_ratio: number | null;
+  best_trade: number | null;
+  worst_trade: number | null;
+  max_drawdown: number | null;
+  equity_curve: { t: string; equity: number }[];
+}
+
+export interface SignalsDashboard {
+  signals: TradingSignal[];
+  stats: SignalStats;
+  generated_at: string;
+  data_sources: string[];
+  notes: string[];
+}

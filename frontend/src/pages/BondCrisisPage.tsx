@@ -1,17 +1,20 @@
 import { useState } from 'react';
 import { MacroDashboard } from '../components/tools/MacroDashboard';
 import { ModelsDashboard } from '../components/tools/ModelsDashboard';
+import { SignalsDashboard } from '../components/tools/SignalsDashboard';
 
 // Bond-crisis — main tab that hosts the macro dashboard (yield curve, money
-// market rates, credit spreads, macro assets) and the profit models page
-// (six regime models scored 0-100). Two sub-tabs mirroring the reference
-// site's ข้อมูลมหภาค (/macro) and โมเดลทำกำไร (/models) pages.
+// market rates, credit spreads, macro assets), the profit models page
+// (six regime models scored 0-100) and the trading signals trade desk.
+// Three sub-tabs mirroring the reference site's ข้อมูลมหภาค (/macro),
+// โมเดลทำกำไร (/models) and สัญญาณเทรด (/signals) pages.
 export function BondCrisisPage() {
-  const [tab, setTab] = useState<'macro' | 'models'>('macro');
+  const [tab, setTab] = useState<'macro' | 'models' | 'signals'>('macro');
 
   const tabs = [
     { id: 'macro' as const, label: 'ข้อมูลมหภาค' },
     { id: 'models' as const, label: 'โมเดลทำกำไร' },
+    { id: 'signals' as const, label: 'สัญญาณเทรด' },
   ];
 
   return (
@@ -31,7 +34,7 @@ export function BondCrisisPage() {
         </div>
       </div>
 
-      {/* ── Sub-tabs (ข้อมูลมหภาค / โมเดลทำกำไร) ── */}
+      {/* ── Sub-tabs (ข้อมูลมหภาค / โมเดลทำกำไร / สัญญาณเทรด) ── */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, borderBottom: '1px solid var(--border)', paddingBottom: 10 }}>
         {tabs.map((t) => (
           <button
@@ -53,7 +56,13 @@ export function BondCrisisPage() {
         ))}
       </div>
 
-      {tab === 'macro' ? <MacroDashboard /> : <ModelsDashboard />}
+      {tab === 'macro' ? (
+        <MacroDashboard />
+      ) : tab === 'models' ? (
+        <ModelsDashboard />
+      ) : (
+        <SignalsDashboard />
+      )}
     </div>
   );
 }

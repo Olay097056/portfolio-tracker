@@ -13,6 +13,8 @@ import type {
   InvestorProfile,
   MacroDashboard,
   ModelsDashboard,
+  SignalsDashboard,
+  TradingSignal,
   MarketData,
   NewHoldingsPage,
   NextEarnings,
@@ -526,5 +528,20 @@ export function getInvestorsStatus(): Promise<InvestorsApiStatus> {
 
 export function refreshInvestorsApi(): Promise<InvestorsApiStatus> {
   return request<InvestorsApiStatus>('/api/investors/refresh', { method: 'POST' });
+}
+
+export function getSignalsDashboard(): Promise<SignalsDashboard> {
+  return request<SignalsDashboard>('/api/signals');
+}
+
+export function refreshSignalsDashboard(): Promise<SignalsDashboard> {
+  return request<SignalsDashboard>('/api/signals/refresh', { method: 'POST' });
+}
+
+export function closeSignal(signalId: string): Promise<TradingSignal> {
+  return request<TradingSignal>('/api/signals/close', {
+    method: 'POST',
+    body: JSON.stringify({ signal_id: signalId }),
+  });
 }
 

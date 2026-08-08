@@ -85,4 +85,19 @@ describe('App', () => {
     expect(tabLabels.indexOf('Dashboard')).toBeGreaterThanOrEqual(0);
     expect(tabLabels.indexOf('Dashboard')).toBeLessThan(tabLabels.indexOf('Portfolios'));
   });
+
+  it('switches to the Bond-crisis tab and shows the macro dashboard', async () => {
+    vi.spyOn(client, 'listPortfolios').mockResolvedValue([]);
+    vi.spyOn(client, 'getMacroDashboard').mockRejectedValue(new Error('offline in test'));
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByText(/no portfolios yet/i)).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bond-crisis' }));
+
+    expect(screen.getByRole('heading', { name: /Bond-crisis/ })).toBeInTheDocument();
+    expect(screen.queryByText(/no portfolios yet/i)).not.toBeInTheDocument();
+    // The macro dashboard mounts inside the tab (its offline retry state shows).
+    await waitFor(() => expect(screen.getByText(/โหลดข้อมูลไม่สำเร็จ/)).toBeInTheDocument());
+  });
 });

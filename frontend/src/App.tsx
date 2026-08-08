@@ -2,14 +2,16 @@ import { useState } from 'react';
 import { TabStrip } from './components/TabStrip';
 import { DashboardPage } from './pages/DashboardPage';
 import { PortfoliosPage } from './pages/PortfoliosPage';
+import { BondCrisisPage } from './pages/BondCrisisPage';
 import { ToolsPage } from './pages/ToolsPage';
 import { WatchlistPage } from './pages/WatchlistPage';
 import { DataRefreshPage } from './pages/DataRefreshPage';
 
-type Tab = 'dashboard' | 'portfolios' | 'tools' | 'watchlist' | 'data';
+type Tab = 'dashboard' | 'bond-crisis' | 'portfolios' | 'tools' | 'watchlist' | 'data';
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard' },
+  { id: 'bond-crisis', label: 'Bond-crisis' },
   { id: 'portfolios', label: 'Portfolios' },
   { id: 'tools', label: 'Tools' },
   { id: 'watchlist', label: 'Watchlist' },
@@ -55,6 +57,7 @@ export function App() {
       
       <main className="tab-content">
         {activeTab === 'dashboard' && <DashboardPage />}
+        {activeTab === 'bond-crisis' && <BondCrisisPage />}
         {activeTab === 'portfolios' && <PortfoliosPage />}
         {activeTab === 'tools' && <ToolsPage />}
         {activeTab === 'watchlist' && <WatchlistPage />}

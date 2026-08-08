@@ -345,3 +345,59 @@ export interface NewHoldingsPage {
   current_page: number;
   limit: number;
 }
+
+// --- Macro Dashboard (mirrors the reference /macro page: yield curve panel,
+// gold CME card, and five metric-card sections) ---
+export interface YieldCurvePoint {
+  tenor: string;
+  series_id: string;
+  yield: number | null;
+  prev: number | null;
+  change_bps: number | null;
+  date: string | null;
+  available: boolean;
+}
+
+export interface YieldCurve {
+  points: YieldCurvePoint[];
+  spread_10y2y_bps: number | null;
+  inverted: boolean;
+}
+
+export interface GoldCme {
+  oi: number | null;
+  oi_chg: number | null;
+  vol: number | null;
+  opt_oi: number | null;
+  spark: number[];
+  available: boolean;
+  note: string | null;
+}
+
+export interface MacroMetricCard {
+  series_id: string;
+  name_th: string;
+  name_en: string;
+  unit: string;
+  value: number | null;
+  change_val: number | null;
+  change_pct: number | null;
+  trend: 'up' | 'down' | 'flat';
+  recorded_at: string | null;
+  available: boolean;
+}
+
+export interface MacroSection {
+  key: string;
+  title_th: string;
+  title_en: string;
+  items: MacroMetricCard[];
+}
+
+export interface MacroDashboard {
+  yield_curve: YieldCurve;
+  gold_cme: GoldCme;
+  sections: MacroSection[];
+  updated_at: string;
+  data_sources: string[];
+}

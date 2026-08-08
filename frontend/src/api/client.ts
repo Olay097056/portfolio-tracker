@@ -11,6 +11,7 @@ import type {
   HoldingCreateInput,
   HoldingUpdateInput,
   InvestorProfile,
+  MacroDashboard,
   MarketData,
   NewHoldingsPage,
   NextEarnings,
@@ -303,6 +304,15 @@ export function startScreenerRefresh(limit?: number): Promise<RefreshStatus> {
 // --- Fear & Greed index ---
 export function getFearGreed(): Promise<FearGreed> {
   return request<FearGreed>('/api/fear-greed');
+}
+
+// --- Macro Dashboard ---
+export function getMacroDashboard(): Promise<MacroDashboard> {
+  return request<MacroDashboard>('/api/macro');
+}
+
+export function refreshMacroDashboard(): Promise<MacroDashboard> {
+  return request<MacroDashboard>('/api/macro/refresh', { method: 'POST' });
 }
 
 // --- Stock Comparison tool ---

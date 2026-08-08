@@ -7,6 +7,39 @@ export interface StockSearchResult {
   company_name: string;
 }
 
+// --- Fear & Greed index tool ---
+
+export interface FearGreedPoint {
+  t: number; // epoch milliseconds
+  value: number;
+}
+
+export interface FearGreedIndicator {
+  key: string;
+  label: string;
+  score: number | null;
+  rating: string | null;
+  // The indicator's own raw reading (a VIX level, a % deviation) -- what the sparkline
+  // plots. Not the same quantity as `score`, which is the 0-100 normalisation.
+  latest_value: number | null;
+  series: FearGreedPoint[];
+}
+
+export interface FearGreed {
+  score: number;
+  rating: string | null;
+  updated_at: string;
+  previous_close: number | null;
+  previous_1_week: number | null;
+  previous_1_month: number | null;
+  previous_1_year: number | null;
+  history: FearGreedPoint[];
+  indicators: FearGreedIndicator[];
+  // "cnn" is CNN's own seven-input index. "computed" is this app's own four-input
+  // composite, used only when CNN is unreachable -- a different number, not a stand-in.
+  source: 'cnn' | 'computed';
+}
+
 // --- Stock Comparison tool (proxies konbalongtun's public stock-summaries API) ---
 
 export interface CompareSuggestion {

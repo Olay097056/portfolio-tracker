@@ -6,6 +6,7 @@ import type {
   ComparableStock,
   CompareSuggestion,
   DividendSignalRow,
+  FearGreed,
   Holding,
   HoldingCreateInput,
   HoldingUpdateInput,
@@ -297,6 +298,11 @@ export function getScreenerRefreshStatus(): Promise<RefreshStatus> {
 
 export function startScreenerRefresh(limit?: number): Promise<RefreshStatus> {
   return startRefresh('/api/screener/refresh', { limit: limit ?? null });
+}
+
+// --- Fear & Greed index ---
+export function getFearGreed(): Promise<FearGreed> {
+  return request<FearGreed>('/api/fear-greed');
 }
 
 // --- Stock Comparison tool ---

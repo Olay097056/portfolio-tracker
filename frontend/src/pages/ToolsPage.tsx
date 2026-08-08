@@ -5,6 +5,7 @@ import { PortfolioBuilderWizard } from '../components/tools/PortfolioBuilderWiza
 import { StockScreener } from '../components/tools/StockScreener';
 import { InvestorTracker } from '../components/tools/InvestorTracker';
 import { StockComparison } from '../components/tools/StockComparison';
+import { FearGreedIndex } from '../components/tools/FearGreedIndex';
 import { TabStrip } from '../components/TabStrip';
 import { getUsdToThbRate } from '../api/client';
 
@@ -14,7 +15,8 @@ type ToolsTab =
   | 'portfolio-builder'
   | 'stock-screener'
   | 'investor-tracker'
-  | 'stock-comparison';
+  | 'stock-comparison'
+  | 'fear-greed';
 
 const TABS = [
   { id: 'dca-projection', label: '🧮 DCA Projection' },
@@ -23,6 +25,7 @@ const TABS = [
   { id: 'stock-screener', label: '📡 Stock Screener' },
   { id: 'investor-tracker', label: '🕵️‍♂️ Investor Tracker' },
   { id: 'stock-comparison', label: '⚖️ Stock Comparison' },
+  { id: 'fear-greed', label: '😱 Fear & Greed' },
 ] as const satisfies { id: ToolsTab; label: string }[];
 
 const FEATURE_CARDS = [
@@ -85,6 +88,16 @@ const FEATURE_CARDS = [
     border: 'rgba(168, 85, 247, 0.35)',
     color: '#c084fc',
     description: 'เทียบหุ้นสูงสุด 4 ตัวแบบเคียงข้างกัน ทั้งมูลค่า ผลตอบแทน การเติบโต งบการเงิน และเทคนิค',
+  },
+  {
+    id: 'fear-greed' as const,
+    title: 'Fear & Greed',
+    badge: '😱 MARKET MOOD',
+    icon: '🌡️',
+    gradient: 'linear-gradient(135deg, rgba(244, 63, 94, 0.15) 0%, rgba(190, 18, 60, 0.25) 100%)',
+    border: 'rgba(244, 63, 94, 0.35)',
+    color: '#fb7185',
+    description: 'วัดอารมณ์ตลาดหุ้นอเมริกา 0–100 พร้อมตัวชี้วัดย่อย 7 ตัว และย้อนหลัง 1 ปี (CNN)',
   },
 ];
 
@@ -246,6 +259,7 @@ export function ToolsPage() {
         {activeTab === 'stock-screener' && <StockScreener currency={currency} fxRate={fxRate} />}
         {activeTab === 'investor-tracker' && <InvestorTracker currency={currency} fxRate={fxRate} />}
         {activeTab === 'stock-comparison' && <StockComparison />}
+        {activeTab === 'fear-greed' && <FearGreedIndex />}
       </div>
     </div>
   );

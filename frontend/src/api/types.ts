@@ -401,3 +401,71 @@ export interface MacroDashboard {
   updated_at: string;
   data_sources: string[];
 }
+
+// --- Profit Models (mirrors the reference /models page: six regime models
+// scored 0-100 from live macro data, with conditions + signal maps) ---
+export interface ModelCondition {
+  name: string;
+  logic: string;
+  weight: number;
+  score: number | null;
+}
+
+export interface ModelFactors {
+  market_structure: number;
+  macro: number;
+  news: number;
+  confirmation: number;
+  risk_penalty: number;
+}
+
+export interface ModelResult {
+  model_id: string;
+  rank: number;
+  score: number;
+  confidence: number;
+  status: string;
+  factors: ModelFactors;
+  conditions: ModelCondition[];
+  available: boolean;
+}
+
+export interface SignalMapEntry {
+  asset: string;
+  category: string;
+  direction: string;
+  reason: string;
+}
+
+export interface ModelMeta {
+  model_id: string;
+  name_th: string;
+  name_en: string;
+  short_th: string;
+  short_en: string;
+  concept_th: string;
+  concept_en: string;
+  trade_direction: string;
+  regime_th: string;
+  regime_en: string;
+  phase: string;
+  color: string;
+  signal_map: SignalMapEntry[];
+}
+
+export interface ModelHistoryPoint {
+  recorded_at: string;
+  scores: Record<string, number>;
+}
+
+export interface ModelsDashboard {
+  models: ModelResult[];
+  meta: ModelMeta[];
+  factor_caps: Record<string, number>;
+  factor_labels_th: Record<string, string>;
+  status_meta: Record<string, { en: string; th: string }>;
+  thresholds: { building: number; active: number };
+  history: ModelHistoryPoint[];
+  updated_at: string;
+  data_sources: string[];
+}

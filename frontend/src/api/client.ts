@@ -12,6 +12,7 @@ import type {
   HoldingUpdateInput,
   InvestorProfile,
   MacroDashboard,
+  ModelsDashboard,
   MarketData,
   NewHoldingsPage,
   NextEarnings,
@@ -313,6 +314,15 @@ export function getMacroDashboard(): Promise<MacroDashboard> {
 
 export function refreshMacroDashboard(): Promise<MacroDashboard> {
   return request<MacroDashboard>('/api/macro/refresh', { method: 'POST' });
+}
+
+// --- Profit Models ---
+export function getModelsDashboard(): Promise<ModelsDashboard> {
+  return request<ModelsDashboard>('/api/models');
+}
+
+export function refreshModelsDashboard(): Promise<ModelsDashboard> {
+  return request<ModelsDashboard>('/api/models/refresh', { method: 'POST' });
 }
 
 // --- Stock Comparison tool ---

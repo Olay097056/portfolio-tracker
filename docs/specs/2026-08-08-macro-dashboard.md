@@ -22,9 +22,10 @@ borders, #38bdf8 accent) and Thai labels:
    a line chart (current line + dashed 1-month-ago line) with per-tenor cards
    showing 1-day change in bps, plus the 10Y-2Y spread readout.
 2. **Money Market** — SOFR, EFFR, OBFR, ON RRP, TGA (via Treasury Fiscal Data API), and the SOFR–EFFR spread.
-3. **Macro Indicators** — DXY, VIX, MOVE (via yfinance `^MOVE`), Gold, Silver, WTI, CPI/PCE/core-CPI YoY.
-4. **Credit & Fiscal** — HY/IG OAS spreads, debt-to-GDP, fiscal balance % GDP, 10Y auction bid-to-cover (via TreasuryDirect TA_WS).
-5. **Banking Indicators** — banking-stress composite, bank deposits (via FRED `DPSACBW027SBOG`), Fed discount window, StL financial stress index, bank reserves.
+3. **Macro Indicators** — DXY, VIX, MOVE (via yfinance `^MOVE`), Gold, Silver, WTI, Brent, CPI/PCE/core-CPI YoY, 10Y real yield, 5Y/10Y breakeven inflation, unemployment.
+4. **Credit & Fiscal** — HY/IG OAS spreads, debt-to-GDP, fiscal balance % GDP, household debt % GDP, SLOOS tightening, 10Y/2Y/5Y/30Y auction bid-to-cover + 10Y indirect-bidder share (via TreasuryDirect TA_WS).
+5. **Positioning (COT/TIC)** — CFTC money-manager net for gold/silver/WTI/copper/wheat/corn, leveraged-funds + asset-manager nets for UST 10Y/30Y/DXY/JPY, and foreign holdings of US Treasuries (total + official, via TIC).
+6. **Banking Indicators** — banking-stress composite, bank deposits + small-bank deposits (via FRED), Fed discount window, StL financial stress index, bank reserves, 90-day CP rate, FIMA repo pool/usage, EIA crude/gasoline/distillate inventories (+ WoW changes, needs free `EIA_API_KEY`).
 
 Every section carries an `available` flag and the response names its data
 sources; the UI renders missing sections as "—" — never a fabricated number.
@@ -51,7 +52,10 @@ sources; the UI renders missing sections as "—" — never a fabricated number.
   - Same "use the public endpoint, never depend on it" spirit as `fear_greed_service.py`'s CNN scrape.
 - **Data source — Yahoo Finance (assets, always):** `yfinance` (already a project dependency, `price_service.py`) for `DX-Y.NYB`, `^VIX`, `^MOVE`, `GC=F`, `SI=F`, `CL=F` — 5 days of history, last two closes give price + 1-day change %. Live values matched the reference site's own table (DXY 99.60, VIX 14.90, MOVE 72.03) at verification time.
 - **Data source — US Treasury Fiscal Data API (TGA, free, no key):** `https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/accounting/dts/operating_cash_balance?sort=-record_date&page[size]=10` returns the Daily Treasury Statement's operating cash balance. The endpoint emits 4 rows per day (opening balance, deposits, withdrawals, closing); only the `Treasury General Account (TGA) Opening Balance` row is used (values $M → $B). Verified live 2026-08-08: opening balance 929,325 ($M) = $929.3B, matching the reference site's TGA card.
-- **Data source — TreasuryDirect TA_WS (auction bid-to-cover, free, no key):** `https://www.treasurydirect.gov/TA_WS/securities/auctioned?pagesize=50&type=Note&format=json` returns recent Treasury auctions. Filter on the original `term` (`10-Year` — includes reopenings whose `securityTerm` reads "9-Year 10-Month") and take the latest `bidToCoverRatio`. Verified live 2026-08-08: 2.59 on the 2026-07-08 10Y reopening, matching the reference site's auction card.
+- **Data source — TreasuryDirect TA_WS (auction bid-to-cover, free, no key):** `https://www.treasurydirect.gov/TA_WS/securities/auctioned?pagesize=50&type=Note&format=json` returns recent Treasury auctions. Filter on the original `term` (`10-Year` — includes reopenings whose `securityTerm` reads "9-Year 10-Month") and take the latest `bidToCoverRatio`; the 2Y/5Y/30Y cards filter their own terms, and the 10Y indirect-bidder share is `indirectBidderAccepted / totalAccepted`. Verified live 2026-08-08: 10Y BTC 2.59 on the 2026-07-08 reopening, matching the reference site's auction card.
+- **Data source — CFTC Commitments of Traders (COT, free, no key):** the public Socrata API serves the disaggregated report (`publicreporting.cftc.gov/resource/72hh-3qpy.json`) and the Traders-in-Financial-Futures report (`gpe5-46if.json`). Money-manager net = `m_money_positions_long_all - short_all`; TFF leveraged = `lev_money_positions_long - short`; asset manager = `asset_mgr_positions_long - short`. Contracts are matched by 6-digit `cftc_contract_market_code` (the 3-digit `cftc_commodity_code` column is NOT the reference site's code). Verified live 2026-08-08: gold MM net 130,766 contracts.
+- **Data source — TIC (foreign UST holdings, free, no key):** `https://ticdata.treasury.gov/Publish/mfh.txt` is the monthly Major Foreign Holders table (fixed-width, $B). The `Grand Total` and `For. Official` rows become the two cards.
+- **Data source — EIA (inventories, free key required):** `https://api.eia.gov/v2/petroleum/stoc/wst/data/` needs a free key in the `EIA_API_KEY` env var; without one the inventory cards render honestly unavailable. `WCESTUS1` / `WGTSTUS1` / `WDISTUS1` are the weekly crude/gasoline/distillate stock levels; the `_chg` variants are week-over-week deltas.
 - **Yield fallback:** if FRED is unreachable, the yield section tries yfinance's four CBOE tickers (`^IRX` 13W, `^FVX` 5Y, `^TNX` 10Y, `^TYX` 30Y). The tenors yfinance cannot provide (1Y/2Y/20Y) are reported `available: false` — no guessing. If both fail, the whole section is unavailable.
 - **Backend** (`backend/app/macro_service.py` + `backend/app/routers/macro.py`, prefix `/api/macro`):
   - One endpoint `GET /api/macro` returning `MacroDashboardOut` with `treasury_yields`, `money_market`, `hy_spread`, `assets`, `updated_at`, `data_sources`.
@@ -67,18 +71,20 @@ sources; the UI renders missing sections as "—" — never a fabricated number.
 
 ## Testing Decisions
 
-- Backend (`backend/tests/test_macro_router.py`): FRED fetches stubbed by monkeypatching the service's CSV loader; yfinance stubbed by monkeypatching the service's asset loader; TGA + auction fetchers stubbed the same way (nothing touches the network).
-  - Happy path: all four sections populated with the stub data (bank deposits $B, TGA $B, auction bid-to-cover, MOVE index all `available: true`), cache timestamp set.
+- Backend (`backend/tests/test_macro_router.py`): FRED fetches stubbed by monkeypatching the service's CSV loader; yfinance stubbed by monkeypatching the service's asset loader; TGA + auction + CFTC + TIC + EIA fetchers stubbed the same way (nothing touches the network).
+  - Happy path: all six sections populated with the stub data (bank deposits $B, TGA $B, auction bid-to-cover, MOVE index, COT gold net 130,766, TIC total $7,402.5B, EIA crude 418.0 M bbl + WoW change -7.0 all `available: true`), cache timestamp set.
   - FRED down → yield section falls back to yfinance tickers where available; the two yfinance-can't-cover tenors are `available: false`.
   - Both sources down → 200 with all sections unavailable (never 500, never fabricated values).
   - `change_bps` correctness: feed a stub CSV whose last two non-null rows differ by 6bp and assert 6 (and that `.` null rows are skipped).
   - TGA parser: the DTS endpoint returns 4 rows per day (opening / deposits / withdrawals / closing); assert only the `TGA Opening Balance` row is kept.
+  - COT matcher: assert the 6-digit `cftc_contract_market_code` is used (gold MM long 139,809 − short 9,043 = 130,766).
 - Frontend (`frontend/src/components/tools/MacroDashboard.test.tsx`): renders the four sections with fixture data; renders "Unavailable" states when a section is `available: false`; refresh button calls the API again.
 
 ## Out of Scope
 
 - The reference site's other pages (sentiment index, trading signals, bank-run stress monitor, country risk, scenario simulator, AI boardroom, 3D office) — the user chose to evaluate this macro set first, then revisit (option C) later.
-- Gold CME open interest / volume / options IV, the proprietary banking-stress composite, household debt % GDP — no free public source exists (the reference site computes the stress composite itself and scrapes CME); skipped rather than fabricated.
+- Gold CME open interest / volume / options IV, the ~20 CME ATM-IV series, FedWatch probabilities, ratings (S&P/Moody's/DBRS), the proprietary banking-stress composite, CDS proxy, auction tail/dealer breakdowns — no free public source exists (the reference site computes/scrapes these itself); skipped rather than fabricated.
+- EIA inventories — implemented but inert until the user registers a free key at api.eia.gov and sets `EIA_API_KEY`.
 - Historical yield-curve chart (time series of curves) — only the current curve is shown.
 - THB conversion of gold/oil prices.
 

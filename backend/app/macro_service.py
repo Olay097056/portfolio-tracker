@@ -47,6 +47,14 @@ FISCALDATA_TGA_URL = (
 # TreasuryDirect auction results (public JSON, no key):
 # https://www.treasurydirect.gov/auctions/auction-results/ (TA_WS web service)
 TREASURYDIRECT_AUCTION_URL = "https://www.treasurydirect.gov/TA_WS/securities/auctioned"
+# CFTC Commitments of Traders via the public Socrata API (no key):
+# disaggregated report (money-manager net) + Traders in Financial Futures (lev/am).
+CFTC_DISAGG_URL = "https://publicreporting.cftc.gov/resource/72hh-3qpy.json"
+CFTC_TFF_URL = "https://publicreporting.cftc.gov/resource/gpe5-46if.json"
+# Treasury International Capital — major foreign holders of US Treasuries (no key).
+TIC_MFH_URL = "https://ticdata.treasury.gov/Publish/mfh.txt"
+# EIA weekly petroleum inventories (free key via https://api.eia.gov, env EIA_API_KEY).
+EIA_URL = "https://api.eia.gov/v2/petroleum/stoc/wst/data/"
 _TIMEOUT_SECONDS = 12
 _HEADERS = {"User-Agent": "portfolio-tracker/1.0 (personal portfolio web app)"}
 
@@ -106,38 +114,107 @@ _SERIES: dict[str, dict] = {
                "name_th": "แร่เงิน (Silver)", "name_en": "Silver"},
     "usoil": {"fred": None, "yf": "CL=F", "unit": "USD", "kind": "plain",
               "name_th": "น้ำมันดิบ WTI", "name_en": "WTI Crude Oil"},
+    "brent": {"fred": None, "yf": "BZ=F", "unit": "USD", "kind": "plain",
+              "name_th": "น้ำมันดิบ Brent", "name_en": "Brent Crude"},
+    "us_10y_real": {"fred": "DFII10", "yf": None, "unit": "%", "kind": "plain",
+                    "name_th": "ผลตอบแทนพันธบัตร 10 ปี (Real, TIPS)", "name_en": "10Y Real Yield (TIPS)"},
+    "us_10y_breakeven": {"fred": "T10YIE", "yf": None, "unit": "%", "kind": "plain",
+                         "name_th": "อัตราเงินเฟ้อคาดการณ์ 10 ปี (Breakeven)", "name_en": "10Y Breakeven Inflation"},
+    "us_5y_breakeven": {"fred": "T5YIE", "yf": None, "unit": "%", "kind": "plain",
+                        "name_th": "อัตราเงินเฟ้อคาดการณ์ 5 ปี (Breakeven)", "name_en": "5Y Breakeven Inflation"},
     "us_cpi_yoy": {"fred": "CPIAUCSL", "yf": None, "unit": "%", "kind": "yoy",
                    "name_th": "เงินเฟ้อ CPI (YoY)", "name_en": "CPI YoY"},
     "us_pce_yoy": {"fred": "PCEPI", "yf": None, "unit": "%", "kind": "yoy",
                    "name_th": "เงินเฟ้อ PCE (YoY)", "name_en": "Core PCE YoY"},
     "us_core_cpi": {"fred": "CPILFESL", "yf": None, "unit": "%", "kind": "yoy",
                     "name_th": "เงินเฟ้อพื้นฐาน (YoY)", "name_en": "Core CPI YoY"},
+    "us_unemployment": {"fred": "UNRATE", "yf": None, "unit": "%", "kind": "plain",
+                        "name_th": "อัตราการว่างงานสหรัฐ", "name_en": "US Unemployment Rate"},
+    # --- COT positioning (CFTC, money-manager net in disaggregated report) ---
+    "cot_gold_mm_net": {"cftc": {"dataset": "disagg", "code": "088691"}, "yf": None, "unit": "contracts", "kind": "plain",
+                        "name_th": "COT ทองคำ — Managed Money Net", "name_en": "Gold COT (Managed Money Net)"},
+    "cot_silver_mm_net": {"cftc": {"dataset": "disagg", "code": "084691"}, "yf": None, "unit": "contracts", "kind": "plain",
+                          "name_th": "COT เงิน — Managed Money Net", "name_en": "Silver COT (Managed Money Net)"},
+    "cot_wti_mm_net": {"cftc": {"dataset": "disagg", "code": "067651"}, "yf": None, "unit": "contracts", "kind": "plain",
+                       "name_th": "COT น้ำมัน WTI — Managed Money Net", "name_en": "WTI COT (Managed Money Net)"},
+    "cot_copper_mm_net": {"cftc": {"dataset": "disagg", "code": "085692"}, "yf": None, "unit": "contracts", "kind": "plain",
+                          "name_th": "COT ทองแดง — Managed Money Net", "name_en": "Copper COT (Managed Money Net)"},
+    "cot_wheat_mm_net": {"cftc": {"dataset": "disagg", "code": "001602"}, "yf": None, "unit": "contracts", "kind": "plain",
+                         "name_th": "COT ข้าวสาลี — Managed Money Net", "name_en": "Wheat COT (Managed Money Net)"},
+    "cot_corn_mm_net": {"cftc": {"dataset": "disagg", "code": "002602"}, "yf": None, "unit": "contracts", "kind": "plain",
+                        "name_th": "COT ข้าวโพด — Managed Money Net", "name_en": "Corn COT (Managed Money Net)"},
+    # --- COT positioning (CFTC TFF report: leveraged funds / asset managers) ---
+    "cot_dx_lev_net": {"cftc": {"dataset": "tff", "code": "098662", "role": "lev"}, "yf": None, "unit": "contracts", "kind": "plain",
+                       "name_th": "COT ดอลลาร์ — Leveraged Funds Net", "name_en": "DXY COT (Leveraged Net)"},
+    "cot_jpy_lev_net": {"cftc": {"dataset": "tff", "code": "097741", "role": "lev"}, "yf": None, "unit": "contracts", "kind": "plain",
+                        "name_th": "COT เยน — Leveraged Funds Net", "name_en": "JPY COT (Leveraged Net)"},
+    "cot_ust10y_lev_net": {"cftc": {"dataset": "tff", "code": "043602", "role": "lev"}, "yf": None, "unit": "contracts", "kind": "plain",
+                           "name_th": "COT พันธบัตร 10 ปี — Leveraged Net", "name_en": "UST 10Y COT (Leveraged Net)"},
+    "cot_ust10y_am_net": {"cftc": {"dataset": "tff", "code": "043602", "role": "am"}, "yf": None, "unit": "contracts", "kind": "plain",
+                          "name_th": "COT พันธบัตร 10 ปี — Asset Manager Net", "name_en": "UST 10Y COT (Asset Mgr Net)"},
+    "cot_ust30y_lev_net": {"cftc": {"dataset": "tff", "code": "020601", "role": "lev"}, "yf": None, "unit": "contracts", "kind": "plain",
+                           "name_th": "COT พันธบัตร 30 ปี — Leveraged Net", "name_en": "UST 30Y COT (Leveraged Net)"},
+    "cot_ust30y_am_net": {"cftc": {"dataset": "tff", "code": "020601", "role": "am"}, "yf": None, "unit": "contracts", "kind": "plain",
+                          "name_th": "COT พันธบัตร 30 ปี — Asset Manager Net", "name_en": "UST 30Y COT (Asset Mgr Net)"},
+    # --- TIC foreign holdings of US Treasuries (Treasury International Capital) ---
+    "foreign_ust_total": {"tic": "grand_total", "yf": None, "unit": "$B", "kind": "plain",
+                          "name_th": "ต่างชาติถือพันธบัตรสหรัฐรวม", "name_en": "Foreign Holdings of UST (Total)"},
+    "foreign_official_ust": {"tic": "foreign_official", "yf": None, "unit": "$B", "kind": "plain",
+                             "name_th": "ต่างชาติถือพันธบัตรสหรัฐ (ทางการ)", "name_en": "Foreign Official Holdings of UST"},
     # --- credit spreads (category: credit) ---
     "us_hy_spread": {"fred": "BAMLH0A0HYM2", "yf": None, "unit": "bps", "kind": "bps",
                      "name_th": "ส่วนต่างพันธบัตร High Yield", "name_en": "HY Spread (OAS)"},
     "us_ig_spread": {"fred": "BAMLC0A0CM", "yf": None, "unit": "bps", "kind": "bps",
                      "name_th": "ส่วนต่างพันธบัตร Investment Grade", "name_en": "IG Spread (OAS)"},
-    "us_debt_gdp": {"fred": None, "yf": None, "unit": "%", "kind": "ratio",
-                    "name_th": "หนี้สาธารณะสหรัฐต่อ GDP", "name_en": "US Debt-to-GDP",
-                    "ratio": ["GFDEBTN", "GDP"]},
+    "us_debt_gdp": {"fred": "GFDEGDQ188S", "yf": None, "unit": "%", "kind": "plain",
+                    "name_th": "หนี้สาธารณะสหรัฐต่อ GDP", "name_en": "US Debt-to-GDP"},
     "us_fiscal_deficit": {"fred": None, "yf": None, "unit": "%", "kind": "ratio",
                           "name_th": "ดุลการคลัง (% GDP)", "name_en": "Fiscal Balance % GDP",
                           "ratio": ["FYFSD", "GDP"]},
+    "us_household_debt": {"fred": "HDTGPDUSQ163N", "yf": None, "unit": "%", "kind": "plain",
+                          "name_th": "หนี้ครัวเรือน (% GDP)", "name_en": "Household Debt % GDP"},
+    "us_sloos_tightening": {"fred": "DRTSCILM", "yf": None, "unit": "%", "kind": "plain",
+                            "name_th": "SLOOS ธนาคารเข้มงวดสินเชื่อ (Net %)", "name_en": "SLOOS Tightening (C&I Loans)"},
     "us_auction_btc": {"td": "10-Year", "yf": None, "unit": "x", "kind": "plain",
                        "name_th": "ผลประมูลพันธบัตร 10 ปี (Bid-to-Cover)", "name_en": "10Y Auction Bid-to-Cover"},
-    "us_household_debt": {"fred": None, "yf": None, "unit": "%", "kind": "plain",
-                          "name_th": "หนี้ครัวเรือน (% GDP)", "name_en": "Household Debt % GDP"},
+    "us_auction_btc_2y": {"td": "2-Year", "yf": None, "unit": "x", "kind": "plain",
+                          "name_th": "ผลประมูลพันธบัตร 2 ปี (Bid-to-Cover)", "name_en": "2Y Auction Bid-to-Cover"},
+    "us_auction_btc_5y": {"td": "5-Year", "yf": None, "unit": "x", "kind": "plain",
+                          "name_th": "ผลประมูลพันธบัตร 5 ปี (Bid-to-Cover)", "name_en": "5Y Auction Bid-to-Cover"},
+    "us_auction_btc_30y": {"td": "30-Year", "yf": None, "unit": "x", "kind": "plain",
+                           "name_th": "ผลประมูลพันธบัตร 30 ปี (Bid-to-Cover)", "name_en": "30Y Auction Bid-to-Cover"},
+    "us_auction_indirect_10y": {"td": "10-Year", "yf": None, "unit": "%", "kind": "td_indirect",
+                                "name_th": "สัดส่วน Indirect Bidder ประมูล 10 ปี", "name_en": "10Y Auction Indirect Bidder Share"},
     # --- banking indicators (category: banking, excluding the SOFR-EFFR spread) ---
     "us_banking_stress_index": {"fred": None, "yf": None, "unit": "index", "kind": "plain",
                                 "name_th": "ดัชนีความเสี่ยงแบงก์รัน (Composite)", "name_en": "Banking Stress Index"},
     "us_bank_deposits": {"fred": "DPSACBW027SBOG", "yf": None, "unit": "$B", "kind": "plain", "scale": 0.001,
                          "name_th": "เงินฝากธนาคารพาณิชย์รวม", "name_en": "Bank Deposits (All Comm. Banks)"},
+    "us_small_bank_deposits": {"fred": "DPSSCBW027SBOG", "yf": None, "unit": "$B", "kind": "plain", "scale": 0.001,
+                               "name_th": "เงินฝากธนาคารขนาดเล็ก", "name_en": "Small Bank Deposits"},
     "us_discount_window": {"fred": "H41RESPPALDKNWW", "yf": None, "unit": "$B", "kind": "plain", "scale": 0.001,
                            "name_th": "ยอดกู้ Discount Window ของ Fed", "name_en": "Fed Discount Window (Primary Credit)"},
     "us_stlfsi": {"fred": "STLFSI4", "yf": None, "unit": "index", "kind": "plain",
                   "name_th": "ดัชนีความตึงเครียดการเงิน (StL Fed)", "name_en": "St. Louis Fed Financial Stress Index"},
     "us_bank_reserves": {"fred": "WRESBAL", "yf": None, "unit": "$B", "kind": "plain", "scale": 0.001,
                          "name_th": "เงินสำรองธนาคารที่เฟด (WRESBAL)", "name_en": "Bank Reserves at Fed (WRESBAL)"},
+    "us_cp_rate_90d": {"fred": "RIFSPPNAAD90NB", "yf": None, "unit": "%", "kind": "plain",
+                       "name_th": "Commercial Paper 90 วัน (AA)", "name_en": "90-Day AA Commercial Paper Rate"},
+    "us_fima_repo_pool": {"fred": "WLRRAFOIAL", "yf": None, "unit": "$B", "kind": "plain", "scale": 0.001,
+                          "name_th": "ยอดกู้ FIMA Repo Pool", "name_en": "Foreign Official FIMA Repo Pool"},
+    "us_fima_repo_used": {"fred": "H41RESPPALGTRFNWW", "yf": None, "unit": "$B", "kind": "plain", "scale": 0.001,
+                          "name_th": "ยอดใช้ FIMA Repo (รายสัปดาห์)", "name_en": "FIMA Repo Usage (Weekly)"},
+    # --- EIA inventory (needs a free API key in EIA_API_KEY env; else unavailable) ---
+    "us_crude_inventory": {"eia": {"series": "WCESTUS1"}, "yf": None, "unit": "M bbl", "kind": "plain",
+                           "name_th": "สต็อกน้ำมันดิบสหรัฐ (EIA)", "name_en": "US Crude Oil Inventories"},
+    "us_crude_inventory_chg": {"eia": {"series": "WCESTUS1", "change": True}, "yf": None, "unit": "M bbl", "kind": "plain",
+                               "name_th": "สต็อกน้ำมันดิบ (เปลี่ยนแปลง WoW)", "name_en": "Crude Inventory Change (WoW)"},
+    "us_gasoline_inventory": {"eia": {"series": "WGTSTUS1"}, "yf": None, "unit": "M bbl", "kind": "plain",
+                              "name_th": "สต็อกน้ำมันเบนซิน (EIA)", "name_en": "US Gasoline Inventories"},
+    "us_distillate_inventory": {"eia": {"series": "WDISTUS1"}, "yf": None, "unit": "M bbl", "kind": "plain",
+                                "name_th": "สต็อกน้ำมันดีเซล (EIA)", "name_en": "US Distillate Inventories"},
+    "us_distillate_inventory_chg": {"eia": {"series": "WDISTUS1", "change": True}, "yf": None, "unit": "M bbl", "kind": "plain",
+                                    "name_th": "สต็อกดีเซล (เปลี่ยนแปลง WoW)", "name_en": "Distillate Inventory Change (WoW)"},
 }
 
 # Section order + membership, mirroring the reference page's filter logic.
@@ -148,14 +225,28 @@ SECTIONS: list[dict] = [
     {"key": "moneyMarketRates", "title_th": "อัตราดอกเบี้ยตลาดเงิน", "title_en": "Money Market Rates",
      "series": ["us_sofr", "us_effr", "us_obfr", "us_on_rrp", "us_tga", "us_sofr_effr_spread"]},
     {"key": "macroIndicators", "title_th": "ตัวชี้วัดมหภาค", "title_en": "Macro Indicators",
-     "series": ["dxy", "vix", "move", "xauusd", "xagusd", "usoil",
-                "us_cpi_yoy", "us_pce_yoy", "us_core_cpi"]},
+     "series": ["dxy", "vix", "move", "xauusd", "xagusd", "usoil", "brent",
+                "us_cpi_yoy", "us_pce_yoy", "us_core_cpi", "us_10y_real",
+                "us_10y_breakeven", "us_5y_breakeven", "us_unemployment"]},
     {"key": "creditSpreads", "title_th": "เครดิตและการคลัง", "title_en": "Credit & Fiscal",
      "series": ["us_hy_spread", "us_ig_spread", "us_debt_gdp", "us_fiscal_deficit",
-                "us_auction_btc", "us_household_debt"]},
+                "us_household_debt", "us_sloos_tightening",
+                "us_auction_btc", "us_auction_btc_2y", "us_auction_btc_5y",
+                "us_auction_btc_30y", "us_auction_indirect_10y"]},
+    {"key": "positioning", "title_th": "การถือครอง (COT/TIC)", "title_en": "Positioning (COT/TIC)",
+     "series": ["cot_gold_mm_net", "cot_silver_mm_net", "cot_wti_mm_net",
+                "cot_copper_mm_net", "cot_wheat_mm_net", "cot_corn_mm_net",
+                "cot_dx_lev_net", "cot_jpy_lev_net",
+                "cot_ust10y_lev_net", "cot_ust10y_am_net",
+                "cot_ust30y_lev_net", "cot_ust30y_am_net",
+                "foreign_ust_total", "foreign_official_ust"]},
     {"key": "bankingIndicators", "title_th": "ตัวชี้วัดภาคการธนาคาร", "title_en": "Banking Indicators",
-     "series": ["us_banking_stress_index", "us_bank_deposits", "us_discount_window",
-                "us_stlfsi", "us_bank_reserves"]},
+     "series": ["us_banking_stress_index", "us_bank_deposits", "us_small_bank_deposits",
+                "us_discount_window", "us_stlfsi", "us_bank_reserves",
+                "us_cp_rate_90d", "us_fima_repo_pool", "us_fima_repo_used",
+                "us_crude_inventory", "us_crude_inventory_chg",
+                "us_gasoline_inventory", "us_distillate_inventory",
+                "us_distillate_inventory_chg"]},
 ]
 
 GOLD_CME_SERIES = ["gold_cme_oi", "gold_cme_oi_chg", "gold_cme_vol", "gold_cme_opt_oi"]
@@ -299,6 +390,174 @@ def _fetch_auction_bid_to_cover(term: str = "10-Year") -> list[tuple[str, float]
     return rows or None
 
 
+def _fetch_auction_indirect_share(term: str = "10-Year") -> list[tuple[str, float]] | None:
+    """Indirect-bidder share (%) of recent auctions of the given term.
+
+    indirectBidderAccepted / totalAccepted * 100 — the share of a 10Y auction
+    taken by foreign/indirect bidders, a demand-quality signal. Same TA_WS
+    payload as _fetch_auction_bid_to_cover; kept as a separate fetch because
+    the two cards want different fields.
+    """
+    try:
+        response = httpx.get(
+            TREASURYDIRECT_AUCTION_URL,
+            params={"pagesize": "50", "type": "Note", "format": "json"},
+            headers=_HEADERS,
+            timeout=_TIMEOUT_SECONDS,
+            follow_redirects=True,
+        )
+        if response.status_code != 200:
+            return None
+        payload = response.json()
+    except Exception:
+        return None
+
+    rows: list[tuple[str, float]] = []
+    for item in payload:
+        if item.get("term") != term:
+            continue
+        accepted = _num(item.get("indirectBidderAccepted"))
+        total = _num(item.get("totalAccepted"))
+        if accepted is None or not total:
+            continue
+        rows.append((str(item.get("auctionDate", ""))[:10], _round(accepted / total * 100, 2)))
+    rows.sort()
+    return rows or None
+
+
+def _fetch_cftc(dataset: str = "disagg") -> list[dict] | None:
+    """One CFTC report (disaggregated or TFF) from the public Socrata API.
+
+    Returns the raw rows (each carries cftc_commodity_code + positions), or
+    None on failure. Both reports publish weekly on Friday for Tuesday data,
+    so a single fetch per report covers every series in that report.
+    """
+    url = CFTC_DISAGG_URL if dataset == "disagg" else CFTC_TFF_URL
+    try:
+        response = httpx.get(
+            url,
+            params={"$limit": "2000", "$order": "report_date_as_yyyy_mm_dd DESC"},
+            headers=_HEADERS,
+            timeout=_TIMEOUT_SECONDS,
+            follow_redirects=True,
+        )
+        if response.status_code != 200:
+            return None
+        return response.json()
+    except Exception:
+        return None
+
+
+def _cot_rows(cftc_rows: list[dict] | None, code: str, role: str | None) -> list[tuple[str, float]] | None:
+    """Net positions (long - short) for one COT series from a CFTC report.
+
+    Disaggregated report: money-manager net = m_money long - short.
+    TFF report: role 'lev' = lev_money long - short; 'am' = asset_mgr long - short.
+    The same contract (e.g. UST 10Y) appears in both old and new contracts
+    around a roll; we take the most recent report date's row only.
+    """
+    if not cftc_rows:
+        return None
+    best_date, best_net = None, None
+    for item in cftc_rows:
+        # The 6-digit code is cftc_contract_market_code (the Socrata
+        # cftc_commodity_code column is only 3 digits); the reference site's
+        # own codes (e.g. 088691 for gold) are the 6-digit ones.
+        if str(item.get("cftc_contract_market_code")) != code:
+            continue
+        if role == "lev":
+            long_v, short_v = item.get("lev_money_positions_long"), item.get("lev_money_positions_short")
+        elif role == "am":
+            long_v, short_v = item.get("asset_mgr_positions_long"), item.get("asset_mgr_positions_short")
+        else:
+            long_v, short_v = item.get("m_money_positions_long_all"), item.get("m_money_positions_short_all")
+        long_v, short_v = _num(long_v), _num(short_v)
+        if long_v is None or short_v is None:
+            continue
+        net = _round(long_v - short_v)
+        date = str(item.get("report_date_as_yyyy_mm_dd", ""))[:10]
+        if best_date is None or date > best_date:
+            best_date, best_net = date, net
+    return [(best_date, best_net)] if best_date else None
+
+
+def _fetch_tic() -> list[tuple[str, float]] | None:
+    """TIC major-foreign-holders table: one row per country, oldest month first.
+
+    mfh.txt is a fixed-width table (all values in $B). We keep every row as a
+    (month, value) pair keyed by the two summary lines we need: 'Grand Total'
+    and 'For. Official' — the per-country rows are unused, so we just return
+    the two labelled values with the most recent month as their date.
+    """
+    try:
+        response = httpx.get(TIC_MFH_URL, headers=_HEADERS, timeout=_TIMEOUT_SECONDS, follow_redirects=True)
+        if response.status_code != 200:
+            return None
+        lines = response.text.splitlines()
+    except Exception:
+        return None
+
+    rows: list[tuple[str, float]] = []
+    for line in lines:
+        if not line.strip():
+            continue
+        label, rest = line[:16].strip(), line[16:]
+        if label not in ("Grand Total", "For. Official"):
+            continue
+        values = [_num(v) for v in rest.split()]
+        values = [v for v in values if v is not None]
+        if not values:
+            continue
+        # The first column is the most recent month (Jan 2023 in the header).
+        # Normalise the label to the snake_case key the registry uses.
+        rows.append(("grand_total" if label == "Grand Total" else "foreign_official", values[0]))
+    return rows or None
+
+
+def _fetch_eia(series_id: str) -> list[tuple[str, float]] | None:
+    """One weekly EIA petroleum inventory series (million barrels).
+
+    Requires a free EIA API key in the EIA_API_KEY environment variable. No
+    key / bad key / network failure all return None — the card then renders
+    honestly unavailable rather than a made-up number.
+    """
+    import os
+
+    api_key = os.environ.get("EIA_API_KEY")
+    if not api_key:
+        return None
+    try:
+        response = httpx.get(
+            EIA_URL,
+            params={
+                "api_key": api_key,
+                "frequency": "weekly",
+                "data[0]": "value",
+                f"facets[series][]": series_id,
+                "sort[0][column]": "period",
+                "sort[0][direction]": "desc",
+                "length": "10",
+            },
+            headers=_HEADERS,
+            timeout=_TIMEOUT_SECONDS,
+            follow_redirects=True,
+        )
+        if response.status_code != 200:
+            return None
+        payload = response.json()
+    except Exception:
+        return None
+
+    rows: list[tuple[str, float]] = []
+    for item in payload.get("response", {}).get("data", []):
+        value = _num(item.get("value"))
+        if value is None:
+            continue
+        rows.append((str(item.get("period", ""))[:10], value))
+    rows.sort()  # API returns newest first; normalise to oldest first
+    return rows or None
+
+
 def _last_two(rows: list[tuple[str, float]]) -> tuple[str | None, float | None, float | None]:
     if not rows:
         return None, None, None
@@ -410,6 +669,11 @@ def _build_card(
     fred_rows: dict[str, list[tuple[str, float]] | None],
     tga_rows: list[tuple[str, float]] | None = None,
     auction_rows: list[tuple[str, float]] | None = None,
+    auction_indirect_rows: list[tuple[str, float]] | None = None,
+    cftc_disagg: list[dict] | None = None,
+    cftc_tff: list[dict] | None = None,
+    tic_rows: list[tuple[str, float]] | None = None,
+    eia_rows: dict[str, list[tuple[str, float]] | None] | None = None,
 ) -> dict:
     """Produce one metric card for a series. Never fabricates: anything without
     a working source comes back available=False with nulls."""
@@ -437,10 +701,49 @@ def _build_card(
         return builder({**meta, "scale": 0.001}, tga_rows)
     if meta.get("td") and auction_rows:
         return builder(meta, auction_rows)
-    if meta["yf"]:
+    if meta.get("kind") == "td_indirect" and auction_indirect_rows:
+        return builder(meta, auction_indirect_rows)
+    # COT positioning: one fetch per CFTC report, sliced per contract code.
+    cftc_spec = meta.get("cftc")
+    if cftc_spec:
+        report = cftc_disagg if cftc_spec.get("dataset") == "disagg" else cftc_tff
+        rows = _cot_rows(report, cftc_spec["code"], cftc_spec.get("role"))
+        return builder(meta, rows) if rows else _unavailable_card()
+    # TIC foreign holdings: the two summary lines come from one fetch.
+    if meta.get("tic"):
+        if tic_rows:
+            match = [r for r in tic_rows if r[0] == meta["tic"]]
+            if match:
+                return builder(meta, [(match[0][0], match[0][1])])
+        return _unavailable_card()
+    # EIA inventories: needs EIA_API_KEY; otherwise honestly unavailable.
+    eia_spec = meta.get("eia")
+    if eia_spec:
+        rows = (eia_rows or {}).get(series_id)
+        if eia_spec.get("change"):
+            # The WoW-change variant shares its level series' rows.
+            if not rows:
+                rows = (eia_rows or {}).get(series_id.removesuffix("_chg"))
+            rows = _wow_change(rows)
+        return builder(meta, rows) if rows else _unavailable_card()
+    if meta.get("yf"):
         return builder(meta, None)  # filled below from yfinance (yield fallback too)
+    return _unavailable_card()
+
+
+def _unavailable_card() -> dict:
     return {"value": None, "change_val": None, "change_pct": None, "trend": "flat",
             "recorded_at": None, "available": False}
+
+
+def _wow_change(rows: list[tuple[str, float]] | None) -> list[tuple[str, float]] | None:
+    """Convert a weekly level series into week-over-week changes."""
+    if not rows or len(rows) < 2:
+        return None
+    out: list[tuple[str, float]] = []
+    for i in range(1, len(rows)):
+        out.append((rows[i][0], _round(rows[i][1] - rows[i - 1][1], 1)))
+    return out or None
 
 
 # ---------------------------------------------------------------------------
@@ -467,7 +770,7 @@ def _fill_from_yfinance(cards: dict[str, dict]) -> dict[str, list[tuple[str, flo
     ticker where one exists. Returns {series_id: rows} for the series that
     ended up backed by yfinance, so the caller can build the curve's
     '1 เดือนก่อน' line from real rows either way."""
-    tickers = {sid: meta["yf"] for sid, meta in _SERIES.items() if meta["yf"]}
+    tickers = {sid: meta["yf"] for sid, meta in _SERIES.items() if meta.get("yf")}
     used_rows: dict[str, list[tuple[str, float]]] = {}
     if not tickers:
         return used_rows
@@ -499,17 +802,35 @@ def build_dashboard() -> dict:
                 fred_ids.append(r)
     fred_rows = _fetch_fred_series_map(sorted(set(fred_ids)))
 
-    # TGA + auction results fetch in parallel with each other (both are single
-    # quick GETs; no point stacking them behind the FRED pool).
-    with ThreadPoolExecutor(max_workers=2) as pool:
+    # All the non-FRED sources fetch in parallel — TGA, both auction shapes,
+    # both CFTC reports, TIC and the EIA inventory set.
+    with ThreadPoolExecutor(max_workers=8) as pool:
         tga_future = pool.submit(_fetch_tga)
         auction_future = pool.submit(_fetch_auction_bid_to_cover)
+        auction_indirect_future = pool.submit(_fetch_auction_indirect_share)
+        disagg_future = pool.submit(_fetch_cftc, "disagg")
+        tff_future = pool.submit(_fetch_cftc, "tff")
+        tic_future = pool.submit(_fetch_tic)
+        eia_futures = {
+            sid: pool.submit(_fetch_eia, spec["series"])
+            for sid, spec in (
+                (sid, meta["eia"]) for sid, meta in _SERIES.items() if meta.get("eia") and not meta["eia"].get("change")
+            )
+        }
         tga_rows = tga_future.result()
         auction_rows = auction_future.result()
+        auction_indirect_rows = auction_indirect_future.result()
+        cftc_disagg = disagg_future.result()
+        cftc_tff = tff_future.result()
+        tic_rows = tic_future.result()
+        eia_rows = {sid: f.result() for sid, f in eia_futures.items()}
 
     cards: dict[str, dict] = {}
     for sid, meta in _SERIES.items():
-        cards[sid] = _build_card(sid, meta, fred_rows, tga_rows, auction_rows)
+        cards[sid] = _build_card(
+            sid, meta, fred_rows, tga_rows, auction_rows, auction_indirect_rows,
+            cftc_disagg, cftc_tff, tic_rows, eia_rows,
+        )
     yf_rows = _fill_from_yfinance(cards)
 
     # Yield curve points: current + 1-month-ago + change, for the chart panel.
@@ -559,8 +880,14 @@ def build_dashboard() -> dict:
         sources.append("Yahoo Finance (yfinance)")
     if cards["us_tga"]["available"]:
         sources.append("US Treasury Fiscal Data (fiscaldata.treasury.gov)")
-    if cards["us_auction_btc"]["available"]:
+    if cards["us_auction_btc"]["available"] or cards["us_auction_indirect_10y"]["available"]:
         sources.append("TreasuryDirect (TA_WS)")
+    if any(cards[sid]["available"] for sid in _SERIES if _SERIES[sid].get("cftc")):
+        sources.append("CFTC Commitments of Traders (publicreporting.cftc.gov)")
+    if cards["foreign_ust_total"]["available"] or cards["foreign_official_ust"]["available"]:
+        sources.append("Treasury International Capital (ticdata.treasury.gov)")
+    if any(cards[sid]["available"] for sid in _SERIES if _SERIES[sid].get("eia")):
+        sources.append("EIA (api.eia.gov)")
 
     return {
         "yield_curve": {

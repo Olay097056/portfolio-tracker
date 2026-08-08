@@ -72,11 +72,11 @@ class MacroDashboardOut(BaseModel):
     data_sources: list[str]
 
 
-def _get_or_fetch() -> "MacroDashboardOut":
+def _get_or_fetch(force: bool = False) -> "MacroDashboardOut":
     cached = _cache.get("dashboard")
-    if cached and (time.time() - cached[0] < _CACHE_TTL_SECONDS):
+    if not force and cached and (time.time() - cached[0] < _CACHE_TTL_SECONDS):
         return cached[1]
-    payload = macro_service.build_dashboard()
+    payload = macro_service.build_dashboard(force=force)
     result = MacroDashboardOut(**payload)
     _cache["dashboard"] = (time.time(), result)
     return result
@@ -89,9 +89,10 @@ def get_macro_dashboard() -> MacroDashboardOut:
 
 @router.post("/refresh", response_model=MacroDashboardOut)
 def refresh_macro_dashboard() -> MacroDashboardOut:
-    """Invalidate the cache and re-fetch everything now."""
+    """Invalidate both cache layers and re-fetch everything now."""
     _cache.clear()
+    macro_service._clear_dashboard_cache()
     try:
-        return _get_or_fetch()
+        return _get_or_fetch(force=True)
     except Exception:
         raise HTTPException(status_code=503, detail="Macro data is unavailable right now")

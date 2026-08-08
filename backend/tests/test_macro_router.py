@@ -11,8 +11,10 @@ import app.routers.macro as macro_router
 @pytest.fixture(autouse=True)
 def _clear_cache():
     macro_router._cache.clear()
+    macro_service._clear_dashboard_cache()
     yield
     macro_router._cache.clear()
+    macro_service._clear_dashboard_cache()
 
 
 # Real FRED values captured 2026-08-08 (fredgraph.csv).
@@ -243,9 +245,9 @@ def test_router_caches_within_ttl(monkeypatch):
     calls = {"n": 0}
     real_build = macro_service.build_dashboard
 
-    def counting_build():
+    def counting_build(force: bool = False):
         calls["n"] += 1
-        return real_build()
+        return real_build(force=force)
 
     monkeypatch.setattr(macro_service, "build_dashboard", counting_build)
 
@@ -401,9 +403,9 @@ def test_refresh_invalidates_cache(monkeypatch):
     calls = {"n": 0}
     real_build = macro_service.build_dashboard
 
-    def counting_build():
+    def counting_build(force: bool = False):
         calls["n"] += 1
-        return real_build()
+        return real_build(force=force)
 
     monkeypatch.setattr(macro_service, "build_dashboard", counting_build)
 

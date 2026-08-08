@@ -47,8 +47,9 @@ FISCALDATA_TGA_URL = (
 # TreasuryDirect auction results (public JSON, no key):
 # https://www.treasurydirect.gov/auctions/auction-results/ (TA_WS web service)
 TREASURYDIRECT_AUCTION_URL = "https://www.treasurydirect.gov/TA_WS/securities/auctioned"
-# CFTC Commitments of Traders via the public Socrata API (no key):
-# disaggregated report (money-manager net) + Traders in Financial Futures (lev/am).
+# CFTC reports via the public Socrata API (no key). Each report is weekly, so
+# we ask for the single most recent report date (~270 rows) instead of the
+# 2000-row paged download the first version used — that was 11s per report.
 CFTC_DISAGG_URL = "https://publicreporting.cftc.gov/resource/72hh-3qpy.json"
 CFTC_TFF_URL = "https://publicreporting.cftc.gov/resource/gpe5-46if.json"
 # Treasury International Capital — major foreign holders of US Treasuries (no key).
@@ -280,16 +281,28 @@ def _value_digits(unit: str) -> int:
 # ---------------------------------------------------------------------------
 # FRED fetching
 # ---------------------------------------------------------------------------
+# How much history to ask FRED for. The dashboard only needs the last two
+# non-null rows (change), a 30-day-old yield-curve point and a 1-year-ago
+# point for YoY inflation — so 400 days covers everything without pulling the
+# full multi-decade series (which made the page take 8s+ on FRED's CDN).
+_FRED_WINDOW_DAYS = 400
+
+
 def _fetch_fred_series(series_id: str) -> list[tuple[str, float]] | None:
     """Fetch one FRED series via the public CSV endpoint.
+
+    Asks for a ~400-day window (cosd/coed) instead of the full history — the
+    dashboard only reads the last two rows, a 1-month-ago point and a
+    1-year-ago point, so the multi-decade tail is pure waste.
 
     Returns [(date, value), ...] oldest-to-newest with missing days ('.' rows,
     which DGS series use for holidays) dropped, or None if the fetch fails.
     """
+    start = (datetime.now(timezone.utc) - timedelta(days=_FRED_WINDOW_DAYS)).strftime("%Y-%m-%d")
     try:
         response = httpx.get(
             FRED_CSV_URL,
-            params={"id": series_id},
+            params={"id": series_id, "cosd": start, "coed": "9999-12-31"},
             headers=_HEADERS,
             timeout=_TIMEOUT_SECONDS,
             follow_redirects=True,
@@ -315,7 +328,7 @@ def _fetch_fred_series(series_id: str) -> list[tuple[str, float]] | None:
 def _fetch_fred_series_map(series_ids: list[str]) -> dict[str, list[tuple[str, float]] | None]:
     """Fetch several FRED series in parallel so a slow CDN day can't stack
     ten sequential 12s timeouts into a 120s page load."""
-    with ThreadPoolExecutor(max_workers=8) as pool:
+    with ThreadPoolExecutor(max_workers=12) as pool:
         results = list(pool.map(_fetch_fred_series, series_ids))
     return dict(zip(series_ids, results))
 
@@ -428,22 +441,30 @@ def _fetch_auction_indirect_share(term: str = "10-Year") -> list[tuple[str, floa
 def _fetch_cftc(dataset: str = "disagg") -> list[dict] | None:
     """One CFTC report (disaggregated or TFF) from the public Socrata API.
 
-    Returns the raw rows (each carries cftc_commodity_code + positions), or
-    None on failure. Both reports publish weekly on Friday for Tuesday data,
-    so a single fetch per report covers every series in that report.
+    Returns the raw rows of the most recent report week only, or None on
+    failure. A single ordered query (newest report date first, capped at 1000
+    rows) keeps it to one round-trip per report — the two-query version
+    (max-date then filter) doubled the latency on Socrata's side. Both
+    reports publish weekly on Friday for Tuesday data, so the newest rows
+    cover every series in that report.
     """
     url = CFTC_DISAGG_URL if dataset == "disagg" else CFTC_TFF_URL
     try:
         response = httpx.get(
             url,
-            params={"$limit": "2000", "$order": "report_date_as_yyyy_mm_dd DESC"},
+            params={"$order": "report_date_as_yyyy_mm_dd DESC", "$limit": "1000"},
             headers=_HEADERS,
             timeout=_TIMEOUT_SECONDS,
             follow_redirects=True,
         )
         if response.status_code != 200:
             return None
-        return response.json()
+        rows = response.json()
+        if not rows:
+            return None
+        # Keep only the newest report week's rows.
+        latest = str(rows[0].get("report_date_as_yyyy_mm_dd", ""))[:10]
+        return [r for r in rows if str(r.get("report_date_as_yyyy_mm_dd", "")).startswith(latest)] or None
     except Exception:
         return None
 
@@ -762,21 +783,29 @@ def _yf_history(ticker: str) -> list[tuple[str, float]]:
         return []
 
 
-def _fill_from_yfinance(cards: dict[str, dict]) -> dict[str, list[tuple[str, float]]]:
+def _fill_from_yfinance(
+    cards: dict[str, dict],
+    prefetched: dict[str, list[tuple[str, float]]] | None = None,
+) -> dict[str, list[tuple[str, float]]]:
     """Fill the cards whose source is a yfinance ticker, in parallel.
 
     Cards already populated from FRED (e.g. the yields on a normal day) are
     left alone; a card whose FRED source failed falls back to its yfinance
-    ticker where one exists. Returns {series_id: rows} for the series that
+    ticker where one exists. `prefetched` maps ticker -> rows (fetched in the
+    build's main parallel wave) so we don't wait for a second network round
+    after FRED/CFTC finish. Returns {series_id: rows} for the series that
     ended up backed by yfinance, so the caller can build the curve's
     '1 เดือนก่อน' line from real rows either way."""
     tickers = {sid: meta["yf"] for sid, meta in _SERIES.items() if meta.get("yf")}
     used_rows: dict[str, list[tuple[str, float]]] = {}
     if not tickers:
         return used_rows
-    with ThreadPoolExecutor(max_workers=6) as pool:
-        results = list(pool.map(lambda t: (t, _yf_history(t)), set(tickers.values())))
-    by_ticker = dict(results)
+    if prefetched is None:
+        with ThreadPoolExecutor(max_workers=10) as pool:
+            results = list(pool.map(lambda t: (t, _yf_history(t)), set(tickers.values())))
+        by_ticker = dict(results)
+    else:
+        by_ticker = prefetched
     for sid, ticker in tickers.items():
         if cards[sid]["available"]:
             continue  # FRED already gave us this card
@@ -791,8 +820,30 @@ def _fill_from_yfinance(cards: dict[str, dict]) -> dict[str, list[tuple[str, flo
 # ---------------------------------------------------------------------------
 # Dashboard assembly
 # ---------------------------------------------------------------------------
-def build_dashboard() -> dict:
-    """Assemble the full dashboard payload (no caching here -- the router caches)."""
+# Module-level cache shared by BOTH routers (macro and models): the models
+# page scores against the same data the macro page shows, so without a shared
+# cache every /api/models call re-fetched all ~35 external series (30s+).
+# The routers additionally cache their serialised payloads on top of this.
+import time as _time
+
+_DASHBOARD_CACHE_TTL_SECONDS = 600
+_dashboard_cache: dict[str, tuple[float, dict]] = {}
+
+
+def _clear_dashboard_cache() -> None:
+    _dashboard_cache.clear()
+
+
+def build_dashboard(force: bool = False) -> dict:
+    """Assemble the full dashboard payload.
+
+    Cached here (10 min) so the macro router AND the models router share one
+    fetch of the external sources instead of each pulling the whole set.
+    """
+    cached = _dashboard_cache.get("dashboard")
+    if not force and cached and (_time.time() - cached[0] < _DASHBOARD_CACHE_TTL_SECONDS):
+        return cached[1]
+
     fred_ids: list[str] = []
     for meta in _SERIES.values():
         if meta.get("fred"):
@@ -800,29 +851,35 @@ def build_dashboard() -> dict:
         for r in (meta.get("ratio") or []):
             if r not in fred_ids:
                 fred_ids.append(r)
-    fred_rows = _fetch_fred_series_map(sorted(set(fred_ids)))
-
-    # All the non-FRED sources fetch in parallel — TGA, both auction shapes,
-    # both CFTC reports, TIC and the EIA inventory set.
-    with ThreadPoolExecutor(max_workers=8) as pool:
+    # Everything fetches in one parallel wave: FRED's 31 series, all the
+    # non-FRED sources (TGA, both auction shapes, both CFTC reports, TIC, EIA)
+    # AND the yfinance tickers run concurrently — previously each group
+    # waited for the previous one, which made a cold build take the sum of
+    # all their latencies.
+    yf_tickers = sorted({meta["yf"] for meta in _SERIES.values() if meta.get("yf")})
+    with ThreadPoolExecutor(max_workers=20) as pool:
+        fred_future = pool.submit(_fetch_fred_series_map, sorted(set(fred_ids)))
         tga_future = pool.submit(_fetch_tga)
         auction_future = pool.submit(_fetch_auction_bid_to_cover)
         auction_indirect_future = pool.submit(_fetch_auction_indirect_share)
         disagg_future = pool.submit(_fetch_cftc, "disagg")
         tff_future = pool.submit(_fetch_cftc, "tff")
         tic_future = pool.submit(_fetch_tic)
+        yf_futures = {ticker: pool.submit(_yf_history, ticker) for ticker in yf_tickers}
         eia_futures = {
             sid: pool.submit(_fetch_eia, spec["series"])
             for sid, spec in (
                 (sid, meta["eia"]) for sid, meta in _SERIES.items() if meta.get("eia") and not meta["eia"].get("change")
             )
         }
+        fred_rows = fred_future.result()
         tga_rows = tga_future.result()
         auction_rows = auction_future.result()
         auction_indirect_rows = auction_indirect_future.result()
         cftc_disagg = disagg_future.result()
         cftc_tff = tff_future.result()
         tic_rows = tic_future.result()
+        yf_prefetched = {ticker: f.result() for ticker, f in yf_futures.items()}
         eia_rows = {sid: f.result() for sid, f in eia_futures.items()}
 
     cards: dict[str, dict] = {}
@@ -831,7 +888,7 @@ def build_dashboard() -> dict:
             sid, meta, fred_rows, tga_rows, auction_rows, auction_indirect_rows,
             cftc_disagg, cftc_tff, tic_rows, eia_rows,
         )
-    yf_rows = _fill_from_yfinance(cards)
+    yf_rows = _fill_from_yfinance(cards, prefetched=yf_prefetched)
 
     # Yield curve points: current + 1-month-ago + change, for the chart panel.
     curve_points: list[dict] = []
@@ -889,7 +946,7 @@ def build_dashboard() -> dict:
     if any(cards[sid]["available"] for sid in _SERIES if _SERIES[sid].get("eia")):
         sources.append("EIA (api.eia.gov)")
 
-    return {
+    result = {
         "yield_curve": {
             "points": curve_points,
             "spread_10y2y_bps": spread_10y2y_bps,
@@ -903,3 +960,5 @@ def build_dashboard() -> dict:
         "updated_at": datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M:%S UTC"),
         "data_sources": sources,
     }
+    _dashboard_cache["dashboard"] = (_time.time(), result)
+    return result

@@ -480,10 +480,12 @@ A "ข่าวสาร" sub-tab in the Bond-crisis page mirroring the referenc
 
 **Blocked by:** Ticket: News tab frontend
 
-- [ ] Spec updated (`docs/specs/2026-08-08-macro-dashboard.md` or a new news spec — the macro spec already covers the Bond-crisis tab family)
-- [ ] Full backend + frontend suites pass
-- [ ] Live smoke: real RSS headlines render with Thai titles, filters work
-- [ ] Commit (user rule: update spec, then commit)
+**Resolution (2026-08-09):** Spec updated (`docs/specs/2026-08-08-macro-dashboard.md` — new "News tab (ข่าวสาร)" section + Supabase rejected in Out of Scope). Full suites pass: **444 backend** (10 new news tests) + **566 frontend** (7 new NewsDashboard tests) + tsc clean. Live smoke verified: 305 items, Thai titles + analyses + impact ≥ 40 filter + sort + pagination against the real API. Committed as `ee2a822` "Add News tab (ข่าวสาร) to Bond-crisis, mirroring /news". **Map closed — all 5 news tickets resolved.**
+
+- [x] Spec updated (`docs/specs/2026-08-08-macro-dashboard.md` or a new news spec — the macro spec already covers the Bond-crisis tab family)
+- [x] Full backend + frontend suites pass
+- [x] Live smoke: real RSS headlines render with Thai titles, filters work
+- [x] Commit (user rule: update spec, then commit)
 
 
 ---

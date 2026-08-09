@@ -147,3 +147,55 @@ def test_refresh_invalidates_cache(monkeypatch):
     client.get("/api/countries")
     client.post("/api/countries/refresh")
     assert calls["n"] == 2
+
+
+# ── Country detail (/api/countries/{code}) ────────────────────────────────
+def _stub_detail_yields(monkeypatch):
+    """Stub the detail path: full yield table + us10 + fx."""
+    def fake_wgb_yields(slug):
+        if slug == "thailand":
+            return {"1Y": {"yield": 1.01, "chg_1m_bp": 3.0}, "2Y": {"yield": 1.20, "chg_1m_bp": 2.1},
+                    "5Y": {"yield": 1.52, "chg_1m_bp": 1.2}, "10Y": {"yield": 2.05, "chg_1m_bp": 8.3},
+                    "20Y": {"yield": 3.00, "chg_1m_bp": 6.0}}
+        if slug == "united-states":
+            return {"10Y": {"yield": 4.47, "chg_1m_bp": 7.0}}
+        return {}
+    monkeypatch.setattr(countries_service, "_wgb_yields", fake_wgb_yields)
+    monkeypatch.setattr(countries_service, "_fx_score", lambda ccy: 0.0)
+    monkeypatch.setattr(countries_service, "_fred_series", lambda sid: [("2026-06-01", 4.47)] if sid == "IRLTLT01USM156N" else None)
+    monkeypatch.setattr(countries_service, "yf", type("yf", (), {"Ticker": lambda s: type("T", (), {"history": lambda period: type("H", (), {"__len__": lambda self: 0, "iloc": None})()})()}))
+
+
+def test_country_detail_full_curve_and_risk(monkeypatch):
+    _stub_detail_yields(monkeypatch)
+    r = _client().get("/api/countries/TH")
+    assert r.status_code == 200
+    d = r.json()
+    assert d["country"]["name_th"] == "ไทย"
+    # full curve in tenor order
+    assert [p["tenor"] for p in d["yield_curve"]] == ["1Y", "2Y", "5Y", "10Y", "20Y"]
+    assert d["yield_curve"][3] == {"tenor": "10Y", "value": 2.05}
+    # risk mirrors the overview formula: ylv(2.05-4.47≈0) + mom(8.3/10=0.8) + fx0
+    assert d["risk"]["score"] == 0.8
+    assert d["risk"]["level"] == "low"
+    assert d["bps_vs_us"] == -242.0
+    assert d["us10"] == 4.47
+
+
+def test_country_detail_unknown_code_404(monkeypatch):
+    _stub_detail_yields(monkeypatch)
+    assert _client().get("/api/countries/ZZ").status_code == 404
+    assert _client().post("/api/countries/refresh").status_code == 200  # not captured as code
+
+
+def test_country_detail_missing_tenors_never_fabricated(monkeypatch):
+    def empty(slug):
+        return {}
+    monkeypatch.setattr(countries_service, "_wgb_yields", empty)
+    monkeypatch.setattr(countries_service, "yf", type("yf", (), {"Ticker": lambda s: type("T", (), {"history": lambda period: type("H", (), {"__len__": lambda self: 0, "iloc": None})()})()}))
+    r = _client().get("/api/countries/LA")
+    assert r.status_code == 200
+    d = r.json()
+    assert d["yield_curve"] == []
+    assert d["risk"]["score"] is None
+    assert d["mini_cards"][0]["value"] is None

@@ -73,6 +73,30 @@ def get_countries() -> CountriesOut:
     return CountriesOut(**payload)
 
 
+# ── Country detail ────────────────────────────────────────────────────────
+class CountryDetailOut(BaseModel):
+    country: dict
+    yield_curve: list[dict]
+    yield_asof: str | None = None
+    yield_stale: bool = False
+    risk: dict | None = None
+    trend: list[TrendPointOut]
+    us10: float | None = None
+    bps_vs_us: float | None = None
+    mini_cards: list[dict]
+
+
+@router.get("/{code}", response_model=CountryDetailOut)
+def get_country_detail(code: str) -> CountryDetailOut:
+    """Per-country detail: full yield curve, risk scorecard, trend, us10,
+    mini stat cards. 404 for unknown codes; missing data renders None.
+    NOTE: declared BEFORE /refresh so 'refresh' isn't captured as a code."""
+    payload = countries_service.build_country_detail(code)
+    if payload is None:
+        raise HTTPException(status_code=404, detail=f"Unknown country code: {code}")
+    return CountryDetailOut(**payload)
+
+
 @router.post("/refresh", response_model=CountriesOut)
 def refresh_countries() -> CountriesOut:
     """Invalidate the cache and rebuild now."""

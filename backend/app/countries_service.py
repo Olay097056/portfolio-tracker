@@ -138,11 +138,13 @@ def _fred_series(series_id: str) -> list[tuple[str, float]] | None:
         return None
 
 
-def _wgb_10y(slug: str) -> tuple[float | None, float | None, str | None]:
-    """(10Y yield, 1M change bp, asof) from worldgovernmentbonds via Playwright."""
+def _wgb_yields(slug: str) -> dict[str, dict]:
+    """Full yield table from worldgovernmentbonds via Playwright:
+    {tenor: {yield, chg_1m_bp, chg_6m_bp}} for every maturity row
+    (1Y, 2Y, 3Y, 4Y, 5Y, 7Y, 10Y, 12Y, 14Y, 15Y, 16Y, 20Y... + T-BILLs)."""
     chrome = _CHROME
     if not chrome:
-        return (None, None, None)
+        return {}
     try:
         from playwright.sync_api import sync_playwright
 
@@ -155,21 +157,46 @@ def _wgb_10y(slug: str) -> tuple[float | None, float | None, str | None]:
                 page.wait_for_timeout(2500)
                 rows = page.eval_on_selector_all(
                     "table tr",
-                    "els => els.map(e => e.innerText).filter(t => /^\\s*10 years/.test(t))")
-                if not rows:
-                    return (None, None, None)
-                cells = [c.strip() for c in rows[0].split("\t") if c.strip()]
-                y = float(cells[1].rstrip("%")) if len(cells) > 1 else None
-                chg = None
-                if len(cells) > 2:
-                    m = re.match(r"([+-]?[\d.]+)", cells[2])
+                    "els => els.map(e => e.innerText).filter(t => /year|T-BILL|MONTH/.test(t))")
+                out: dict[str, dict] = {}
+                for row in rows:
+                    cells = [c.strip() for c in row.split("\t") if c.strip()]
+                    if len(cells) < 2:
+                        continue
+                    label = cells[0].lower()
+                    m = re.match(r"^(\d+)\s*years?$", label)
+                    tenor = None
                     if m:
-                        chg = float(m.group(1))
-                return (y, chg, datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+                        tenor = f"{m.group(1)}Y"
+                    elif "t-bill" in label:
+                        m2 = re.match(r"t-bill\s*(\d+)m", label)
+                        tenor = f"{m2.group(1)}M" if m2 else None
+                    if not tenor:
+                        continue
+                    try:
+                        value = float(cells[1].rstrip("%"))
+                    except (ValueError, IndexError):
+                        continue
+                    chg1 = None
+                    if len(cells) > 2:
+                        m3 = re.match(r"([+-]?[\d.]+)", cells[2])
+                        if m3:
+                            chg1 = float(m3.group(1))
+                    out[tenor] = {"yield": value, "chg_1m_bp": chg1}
+                return out
             finally:
                 browser.close()
     except Exception:
+        return {}
+
+
+def _wgb_10y(slug: str) -> tuple[float | None, float | None, str | None]:
+    """(10Y yield, 1M change bp, asof) — single-tenor convenience wrapper."""
+    table = _wgb_yields(slug)
+    entry = table.get("10Y")
+    if not entry:
         return (None, None, None)
+    return (entry["yield"], entry["chg_1m_bp"], datetime.now(timezone.utc).strftime("%Y-%m-%d"))
 
 
 def _yield_rows(code: str, meta: dict) -> tuple[list[tuple[str, float]] | None, str | None, float | None]:
@@ -339,4 +366,116 @@ def build_countries() -> dict:
         "us_10y": us_y,
         "updated_at": datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M:%S UTC"),
         "data_sources": sources,
+    }
+
+
+# --- Country detail -------------------------------------------------------
+# Reference tenors in display order (page-detail bundle: 1M-30Y)
+_TENOR_ORDER = ["1M", "3M", "6M", "1Y", "2Y", "3Y", "4Y", "5Y", "7Y", "10Y", "12Y", "14Y", "15Y", "16Y", "20Y", "30Y"]
+
+
+def build_country_detail(code: str) -> dict | None:
+    """Per-country detail payload for /api/countries/{code}: country meta,
+    full yield curve (all tenors we can fetch), risk scorecard + components,
+    60-day trend, us10 benchmark and mini stat cards (fx + policy + cpi)."""
+    meta = next((c for c in COUNTRIES if c["code"] == code.upper()), None)
+    if not meta:
+        return None
+
+    # Full yield table: FRED tenors (IRLTLT01 is 10Y only — use wgb table for
+    # the curve; FRED fills 10Y when wgb lacks it)
+    table = _wgb_yields(meta["slug"])
+    asof = datetime.now(timezone.utc).strftime("%Y-%m-%d") if table else None
+    if meta.get("fred"):
+        rows = _fred_series(meta["fred"])
+        if rows and "10Y" not in table:
+            table["10Y"] = {"yield": rows[-1][1], "chg_1m_bp": None}
+            asof = rows[-1][0]
+
+    # us10 benchmark (reuse the shared macro dashboard cache when warm)
+    us_meta = next(c for c in COUNTRIES if c["code"] == "US")
+    us_rows, us_asof, _ = _yield_rows("US", us_meta)
+    us10 = us_rows[-1][1] if us_rows else None
+
+    # Risk score from the same formula as the overview
+    y10 = table.get("10Y", {}).get("yield")
+    chg_bp = table.get("10Y", {}).get("chg_1m_bp")
+    stale = code.upper() == "RU" and asof is not None and asof.startswith("201")
+    score = None
+    components = None
+    if y10 is not None and us10 is not None:
+        ylv = _yield_level_score(y10, us10)
+        mom = _momentum_score(chg_bp)
+        fx = _fx_score(_FX[code.upper()])
+        fr = 5.0 if stale else 0.0
+        score = round(ylv + mom + fx + fr, 1)
+        components = {
+            "yield_level": round(ylv, 1),
+            "yield_momentum": round(mom, 1),
+            "fx_depreciation": round(fx, 1),
+            "data_freshness": round(fr, 1),
+        }
+
+    # 60-day trend: FRED countries recompute from yield history; wgb countries
+    # have a single point (score snapshots accumulate over time)
+    trend: list[dict] = []
+    if meta.get("fred"):
+        fred_rows = _fred_series(meta["fred"])
+        if fred_rows and us_rows:
+            trend = _trend_points(fred_rows, code.upper(), us_rows)
+
+    # Mini stat cards: fx (3M change), policy rate + cpi from macro_service
+    # shared cache when available (never fabricated — None renders "—")
+    mini: list[dict] = []
+
+    # FX mini card via yfinance (same as the fx component)
+    fx_value = None
+    fx_chg_pct = None
+    try:
+        h = yf.Ticker(f"{_FX[code.upper()]}=X").history(period="3mo")
+        if len(h) >= 10:
+            fx_value = round(float(h["Close"].iloc[-1]), 4)
+            fx_chg_pct = round((float(h["Close"].iloc[-1]) / float(h["Close"].iloc[0]) - 1) * 100, 2)
+    except Exception:
+        pass
+    mini.append({
+        "series_id": "fx_" + _FX[code.upper()].lower(),
+        "name_th": f"ค่าเงิน ({_FX[code.upper()]}/USD)",
+        "unit": _FX[code.upper()],
+        "value": fx_value,
+        "change_pct": fx_chg_pct,
+    })
+
+    # Yield curve points in reference tenor order
+    curve = [
+        {"tenor": t, "value": table[t]["yield"]}
+        for t in _TENOR_ORDER if t in table
+    ]
+    bps_vs_us = None
+    if code.upper() != "US" and y10 is not None and us10 is not None:
+        bps_vs_us = round((y10 - us10) * 100, 0)
+
+    return {
+        "country": {
+            "code": meta["code"],
+            "name_en": meta["name_en"],
+            "name_th": meta["name_th"],
+            "currency": meta["currency"],
+            "flag": meta["flag"],
+            "data_tier": meta["data_tier"],
+            "data_tier_note_th": DATA_TIER_NOTE_TH.get(meta["data_tier"], ""),
+        },
+        "yield_curve": curve,
+        "yield_asof": asof,
+        "yield_stale": stale,
+        "risk": {
+            "score": score,
+            "level": _level(score) if score is not None else None,
+            "components": components,
+            "updated_at": datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M:%S UTC"),
+        },
+        "trend": trend,
+        "us10": us10,
+        "bps_vs_us": bps_vs_us,
+        "mini_cards": mini,
     }

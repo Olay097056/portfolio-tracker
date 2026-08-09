@@ -795,3 +795,68 @@ A "รายประเทศ" sub-tab in the Bond-crisis page mirroring the re
 - [x] Spec updated (Bond-crisis spec family)
 - [x] Full backend + frontend suites pass; live smoke: 13 countries with real scores, others "—"
 - [x] Commit (user rule: update spec, then commit)
+---
+
+# MAP: Countries detail pages (/countries/:code) for Bond-crisis — wayfinder:map
+
+## Destination
+
+Per-country detail pages for the Bond-crisis "รายประเทศ" tab, mirroring the reference's `/countries/:code` routes 100% where our free data allows: clicking a country card opens its detail page with header (flag + name + data-tier + score + sparkline), AI situation brief, full-tenor yield curve chart + spread vs US, risk scorecard (component bars), mini stat cards, duration stress-test simulator, per-country news, and an AI deep-dive report (DeepSeek replaces the reference's login-gated edge function).
+
+## Notes
+
+- **Domain:** portfolio-tracker, Bond-crisis Tools tab. Patterns to reuse: `countries_service.py` (registry, FRED + Playwright yield fetchers, score engine), `banking_service.py` (computed scores + history), `news_service.py` (DeepSeek enrichment — same API, same max_tokens 8000 lesson), `CountriesDashboard.tsx` (ink-palette cards, hand-rolled SVG sparklines), `ModelsDashboard.tsx` (expandable cards).
+- **Reference extracted 2026-08-09 (countries/%5Bcode%5D/page-b39cae373e39b268.js):**
+  - Data: `countries` (one row), `macro_series` by country (19 rows for TH: yield tenors 1Y/2Y/5Y/10Y/30Y + fx usdthb + inflation cpi/core + policy rate + credit debt_gdp/fiscal/household/cds_proxy + growth ca_gdp/reserves/unemployment + rating sp/moodys/dbrs), `country_risk_scores` (score + components), `country_briefs` (AI brief_md + recommendations[] + scenarios[] + key_events[]), `news_items` (6 latest, impact_score + title), `us10y` series, rpc `country_risk_daily{days:60}`.
+  - Sections: header (flag + name_th + dataTierNote subtitle + big score colored by level + 160×32 sparkline + riskTrend60); AI brief panel (accent border, brief_md, numbered recommendations, scenarios, key_events from calendar w/ forecast/previous + calendarSource "ข้อมูลปฏิทินจาก ForexFactory"); yield curve panel (YieldCurveChart height 250, tenors 1M-30Y, spread-vs-US badge amber/sky); risk scorecard (components bars: ≥15 red / ≥8 amber / else emerald, width t/30×100%, lastUpdated); mini stat cards (grid, state badge + big value + change_val bps or change_pct + recorded_at); duration stress test (Duration slider 1-15yr, ΔYield slider 25-500 step 25, ΔPrice = -duration×ΔYield/100, matrix table 3/5/8/12yr × +100/+200/+300 bps colored ≤-15 red / ≤-8 orange / else amber); news panel (impact badge + title links); last-report panel (generate button → edge function `/functions/v1/country-report` — LOGIN-GATED, we replace with DeepSeek; model_used + generated_at + report_md markdown).
+  - i18n (chunk 3474): aiBrief=AI สรุปสถานการณ์, aiRecommendations=คำแนะนำ, aiScenarios=จินตนาการ, upcomingEvents=เหตุการณ์สำคัญข้างหน้า, calendarSource=ข้อมูลปฏิทินจาก ForexFactory, forecastShort=คาด, prevShort=ก่อนหน้า, yieldCurve=Yield Curve, spreadVsUs=ส่วนต่างเทียบ US 10Y, riskScorecard=Country Risk Scorecard, stressTest=Duration Stress Test, stressTestDesc=ΔPrice ≈ -Duration × ΔYield (สูตรประมาณการ ไม่รวม convexity), generateReport=สร้างรายงาน AI เชิงลึก, generatingReport=กำลังสร้างรายงาน (ใช้เวลา 1-3 นาที)..., lastReport=รายงานล่าสุด, noReport=ยังไม่มีรายงาน — กดปุ่มด้านบนเพื่อให้ AI วิเคราะห์เชิงลึก 14 หัวข้อ.
+- **User decision (2026-08-09):** full detail page, everything we can do with free data: header+scorecard+stress test+yield curve (fetch full tenors from worldgovernmentbonds)+mini cards+news; AI brief/report via DeepSeek (no edge function/login on our side).
+- **Never fabricate:** missing series → "—"; stress test is the reference's stated approximation formula (no convexity); AI report shows model + generated_at.
+- **Tracker:** local-markdown (tickets.md). Work the frontier: open + unblocked first. **Do NOT resolve more than one ticket per session.**
+
+## Decisions so far
+
+<!-- index of closed tickets, one line each -->
+
+- [Ticket: Yield curve tenors + backend /api/countries/:code](tickets.md) — `_wgb_yields()` grabs the FULL yield table (1Y-20Y + T-BILLs); `build_country_detail(code)` + `GET /api/countries/{code}` (404 unknown, before /refresh): full curve, risk scorecard, trend, us10, bps-vs-US, FX mini card. Live TH 12 tenors / TR 4 tenors; 3 new tests, 457 total pass.
+
+## Not yet specified
+
+- Whether yield-curve tenors come from worldgovernmentbonds' full table (1Y-30Y visible; 1M/3M/6M maybe T-BILL columns) or FRED series per tenor where they exist — probe during the research ticket.
+- key_events/calendar (ForexFactory) — no free API confirmed; likely ruled out of scope with a note, brief still shows recommendations/scenarios from DeepSeek.
+- AI report cadence: on-demand only (user clicks) or auto-generate per country on first view; SQLite `country_briefs`/`country_reports` tables mirroring the reference.
+
+## Out of scope
+
+- The reference's login-gated edge functions themselves (we substitute DeepSeek).
+- The other unmirrored reference pages (sentiment index, scenario simulator global, AI boardroom, 3D office) — separate efforts.
+- The paused Supabase-migration map — separate effort, its tickets stay parked.
+
+---
+
+## Ticket: Yield curve tenors + backend /api/countries/:code (wayfinder:task, AFK)
+
+**Question:** How does the backend serve a single country's full detail payload — all yield tenors, mini stat series, scorecard components, trend, news — reusing the existing FRED/Playwright fetchers and the score engine?
+
+**Resolution (2026-08-09):** `_wgb_yields(slug)` now scrapes the FULL worldgovernmentbonds yield table (every maturity row 1Y-20Y + T-BILLs — regex `^(\d+) years?$` + `t-bill (\d+)m`) instead of just 10Y; `_wgb_10y` wraps it. `build_country_detail(code)` assembles the detail payload: country meta, full yield curve in reference tenor order, risk scorecard (same user-confirmed formula; components), 60-day trend (FRED recompute), us10 benchmark, bps-vs-US, FX mini card (yfinance 3M). `GET /api/countries/{code}` (404 for unknown; declared BEFORE /refresh so 'refresh' isn't captured). Live: TH 12 tenors (1Y 1.01 → 20Y 3.003), risk 8.2, bps -242; TR 4 tenors, score 25.6. Tests: 3 new (full curve + risk math, 404 + refresh-not-captured, missing → None) — full suite 457 passes.
+
+- [x] Extend the worldgovernmentbonds fetch to grab the FULL yield table (1Y-30Y tenors + T-BILL 1M/3M/6M/1Y if present) instead of just 10Y; FRED where tenors exist; probe which tenors each country actually has
+- [x] Country detail assembly: yield curve points (tenor → value), mini stat cards from our own fetchers (fx via yfinance, policy/cpi via existing macro_service series where they exist), risk components (existing formula), 60-day trend (existing)
+- [x] `GET /api/countries/{code}` payload mirrors the reference detail shape (country, series[], risk{score,level,components,updated_at}, trend[], us10, news[]) — missing → None, never fabricated; tests
+
+## Ticket: DeepSeek AI brief + report for a country (wayfinder:prototype, HITL)
+
+**Question:** What does the AI situation brief + deep-dive report look like when generated by DeepSeek (we have no login-gated edge function), and how is it stored/refreshed?
+
+- [ ] Prototype: one country (TH) — brief (สรุปสถานการณ์ + คำแนะนำ + จินตนาการ scenarios) from current yield/fx/news data; deep report (~14 หัวข้อ) on demand; measure tokens/time (max_tokens 8000 lesson)
+- [ ] Show the user a sample brief + report to judge tone/length before wiring all 27
+- [ ] Decide storage: SQLite `country_briefs` / `country_reports` (generated_at, model_used) + on-demand regeneration
+- [ ] News panel: which 6 news items per country (reuse news_service's impact scores; country tag needed)
+
+## Ticket: Country detail page frontend (wayfinder:task, HITL)
+
+**Question:** What does the 100%-parity detail page look like in this app's non-Tailwind, Thai-first design system?
+
+- [ ] Route `/countries/:code` (React Router or state) — country cards in CountriesDashboard become links
+- [ ] Sections: header (flag/name/data-tier/score/sparkline), AI brief panel, yield curve SVG chart (hand-rolled, tenors on x-axis), risk scorecard bars (≥15/≥8 bands), mini stat cards grid, duration stress-test simulator (sliders + matrix table), news panel, report panel (generate + render markdown)
+- [ ] Tests: sections render with fixture, stress-test math, missing → "—"

@@ -1,6 +1,7 @@
 // frontend/src/api/client.ts
 import type {
   AiNarrativeResult,
+  BankingDashboard,
   ChartData,
   ChartRange,
   ComparableStock,
@@ -561,4 +562,12 @@ export function getNews(
 
 export function refreshNews(): Promise<NewsList> {
   return request<NewsList>('/api/news/refresh', { method: 'POST' });
+}
+
+export function getBankingDashboard(): Promise<BankingDashboard> {
+  return request<BankingDashboard>('/api/banking');
+}
+
+export function refreshBankingDashboard(): Promise<BankingDashboard> {
+  return request<BankingDashboard>('/api/banking/refresh', { method: 'POST' });
 }

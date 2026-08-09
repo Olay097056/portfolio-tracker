@@ -574,3 +574,70 @@ export interface NewsList {
   sources: string[];
   updated_at: string;
 }
+
+// --- Banking Stress (mirrors the reference /banking page: bank-run gauge,
+// funding rates, deposits, discount window, KRE/^BKX prices, two histories)
+export interface BankingFundingCard {
+  series_id: string;
+  name_th: string | null;
+  name_en: string | null;
+  unit: string | null;
+  value: number | null;
+  change_bps: number | null;
+  recorded_at: string | null;
+  available: boolean;
+}
+
+export interface BankingStatCard {
+  series_id: string | null;
+  value: number | null;
+  change_pct: number | null;
+  recorded_at: string | null;
+  available: boolean;
+}
+
+export interface BankingPriceCard {
+  price: number | null;
+  change_pct: number | null;
+}
+
+export interface BankingGauge {
+  value: number | null;
+  status: string | null;
+  zones: { max: number; color: string }[];
+  partial_inputs: boolean;
+  recorded_at: string | null;
+}
+
+export interface BankingHistoryPoint {
+  date: string;
+  value: number;
+}
+
+export interface BankingModel {
+  model_id: string;
+  score: number | null;
+  status: string | null;
+  name_th: string | null;
+  name_en: string | null;
+  concept_th: string | null;
+  trade_direction: string | null;
+  regime_th: string | null;
+  color: string | null;
+}
+
+export interface BankingDashboard {
+  funding: BankingFundingCard[];
+  stat_cards: {
+    us_bank_deposits: BankingStatCard | null;
+    us_discount_window: BankingStatCard | null;
+    kre: BankingPriceCard | null;
+    bkx: BankingPriceCard | null;
+  };
+  gauge: BankingGauge;
+  deposit_flow: BankingHistoryPoint[];
+  sofr_effr_spread: BankingHistoryPoint[];
+  model: BankingModel;
+  updated_at: string;
+  data_sources: string[];
+}

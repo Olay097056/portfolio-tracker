@@ -595,3 +595,97 @@ Move this app from local SQLite to **Supabase Postgres** (free tier) while keepi
 - [ ] Decide Ollama handling: move ai_narrative to DeepSeek (key exists) vs run Ollama on the same VPS
 - [ ] Cost estimate + deploy runbook (env vars, health check, DB from Supabase)
 - [ ] Deliver the runbook as an asset
+
+---
+
+# MAP: Banking Stress tab (วิกฤตแบงก์รัน) for Bond-crisis — wayfinder:map
+
+## Destination
+
+A "วิกฤตแบงก์รัน" sub-tab in the Bond-crisis page mirroring the reference site's `/banking` page 100%: a bank-run stress gauge (0-40 green / 40-70 amber / 70-100 red), four funding-rate cards (SOFR / EFFR / OBFR / SOFR-EFFR spread with red/orange/emerald thresholds), bank-deposits + Fed discount-window cards with WoW %, KRE (regional banks) + BKX (KBW banks) price cards with 1D change, a deposit-flow WoW bar chart (60 weeks), a SOFR-EFFR area chart (60 days), and the bank-run regime-model card — all computed from sources the app already has (FRED + yfinance + the existing bank-run model score).
+
+## Notes
+
+- **Domain:** portfolio-tracker, Bond-crisis Tools tab. Existing patterns to reuse: `MacroDashboard.tsx` / `ModelsDashboard.tsx` (generic card rendering, no Tailwind, hand-rolled SVG charts, shared theme tokens, Thai-first UI), `macro_service.py` (FRED/yfinance fetch + `_SERIES` registry + parallel-wave fetch), `model_service.py` (bank-run model score already computed 0-100).
+- **Reference extracted 2026-08-09 (banking/page-6940680eefeb1371.js + i18n chunk 3474):**
+  - Data: `macro_series` (us_banking_stress_index, us_bank_deposits, us_discount_window, us_sofr, us_effr, us_obfr, us_sofr_effr_spread), `macro_series_history` 30d (bank_deposits, discount_window, stress_index, sofr_effr_spread), `market_prices` category=banking (KRE, BKX), `model_scores` bank-run.
+  - Gauge: value 0-100, zones [[0,40,#10b981],[40,70,#f59e0b],[70,100,#ef4444]], size 210, 1 decimal; `value_label` renders the "ข้อมูลเข้าไม่ครบ" (partial inputs) badge; no data → "ยังไม่มีข้อมูลดัชนี" placeholder (never fake 0).
+  - Funding cards: SOFR/EFFR/OBFR plain values + change bps; SOFR-EFFR spread card border orange when >10, text red >20 / orange >10 / emerald else.
+  - Stat cards: เงินฝากธนาคารรวม ($B, WoW %), Fed Discount Window ($B, WoW %), KRE (Regional Banks), BKX (KBW Banks) — price + 1D %.
+  - Charts: deposit-flow WoW % BarChart (last 60 weeks), funding stress SOFR-EFFR bps AreaChart (last 60 days, gradient #38bdf8).
+  - Model card: bank-run model (name/score/status badge/concept/trade direction) — reuse ModelsDashboard's ModelCard rendering.
+  - refreshMs 300000; header title t.banking = "วิกฤตแบงก์รัน" + lastUpdated.
+- **User decision (2026-08-09):** the stress gauge IS the bank-run model score — no new computation, gauge and model card agree. (Option A chosen over a separately-weighted composite.)
+- **Never fabricate:** missing series renders "—" / placeholder — never a fake 0 or invented number.
+- **Tracker:** local-markdown (tickets.md). Work the frontier: open + unblocked first. **Do NOT resolve more than one ticket per session.**
+
+## Decisions so far
+
+<!-- index of closed tickets, one line each -->
+
+- [Ticket: KRE / BKX price source](tickets.md) — `KRE` works as-is (SPDR Regional Banking ETF); `BKX` must be `^BKX` (index — the bare symbol is delisted in yfinance). Fetch: `history(period="5d")`, 1D chg from last two closes; fallbacks KBE/XLF. Asset: `docs/research/kre-bkx-price-source-2026-08-09.md`.
+- [Ticket: Backend banking payload + /api/banking](tickets.md) — `banking_service.build_banking()` reuses the shared macro dashboard cache + bank-run model score as the gauge; KRE/^BKX via yfinance (one retry for Yahoo rate-limit); deposit-flow WoW + SOFR-EFFR bps histories from FRED raw rows. `/api/banking` + `/refresh`, 4 new tests, 448 total pass.
+- [Ticket: Banking tab frontend](tickets.md) — `BankingDashboard.tsx`: SVG gauge (reference zones), 4 funding cards with spread thresholds, 4 stat cards (deposits/discount/KRE/BKX), deposit-flow bar + SOFR-EFFR area charts, bank-run model card; 6 new tests, 572 frontend pass. Bonus: FRED was broken from Docker (CDN TLS-fingerprint bot detection rejects custom UAs) — fixed by sending no custom UA for FRED; live /api/banking now fully populated.
+
+## Not yet specified
+
+<!-- none — the banking map is fully charted and resolved -->
+
+## Out of scope
+
+- The reference site's remaining unmirrored pages (sentiment index, country risk, scenario simulator, AI boardroom, 3D office) — the user scoped this effort to the banking page only.
+- Other bank indices beyond KRE/BKX (e.g. XLF, regional stress indices requiring paid data).
+- The paused Supabase-migration map — separate effort, its tickets stay parked.
+- Bank-run model internals — the model already exists and is scored; this tab only *displays* it.
+
+---
+
+## Ticket: KRE / BKX price source (wayfinder:research, AFK)
+
+**Question:** What is the exact yfinance source for the two banking equity cards — KRE (SPDR Regional Banking ETF) and BKX (KBW Nasdaq Bank Index) — including ticker symbols, price, 1-day change, and any history needed for a sparkline?
+
+**Resolution (2026-08-09):** `KRE` works as-is (76.21, -0.37% on 2026-08-09). `BKX` without a caret is **delisted/no-data in yfinance** (zero rows at 5d/1mo/3mo) — the correct symbol is the index **`^BKX`** (189.99, +0.17%, `fast_info.last_price` works). Fetch: `yf.Ticker(sym).history(period="5d")`, 1D change from last two closes; fallbacks KBE/XLF if either ever fails. Full recipe: `docs/research/kre-bkx-price-source-2026-08-09.md`.
+
+- [x] Probe `KRE` and `BKX` (and `^BKX` if the raw index) via yfinance from this host — record last price, 1D change %, and history availability
+- [x] Note any delisting / symbol-change issues (BKX vs ^BKX vs KBE)
+- [x] Deliver a markdown asset with the exact tickers + fetch recipe, linked in the resolution comment
+
+## Ticket: Backend banking payload + /api/banking (wayfinder:task, AFK)
+
+**Question:** What shape does the server-side payload take — funding cards, deposits/discount WoW, KRE/BKX prices, stress gauge (= bank-run score), and the two history series — reusing macro_service's existing FRED/yfinance fetches?
+
+**Resolution (2026-08-09):** `banking_service.build_banking()` reuses macro_service's shared 10-min dashboard cache for the funding cards (SOFR/EFFR/OBFR/spread) and stat cards (deposits/discount window) — no re-fetch. Gauge = bank-run model score from model_service (11.7 on 2026-08-09, inactive). KRE/^BKX via yfinance `history(period="5d")` with one retry (Yahoo rate-limits when the cold dashboard pulls 8 tickers at once). Deposit-flow WoW from DPSACBW027SBOG weekly history (55 points); SOFR-EFFR bps from SOFR/DFF daily (60 points). `GET /api/banking` + `POST /refresh` (10-min cache), registered in main.py. Tests: 4 new (happy path with known fixtures incl. WoW 10% math, missing→None never fabricated, router cache, refresh invalidates). Full suite 448 passes.
+
+- [x] Reuse macro_service `_SERIES` data (sofr/effr/obfr/spread/deposits/discount_window) — do NOT re-fetch what build_dashboard already fetched (shared cache)
+- [x] Stress gauge = bank-run model score from model_service (0-100) — same value the model card shows
+- [x] KRE/BKX fetched via the yfinance pattern (price + change_pct), parallel with the rest
+- [x] Deposit-flow WoW % series from DPSACBW027SBOG weekly history; SOFR-EFFR bps series from SOFR/DFF daily history
+- [x] `GET /api/banking` payload mirrors the reference data shape (series values, history, prices, model) + data_sources
+- [x] Backend tests: gauge equals bank-run score, WoW math on known fixtures, missing series → None (never fabricated), cache/refresh
+
+## Ticket: Banking tab frontend (wayfinder:task, HITL)
+
+**Question:** What does the 100%-parity banking UI look like in this app's non-Tailwind, Thai-first design system — gauge, funding cards, stat cards, two charts, model card?
+
+**Resolution (2026-08-09):** `BankingDashboard.tsx` renders the full reference layout with hand-rolled SVG (no new dependency): 240° stress gauge with the reference zones (0-40 #10b981 / 40-70 #f59e0b / 70-100 #ef4444) + needle + value, "ข้อมูลเข้าไม่ครบ" badge when partial_inputs, "ยังไม่มีข้อมูลดัชนี" placeholder when absent; 4 funding cards with the red(>20)/orange(>10)/emerald spread thresholds; 4 stat cards (เงินฝากธนาคารรวม / Fed Discount Window WoW, KRE/^BKX 1D); deposit-flow WoW bar chart (green/red bars); SOFR-EFFR area chart (#38bdf8 gradient); bank-run model card (score + status badge + concept + trade direction) reusing the models-tab visual language; refresh button + 5-min auto-refresh; "—" for any missing value (never fabricated). Wired as the วิกฤตแบงก์รัน sub-tab in BondCrisisPage. Tests: 6 new (gauge+cards+charts render, no-data placeholder, partial badge, missing→"—", refresh, error retry). Full suite 572 frontend + 448 backend pass.
+
+**Bonus fix found during verification:** FRED was BROKEN from Docker entirely — its CDN runs TLS-fingerprint bot detection and only serves requests whose User-Agent matches the client library's real fingerprint (python-httpx/0.27.2); the app's custom `portfolio-tracker/1.0` UA (and even a browser UA) timed out from container egress IPs while the host got 200. This is why the docker-based dashboard had missing FRED series from the start. Fix: FRED fetches now send NO custom headers (macro_service._fetch_fred_series). docker-compose stays on the default bridge network (host networking is unreachable from Windows host on Docker Desktop). Live /api/banking now returns full funding (SOFR 3.65/EFFR 3.63/spread 2.0), gauge 11.7, KRE/^BKX prices, 55 deposit-flow + 60 spread points.
+
+- [x] `BankingDashboard.tsx` sub-tab in Bond-crisis page (alongside macro/models/signals/news)
+- [x] Stress gauge: hand-rolled SVG arc (zones 0-40/40-70/70-100 in the reference colors), value + "ข้อมูลเข้าไม่ครบ" badge when partial, "ยังไม่มีข้อมูลดัชนี" placeholder when absent
+- [x] Funding cards ×4 with the red/orange/emerald spread thresholds and change-bps lines
+- [x] Stat cards ×4 (เงินฝาก / Discount Window / KRE / BKX) with WoW/1D changes
+- [x] Deposit-flow WoW bar chart + SOFR-EFFR area chart (hand-rolled SVG, no new dependency)
+- [x] Bank-run model card reusing ModelsDashboard's ModelCard
+- [x] Empty/error states — unavailable renders as "—", never a fabricated number
+
+## Ticket: Spec, tests, commit (wayfinder:task, AFK)
+
+**Question:** Is the whole banking tab verified and documented before the map closes?
+
+**Blocked by:** Ticket: Banking tab frontend
+
+- [ ] Spec updated (the Bond-crisis spec family in docs/specs/)
+- [ ] Full backend + frontend suites pass
+- [ ] Live smoke: gauge shows the bank-run score, funding cards live, charts render
+- [ ] Commit (user rule: update spec, then commit)

@@ -16,6 +16,12 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
+    # NOTE: keep the default bridge network — on Docker Desktop (Windows/WSL2)
+    # `network_mode: host` binds inside the WSL2 VM, unreachable from the
+    # Windows host, so port mapping is required. FRED access is fixed at the
+    # HTTP layer instead: FRED's CDN only serves requests whose User-Agent
+    # matches the client's real TLS fingerprint, so macro_service sends NO
+    # custom UA for FRED (see _fetch_fred_series).
     ports:
       - "8000:8000"
     volumes:

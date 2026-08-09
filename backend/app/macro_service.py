@@ -300,10 +300,15 @@ def _fetch_fred_series(series_id: str) -> list[tuple[str, float]] | None:
     """
     start = (datetime.now(timezone.utc) - timedelta(days=_FRED_WINDOW_DAYS)).strftime("%Y-%m-%d")
     try:
+        # FRED's CDN runs TLS-fingerprint bot detection: it serves ONLY
+        # requests whose User-Agent matches the client library's real
+        # fingerprint (python-httpx/0.27.2). A custom UA — even a browser
+        # UA — times out from Docker/WSL egress IPs, while the matching UA
+        # returns 200 in <1s. So FRED gets NO custom headers; every other
+        # source keeps _HEADERS.
         response = httpx.get(
             FRED_CSV_URL,
             params={"id": series_id, "cosd": start, "coed": "9999-12-31"},
-            headers=_HEADERS,
             timeout=_TIMEOUT_SECONDS,
             follow_redirects=True,
         )

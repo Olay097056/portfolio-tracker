@@ -115,7 +115,7 @@ sources; the UI renders missing sections as "—" — never a fabricated number.
 
 ## Out of Scope
 
-- The reference site's other pages (sentiment index, bank-run stress monitor, country risk, scenario simulator, AI boardroom, 3D office) — the user chose to evaluate the macro set first, then revisit later. (The trading-signals and news pages ARE mirrored — see their own spec sections below.)
+- The reference site's other pages (sentiment index, country risk, scenario simulator, AI boardroom, 3D office) — the user chose to evaluate the macro set first, then revisit later. (The trading-signals, news and banking pages ARE mirrored — see their own spec sections below.)
 - Gold CME open interest / volume / options IV, the ~20 CME ATM-IV series, FedWatch probabilities, ratings (S&P/Moody's/DBRS), the proprietary banking-stress composite, CDS proxy, auction tail/dealer breakdowns — no free public source exists (the reference site computes/scrapes these itself); skipped rather than fabricated.
 - EIA inventories — implemented but inert until the user registers a free key at api.eia.gov and sets `EIA_API_KEY`.
 - Historical yield-curve chart (time series of curves) — only the current curve is shown.
@@ -138,6 +138,36 @@ enriched with Thai titles, impact scores, categories and related-model badges.
   - Sort (วันที่/IMPACT), source dropdown, IMPACT ≥ N filter (15/40/60), pagination 20/page with ellipsis; honest loading/error/empty states.
   - Ink-palette inline styles (no Tailwind), matching ModelsDashboard/SignalsDashboard.
 - **DeepSeek** (`docs/research/deepseek-enrichment-prototype-2026-08-09.md`): key read from `DEEPSEEK_API_KEY` env (never hardcoded); model `deepseek-v4-flash`; A/B-verified prompt shape (json_object beats free-form 34% tokens / 38% latency; 20/call beats 10/call).
+
+## Banking tab (วิกฤตแบงก์รัน) — added 2026-08-09, mirroring the reference /banking page
+
+The Bond-crisis page gained a fifth sub-tab: a bank-run stress monitor —
+gauge, funding rates, deposits, discount window, bank-stock prices and two
+history charts.
+
+- **Backend** (`backend/app/banking_service.py` + `backend/app/routers/banking.py`, prefix `/api/banking`):
+  - **Gauge = the bank-run regime-model score** (user decision 2026-08-09) — no new computation; the gauge and the model card agree by construction. Zones 0-40/40-70/70-100 in the reference colors.
+  - Funding cards (SOFR/EFFR/OBFR/SOFR-EFFR spread) and stat cards (deposits, discount window) come from `macro_service.build_dashboard()`'s shared 10-min cache — **never a second fetch** of the same series.
+  - KRE / `^BKX` via yfinance `history(period="5d")` with one retry (Yahoo rate-limits when the cold dashboard pulls ~8 tickers at once); `BKX` bare is delisted in yfinance — the caret form is required (`docs/research/kre-bkx-price-source-2026-08-09.md`).
+  - Deposit-flow WoW % series from DPSACBW027SBOG weekly history (55 points); SOFR-EFFR bps from SOFR/DFF daily history (60 points).
+  - `GET /api/banking` + `POST /api/banking/refresh`, 10-min cache; missing series → `None` (renders "—"), never a fabricated 0.
+- **Frontend** (`frontend/src/components/tools/BankingDashboard.tsx`, rendered as the วิกฤตแบงก์รัน sub-tab):
+  - Hand-rolled SVG gauge (240° arc, zone colors, needle, value; "ข้อมูลเข้าไม่ครบ" badge on partial inputs; "ยังไม่มีข้อมูลดัชนี" placeholder when absent).
+  - Four funding cards with the red(>20)/orange(>10)/emerald spread thresholds and change-bps lines; four stat cards (เงินฝากธนาคารรวม / Fed Discount Window with WoW %, KRE / BKX with 1D %).
+  - Deposit-flow WoW bar chart (green/red bars) + SOFR-EFFR area chart (#38bdf8 gradient) — hand-rolled SVG, no new dependency.
+  - Bank-run model card (score + status badge + concept + trade direction) reusing the models-tab visual language; refresh button + 5-min auto-refresh; "—" for missing values.
+
+### FRED fix (2026-08-09) — this was breaking every FRED-backed series in Docker
+
+FRED's CDN runs **TLS-fingerprint bot detection**: it serves only requests
+whose User-Agent matches the client library's real fingerprint
+(`python-httpx/0.27.2`). The app's custom `portfolio-tracker/1.0` UA — or
+any browser UA — timed out from container egress IPs (while the host got
+200), which is why the Docker-based dashboard had missing FRED series from
+the very first version. Fix: `macro_service._fetch_fred_series` sends **no
+custom headers** for FRED (every other source keeps its UA). `docker-compose`
+stays on the default bridge network — `network_mode: host` is unreachable
+from the Windows host on Docker Desktop.
 
 ## Further Notes
 

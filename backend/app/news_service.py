@@ -28,16 +28,20 @@ from sqlalchemy.orm import Session
 from app.database import Base
 
 # --- Sources (surveyed 2026-08-09, all free, no key) ----------------------
+# Scope: STOCK/MARKET news only, per user request ("เอาแต่เกี่ยวกับหุ้นหรือ
+# ข่าวที่มีผลกระทบกับหุ้น"). General-world feeds (Al Jazeera all, CNN World,
+# Google News top, BP topstories) were dropped — they pulled in sports,
+# celebrity and politics noise. Replaced with market-focused feeds:
+# Bloomberg markets + FT markets + Google News top-business topic.
 FEEDS: list[dict] = [
     {"source": "ZeroHedge", "url": "https://feeds.feedburner.com/zerohedge/feed", "category": "market"},
-    {"source": "Al Jazeera", "url": "https://www.aljazeera.com/xml/rss/all.xml", "category": "world"},
-    {"source": "CNN World", "url": "http://rss.cnn.com/rss/edition_world.rss", "category": "world"},
     {"source": "MarketWatch", "url": "http://feeds.marketwatch.com/marketwatch/topstories/", "category": "market"},
     {"source": "Reuters", "url": "https://news.google.com/rss/search?q=site%3Areuters.com&hl=en-US&gl=US&ceid=US:en", "category": "world"},
-    {"source": "Google News", "url": "https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en", "category": "market"},
+    {"source": "Google News", "url": "https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=en-US&gl=US&ceid=US:en", "category": "market"},
     {"source": "CNBC", "url": "https://www.cnbc.com/id/100003114/device/rss/rss.html", "category": "market"},
+    {"source": "Bloomberg", "url": "https://feeds.bloomberg.com/markets/news.rss", "category": "market"},
+    {"source": "Financial Times", "url": "https://www.ft.com/rss/markets", "category": "market"},
     {"source": "Bangkok Post", "url": "https://www.bangkokpost.com/rss/data/business.xml", "category": "economy"},
-    {"source": "Bangkok Post", "url": "https://www.bangkokpost.com/rss/data/topstories.xml", "category": "world"},
 ]
 
 # Reference categories + regime models the DeepSeek prompt is pinned to.
@@ -45,6 +49,7 @@ CATEGORIES = ["market", "bond", "crypto", "world", "war", "economy", "energy", "
 REGIME_MODELS = ["recovery-reflation", "inflation-oil", "fed-pivot", "yield-shock", "credit-panic", "bank-run"]
 
 ANALYSIS_MIN_IMPACT = 40  # user's cost-control pick: analysis only for impact >= 40
+MIN_IMPACT_DEFAULT = 20   # user's scope pick: only stock/market-relevant news (impact >= 20)
 ENRICH_BATCH_SIZE = 20    # ~20 headlines per DeepSeek call (system prompt paid once)
 SUMMARY_MAX_CHARS = 600   # ZeroHedge embeds full articles; cap it
 PAGE_SIZE = 20            # reference paginates 20 per page

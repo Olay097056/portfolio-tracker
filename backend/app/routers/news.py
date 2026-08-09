@@ -74,13 +74,23 @@ def _to_out(row) -> NewsItemOut:
 def _kick_off_enrichment() -> None:
     """Fire-and-forget background enrichment: the request returns as soon as
     headlines are persisted (~5s) and DeepSeek translation catches up in the
-    background — a full sweep of 277 items would take ~8 minutes synchronously."""
+    background — a full sweep would take ~8 minutes synchronously.
+
+    The background sweep loops until every pending item is enriched (chunked
+    20/call), so a fresh 286-item sweep finishes in one pass instead of one
+    40-item round per 5-minute refresh. Re-entrancy: a second sweep may start
+    while one is running; both pull from the same `title_th IS NULL` queue
+    and the translate-once rule makes duplicate work harmless.
+    """
 
     def _work():
         try:
             db = SessionLocal()
             try:
-                news_service.enrich_pending(db, limit=40)
+                while True:
+                    done = news_service.enrich_pending(db, limit=40)
+                    if done < 40:
+                        break  # queue drained (or all remaining failed this round)
             finally:
                 db.close()
         except Exception:
@@ -115,10 +125,17 @@ def get_news(
     page: Annotated[int, Query(ge=1)] = 1,
     sort: Annotated[str, Query(pattern="^(date|impact)$")] = "date",
     source: str | None = None,
-    min_impact: Annotated[int | None, Query(ge=0, le=100)] = None,
+    min_impact: Annotated[int | None, Query(ge=0, le=100)] = news_service.MIN_IMPACT_DEFAULT,
     db: Session = Depends(get_db),
 ) -> NewsListOut:
-    """Paginated news list. sort=date|impact, filter by source and impact >= N."""
+    """Paginated news list. sort=date|impact, filter by source and impact >= N.
+
+    Default min_impact = MIN_IMPACT_DEFAULT (20): the feed is scoped to
+    stock/market-relevant news per user request — pass min_impact=0 to see
+    everything including low-impact items. Items whose DeepSeek enrichment
+    hasn't landed yet (impact NULL) are still shown — never dropped just
+    because translation is pending.
+    """
     _get_or_refresh(db)
     query = db.query(news_service.NewsItem)
     if source:

@@ -89,10 +89,16 @@ def test_fetch_and_persist(monkeypatch, client, db_session):
     _stub_deepseek(monkeypatch)
     client.get("/api/news")
     news_service.enrich_pending(db_session)  # background sweep, run explicitly
-    r = client.get("/api/news")
+    r = client.get("/api/news", params={"min_impact": 0})  # 0 = everything
     assert r.status_code == 200
     body = r.json()
     assert body["count"] >= 2
+    # Default scope (impact >= 20) keeps only the Fed story, not the impact-10 one.
+    r_default = client.get("/api/news")
+    assert r_default.status_code == 200
+    body_default = r_default.json()
+    assert body_default["count"] <= body["count"]
+    assert all((it["impact_score"] or 0) >= 20 for it in body_default["items"] if it["impact_score"] is not None)
     assert body["page_size"] == 20
     by_title = {it["title"]: it for it in body["items"]}
     fed = by_title["Fed signals rate cut as inflation cools"]

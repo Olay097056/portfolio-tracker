@@ -43,7 +43,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
-from sqlalchemy import Column, DateTime, Float, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, Text
 from sqlalchemy.orm import Session
 
 from app.database import Base
@@ -90,6 +90,7 @@ class BoardroomMeeting(Base):
     agenda = Column(Text, nullable=False, default="")
     trigger_type = Column(String, nullable=False, default="manual")  # manual/news/model/calendar
     mode = Column(String, nullable=False, default="full")        # full/short
+    trigger_key = Column(String(256), nullable=True, index=True)  # dedupe (ticket 08)
     resolution_md = Column(Text, nullable=True)
     resolution_json = Column(Text, nullable=True)
     snapshot = Column(Text, nullable=True)                       # data snapshot at open
@@ -191,6 +192,21 @@ class BoardroomSeatStats(Base):
     claims_failed = Column(Integer, nullable=False, default=0)
     stances_total = Column(Integer, nullable=False, default=0)
     stances_correct = Column(Integer, nullable=False, default=0)
+
+
+class BoardroomTriggerLog(Base):
+    """One row per auto-trigger evaluation (ticket 08/10) — เปิด/ข้ามทุกครั้ง."""
+
+    __tablename__ = "boardroom_trigger_log"
+
+    id = Column(String, primary_key=True)
+    checked_at = Column(DateTime, nullable=False, index=True,
+                        default=lambda: datetime.now(timezone.utc))
+    trigger_type = Column(String, nullable=True)   # news/model
+    reason = Column(Text, nullable=True)           # วาระ/ข้อความที่ประเมิน
+    skipped = Column(Boolean, nullable=False, default=True)
+    skip_reason = Column(String, nullable=True)    # no_candidate/daily_cap/cooldown/duplicate
+    meeting_id = Column(String, nullable=True)
 
 
 # ---------------------------------------------------------------------------
@@ -1230,3 +1246,177 @@ def seed_seats(db: Session) -> None:
                 sort=cfg["sort"],
             ))
     db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Auto-trigger engine (ticket 08/10) — เปิดประชุมเองเมื่อข่าวแรง/โมเดลขยับ
+# ---------------------------------------------------------------------------
+TRIGGER_NEWS_IMPACT_MIN = 70        # impact_score ≥ 70 = "ข่าวแรง" (จาก ticket 08)
+TRIGGER_NEWS_LOOKBACK_HOURS = 24    # ดูเฉพาะ published_at ใน 24 ชม.
+TRIGGER_NEWS_BATCH_HOURS = 6        # ข่าวแรงทั้งหมดในกรอบ 6 ชม. = 1 ประชุม
+TRIGGER_MODEL_DELTA_MIN = 8.0       # ขยับ ≥ 8 จุด/6 ชม. แม้ไม่ข้ามเกณฑ์
+TRIGGER_MODEL_WINDOW_HOURS = 6      # snapshot 2 อันล่าสุดห่างกัน ≤ 6 ชม.
+TRIGGER_DEDUPE_HOURS = 6            # ข้ามถ้ามีประชุม trigger_key เดียวกันจบภายใน 6 ชม.
+TRIGGER_CHECK_COOLDOWN_MIN = 10     # ตรวจสูงสุด 1 ครั้ง/10 นาที (piggyback guard)
+DAILY_CAP_MEETINGS = 6              # เพดาน 6 ประชุม/วัน (นับรวม manual + auto)
+TRIGGER_COOLDOWN_MINUTES = 60       # auto ห่างจากประชุมล่าสุด ≥ 60 นาที
+
+MODEL_THRESHOLDS = (40, 60)         # building / active
+
+
+def _normalize_key(text: str) -> str:
+    """Dedupe key: lowercase, strip spaces/punct (กันข่าวเดิมจากหลายสำนัก)."""
+    return re.sub(r"[^a-z0-9\u0e00-\u0e7f]+", "", text.lower())[:120]
+
+
+def _log_trigger(db: Session, trigger_type: str | None, reason: str | None,
+                 skipped: bool, skip_reason: str | None = None,
+                 meeting_id: str | None = None) -> None:
+    db.add(BoardroomTriggerLog(
+        id=_new_id("tlog"),
+        trigger_type=trigger_type,
+        reason=(reason or "")[:500],
+        skipped=skipped,
+        skip_reason=skip_reason,
+        meeting_id=meeting_id,
+    ))
+    db.commit()
+
+
+def _latest_trigger_log(db: Session) -> BoardroomTriggerLog | None:
+    return (db.query(BoardroomTriggerLog)
+            .order_by(BoardroomTriggerLog.checked_at.desc()).first())
+
+
+def _meetings_today(db: Session) -> int:
+    start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    return (db.query(BoardroomMeeting)
+            .filter(BoardroomMeeting.created_at >= start).count())
+
+
+def _dedupe_hit(db: Session, trigger_key: str) -> bool:
+    cutoff = _now() - timedelta(hours=TRIGGER_DEDUPE_HOURS)
+    return (db.query(BoardroomMeeting)
+            .filter(BoardroomMeeting.trigger_key == trigger_key,
+                    BoardroomMeeting.created_at >= cutoff)
+            .first() is not None)
+
+
+def _news_candidate(db: Session) -> tuple[str, str] | None:
+    """(trigger_key, agenda) for the newest impact≥70 news in 24h.
+
+    Batch rule: ข่าวใหม่ที่ยังไม่เคยถูกประเมิน (newer than the last trigger log)
+    = 1 ประชุม — ข่าวเก่าที่เคยเห็นแล้วไม่เปิดซ้ำ.
+    """
+    from app.news_service import NewsItem
+    cutoff = _now() - timedelta(hours=TRIGGER_NEWS_LOOKBACK_HOURS)
+    item = (db.query(NewsItem)
+            .filter(NewsItem.impact_score >= TRIGGER_NEWS_IMPACT_MIN,
+                    NewsItem.published_at >= cutoff)
+            .order_by(NewsItem.published_at.desc()).first())
+    if item is None:
+        return None
+    last_log = _latest_trigger_log(db)
+    if last_log is not None and _as_utc(last_log.checked_at) >= _as_utc(item.published_at or _now()):
+        return None  # ข่าวนี้เคยถูกประเมินแล้ว (อยู่ในกรอบ 6 ชม. batch)
+    title = (item.title_th or item.title or "")[:150]
+    key = _normalize_key(title)
+    agenda = (f"ประเมินตลาดหลังข่าว: {title} (impact {item.impact_score:.0f})"
+              + (f" — โมเดลเกี่ยวข้อง: {item.related_models}" if item.related_models else ""))
+    return key, agenda
+
+
+def _model_candidate(db: Session) -> tuple[str, str] | None:
+    """(trigger_key, agenda) for the strongest model move (crossing or Δ≥8)."""
+    from app.routers.models import ModelScoreHistory
+    rows = (db.query(ModelScoreHistory)
+            .order_by(ModelScoreHistory.recorded_at.desc()).all())
+    by_model: dict[str, list] = {}
+    for r in rows:
+        by_model.setdefault(r.model_id, []).append(r)
+    best: tuple[float, str, str] | None = None
+    for model_id, hist in by_model.items():
+        if len(hist) < 2:
+            continue
+        new, old = hist[0], hist[1]
+        if (_now() - _as_utc(new.recorded_at)) > timedelta(hours=TRIGGER_MODEL_WINDOW_HOURS):
+            continue  # snapshot ล่าสุดเก่าเกินไป
+        gap = _as_utc(new.recorded_at) - _as_utc(old.recorded_at)
+        if gap > timedelta(hours=TRIGGER_MODEL_WINDOW_HOURS):
+            continue  # ห่างเกินกรอบ 6 ชม. — เทียบข้ามวันไม่ได้
+        delta = new.score - old.score
+        crossed = [t for t in MODEL_THRESHOLDS
+                   if (old.score < t <= new.score) or (old.score >= t > new.score)]
+        if not crossed and abs(delta) < TRIGGER_MODEL_DELTA_MIN:
+            continue
+        strength = abs(delta)
+        if crossed:
+            key = f"model:{model_id}:{min(crossed)}"
+            agenda = (f"โมเดล {model_id} ขยับ {old.score:.1f}→{new.score:.1f} "
+                      f"({delta:+.1f}) — ข้ามเกณฑ์ {min(crossed)}")
+        else:
+            key = f"model:{model_id}:delta"
+            agenda = (f"โมเดล {model_id} ขยับ {delta:+.1f} จุด "
+                      f"({old.score:.1f}→{new.score:.1f}) ใน 6 ชม.")
+        if best is None or strength > best[0]:
+            best = (strength, key, agenda)
+    if best is None:
+        return None
+    return best[1], best[2]
+
+
+def _as_utc(dt) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def check_triggers(db: Session) -> dict:
+    """ประเมิน trigger ข่าว/โมเดล — piggyback จาก GET meetings / refresh ข้อมูล.
+
+    Returns: {checked_at, triggered, meeting_id?, reason?, skipped, skip_reason?}
+    ทุกการประเมินจริงเขียน boardroom_trigger_log (ยกเว้น rate-limit 10 นาที).
+    """
+    now = _now()
+    last_log = _latest_trigger_log(db)
+    if last_log is not None and (now - _as_utc(last_log.checked_at)) < timedelta(
+            minutes=TRIGGER_CHECK_COOLDOWN_MIN):
+        return {"checked_at": now.isoformat(), "triggered": False, "skipped": True,
+                "skip_reason": "check_cooldown"}
+
+    candidate = _news_candidate(db)
+    ttype = "news"
+    if candidate is None:
+        candidate = _model_candidate(db)
+        ttype = "model"
+    if candidate is None:
+        _log_trigger(db, None, "no candidate", True, "no_candidate")
+        return {"checked_at": now.isoformat(), "triggered": False, "skipped": True,
+                "skip_reason": "no_candidate"}
+
+    key, agenda = candidate
+    # เพดาน/cooldown/dedupe (ticket 08 ข้อ 6-7)
+    if _meetings_today(db) >= DAILY_CAP_MEETINGS:
+        _log_trigger(db, ttype, agenda, True, "daily_cap")
+        return {"checked_at": now.isoformat(), "triggered": False, "skipped": True,
+                "skip_reason": "daily_cap"}
+    latest = (db.query(BoardroomMeeting)
+              .order_by(BoardroomMeeting.created_at.desc()).first())
+    if latest is not None and (now - _as_utc(latest.created_at)) < timedelta(
+            minutes=TRIGGER_COOLDOWN_MINUTES):
+        _log_trigger(db, ttype, agenda, True, "cooldown")
+        return {"checked_at": now.isoformat(), "triggered": False, "skipped": True,
+                "skip_reason": "cooldown"}
+    if _dedupe_hit(db, key):
+        _log_trigger(db, ttype, agenda, True, "duplicate")
+        return {"checked_at": now.isoformat(), "triggered": False, "skipped": True,
+                "skip_reason": "duplicate"}
+
+    engine = BoardroomEngine(db)
+    meeting = engine.create_meeting(agenda=agenda, trigger_type=ttype, mode="short")
+    meeting.trigger_key = key
+    db.commit()
+    start_meeting_background(db, meeting.id)
+    _log_trigger(db, ttype, agenda, False, meeting_id=meeting.id)
+    return {"checked_at": now.isoformat(), "triggered": True, "meeting_id": meeting.id,
+            "reason": agenda, "skipped": False}

@@ -164,7 +164,13 @@ def get_models(db: Session = Depends(get_db)) -> ModelsOut:
 @router.post("/refresh", response_model=ModelsOut)
 def refresh_models(db: Session = Depends(get_db)) -> ModelsOut:
     _cache.clear()
-    return _get_or_fetch(db)
+    out = _get_or_fetch(db)
+    try:
+        from app import boardroom_service
+        boardroom_service.check_triggers(db)  # piggyback (ticket 10)
+    except Exception:
+        pass
+    return out
 
 # ---------------------------------------------------------------------------
 # Scenario simulation (forecast tab — spec 2026-08-09). Slider specs mirror

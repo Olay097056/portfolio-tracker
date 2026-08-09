@@ -10,6 +10,7 @@ Endpoints (wayfinder ticket 06):
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -95,6 +96,17 @@ class MeetingDetailOut(MeetingOut):
 
 class MeetingListOut(BaseModel):
     meetings: list[MeetingOut]
+    today_meetings: int = 0
+    trigger_log_today: list[dict] = []
+
+
+class TriggerCheckOut(BaseModel):
+    checked_at: str
+    triggered: bool
+    meeting_id: str | None = None
+    reason: str | None = None
+    skipped: bool = False
+    skip_reason: str | None = None
 
 
 def _dt_str(dt) -> str | None:
@@ -124,10 +136,34 @@ def create_meeting(payload: MeetingCreate, db: Session = Depends(get_db)):
 
 @router.get("/meetings", response_model=MeetingListOut)
 def list_meetings(db: Session = Depends(get_db)):
+    # piggyback trigger check (ticket 10) — guard 10 นาทีอยู่ฝั่ง check_triggers
+    boardroom_service.check_triggers(db)
     meetings = (db.query(boardroom_service.BoardroomMeeting)
                 .order_by(desc(boardroom_service.BoardroomMeeting.created_at))
                 .limit(50).all())
-    return {"meetings": [_meeting_out(m) for m in meetings]}
+    start_of_day = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_meetings = (db.query(boardroom_service.BoardroomMeeting)
+                      .filter(boardroom_service.BoardroomMeeting.created_at >= start_of_day)
+                      .count())
+    logs = (db.query(boardroom_service.BoardroomTriggerLog)
+            .filter(boardroom_service.BoardroomTriggerLog.checked_at >= start_of_day)
+            .order_by(desc(boardroom_service.BoardroomTriggerLog.checked_at))
+            .limit(20).all())
+    return {
+        "meetings": [_meeting_out(m) for m in meetings],
+        "today_meetings": today_meetings,
+        "trigger_log_today": [
+            {"checked_at": _dt_str(l.checked_at), "trigger_type": l.trigger_type,
+             "reason": l.reason, "skipped": l.skipped, "skip_reason": l.skip_reason,
+             "meeting_id": l.meeting_id} for l in logs
+        ],
+    }
+
+
+@router.post("/triggers/check", response_model=TriggerCheckOut)
+def check_triggers_now(db: Session = Depends(get_db)):
+    """ปุ่ม "ตรวจตอนนี้" — บังคับประเมิน trigger ทันที (ข้าม rate-limit 10 นาทีไม่ได้)."""
+    return boardroom_service.check_triggers(db)
 
 
 @router.get("/meetings/{meeting_id}", response_model=MeetingDetailOut)

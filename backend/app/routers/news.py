@@ -182,6 +182,11 @@ def refresh_news(db: Session = Depends(get_db)) -> NewsListOut:
     except Exception:
         pass
     _cache.clear()  # force a fresh payload build (sources may have changed)
+    try:
+        from app import boardroom_service
+        boardroom_service.check_triggers(db)  # piggyback (ticket 10)
+    except Exception:
+        pass
     return get_news(db=db)
 
 

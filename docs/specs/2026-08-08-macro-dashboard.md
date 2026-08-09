@@ -115,11 +115,29 @@ sources; the UI renders missing sections as "—" — never a fabricated number.
 
 ## Out of Scope
 
-- The reference site's other pages (sentiment index, trading signals, bank-run stress monitor, country risk, scenario simulator, AI boardroom, 3D office) — the user chose to evaluate this macro set first, then revisit (option C) later.
+- The reference site's other pages (sentiment index, bank-run stress monitor, country risk, scenario simulator, AI boardroom, 3D office) — the user chose to evaluate the macro set first, then revisit later. (The trading-signals and news pages ARE mirrored — see their own spec sections below.)
 - Gold CME open interest / volume / options IV, the ~20 CME ATM-IV series, FedWatch probabilities, ratings (S&P/Moody's/DBRS), the proprietary banking-stress composite, CDS proxy, auction tail/dealer breakdowns — no free public source exists (the reference site computes/scrapes these itself); skipped rather than fabricated.
 - EIA inventories — implemented but inert until the user registers a free key at api.eia.gov and sets `EIA_API_KEY`.
 - Historical yield-curve chart (time series of curves) — only the current curve is shown.
 - THB conversion of gold/oil prices.
+- Supabase migration (hosted Postgres + Realtime + Auth) — evaluated 2026-08-09 and rejected by the user: staying on local SQLite; the connection layer already isolates the DB so a future move stays cheap.
+
+## News tab (ข่าวสาร) — added 2026-08-09, mirroring the reference /news page
+
+The Bond-crisis page gained a fourth sub-tab rendering real RSS headlines
+enriched with Thai titles, impact scores, categories and related-model badges.
+
+- **Backend** (`backend/app/news_service.py` + `backend/app/routers/news.py`, prefix `/api/news`):
+  - 9 feeds / 7 hosts fetched concurrently (ZeroHedge, Al Jazeera, CNN World, MarketWatch, Reuters + top stories via Google News RSS, CNBC, Bangkok Post business + topstories) — all free, no key; exact URLs surveyed in `docs/research/rss-feeds-2026-08-09.md`.
+  - Parsed with stdlib `xml.etree` (RSS 2.0 + Atom, namespace-aware; RFC-822 + ISO-8601 dates; `description→summary→content` fallback; 600-char summary cap for ZeroHedge's full-article summaries). No new dependency.
+  - Dedupe on canonicalized URL (Google News redirect params stripped); SQLite `news_items` mirrors the reference table shape.
+  - **Fast by design:** fetch+persist returns in ~4s; DeepSeek enrichment (Thai title + impact 0-100 + category + related models, batched 20/call with `response_format: json_object`, translate-once) runs in a **background daemon thread** (40 items/round) so the page never blocks on ~300 headlines. Thai analysis (impact ≥ 40 only — user's cost-control pick) generates in the same background sweep.
+  - `GET /api/news?page&sort=date|impact&source&min_impact` — pagination 20/page with exact count, nulls-last ordering, 5-minute cache; `POST /api/news/refresh`. No `DEEPSEEK_API_KEY` → items persist with English titles and null Thai fields — never fabricated.
+- **Frontend** (`frontend/src/components/tools/NewsDashboard.tsx`, rendered as the ข่าวสาร sub-tab of the Bond-crisis page):
+  - Item cards: color-coded impact score (≥70 red, ≥40 amber, ≥15 blue), source + relative-time + category pill, related-model badges in the reference per-model colors with Thai labels, Thai title with English fallback, summary, expandable Thai analysis panel, external-link.
+  - Sort (วันที่/IMPACT), source dropdown, IMPACT ≥ N filter (15/40/60), pagination 20/page with ellipsis; honest loading/error/empty states.
+  - Ink-palette inline styles (no Tailwind), matching ModelsDashboard/SignalsDashboard.
+- **DeepSeek** (`docs/research/deepseek-enrichment-prototype-2026-08-09.md`): key read from `DEEPSEEK_API_KEY` env (never hardcoded); model `deepseek-v4-flash`; A/B-verified prompt shape (json_object beats free-form 34% tokens / 38% latency; 20/call beats 10/call).
 
 ## Further Notes
 

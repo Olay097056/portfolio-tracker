@@ -21,12 +21,14 @@ from sqlalchemy import delete, select
 @pytest.fixture(autouse=True)
 def _clear_state():
     signals_router._cache.clear()
+    signals_service._clear_candle_cache()
     db = SessionLocal()
     db.execute(delete(TradingSignal))
     db.commit()
     db.close()
     yield
     signals_router._cache.clear()
+    signals_service._clear_candle_cache()
     db = SessionLocal()
     db.execute(delete(TradingSignal))
     db.commit()

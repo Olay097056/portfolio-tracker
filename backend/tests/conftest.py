@@ -4,6 +4,7 @@ from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 
 import app.models  # noqa: F401  (registers ORM classes with Base.metadata)
+import app.news_service  # noqa: F401  (registers the news_items table)
 from app.database import Base, get_db
 from app.main import app
 

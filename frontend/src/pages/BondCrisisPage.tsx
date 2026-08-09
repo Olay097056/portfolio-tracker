@@ -2,19 +2,21 @@ import { useState } from 'react';
 import { MacroDashboard } from '../components/tools/MacroDashboard';
 import { ModelsDashboard } from '../components/tools/ModelsDashboard';
 import { SignalsDashboard } from '../components/tools/SignalsDashboard';
+import { NewsDashboard } from '../components/tools/NewsDashboard';
 
 // Bond-crisis — main tab that hosts the macro dashboard (yield curve, money
 // market rates, credit spreads, macro assets), the profit models page
-// (six regime models scored 0-100) and the trading signals trade desk.
-// Three sub-tabs mirroring the reference site's ข้อมูลมหภาค (/macro),
-// โมเดลทำกำไร (/models) and สัญญาณเทรด (/signals) pages.
+// (six regime models scored 0-100), the trading signals trade desk and the
+// news feed. Four sub-tabs mirroring the reference site's ข้อมูลมหภาค (/macro),
+// โมเดลทำกำไร (/models), สัญญาณเทรด (/signals) and ข่าวสาร (/news) pages.
 export function BondCrisisPage() {
-  const [tab, setTab] = useState<'macro' | 'models' | 'signals'>('macro');
+  const [tab, setTab] = useState<'macro' | 'models' | 'signals' | 'news'>('macro');
 
   const tabs = [
     { id: 'macro' as const, label: 'ข้อมูลมหภาค' },
     { id: 'models' as const, label: 'โมเดลทำกำไร' },
     { id: 'signals' as const, label: 'สัญญาณเทรด' },
+    { id: 'news' as const, label: 'ข่าวสาร' },
   ];
 
   return (
@@ -29,13 +31,13 @@ export function BondCrisisPage() {
             </span>
           </div>
           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            ศูนย์ติดตามวิกฤตพันธบัตรและความเสี่ยงมหภาค — Yield Curve, ตลาดเงิน, เครดิตสเปรด และโมเดลทำกำไร (FRED + Yahoo Finance + CFTC + TIC)
+            ศูนย์ติดตามวิกฤตพันธบัตรและความเสี่ยงมหภาค — Yield Curve, ตลาดเงิน, เครดิตสเปรด, โมเดลทำกำไร และข่าวสาร (FRED + Yahoo Finance + CFTC + TIC + RSS)
           </span>
         </div>
       </div>
 
-      {/* ── Sub-tabs (ข้อมูลมหภาค / โมเดลทำกำไร / สัญญาณเทรด) ── */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, borderBottom: '1px solid var(--border)', paddingBottom: 10 }}>
+      {/* ── Sub-tabs (ข้อมูลมหภาค / โมเดลทำกำไร / สัญญาณเทรด / ข่าวสาร) ── */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, borderBottom: '1px solid var(--border)', paddingBottom: 10, flexWrap: 'wrap' }}>
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -60,8 +62,10 @@ export function BondCrisisPage() {
         <MacroDashboard />
       ) : tab === 'models' ? (
         <ModelsDashboard />
-      ) : (
+      ) : tab === 'signals' ? (
         <SignalsDashboard />
+      ) : (
+        <NewsDashboard />
       )}
     </div>
   );

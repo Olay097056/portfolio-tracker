@@ -383,3 +383,213 @@ The three tickets that lived here ("Full-market technical signals: background re
 - [x] Saving with the section expanded fires the rebalance call with every portfolio's current-or-edited target (including the one being renamed), plus a separate single `PATCH /portfolios/{id}` for the name if it changed — the rebalance payload never includes name
 - [x] Backend tests: happy path (sums to 100, all rows updated), sum-not-100 rejected with 400 and no rows changed, unknown id in batch rejected with 404 and no rows changed
 - [x] Frontend tests: toggle expand/collapse, running total color at/away-from 100%, collapsed-save calls single PATCH, expanded-save calls rebalance endpoint
+
+---
+
+# MAP: News tab (ข่าวสาร) for Bond-crisis — wayfinder:map
+
+## Destination
+
+A "ข่าวสาร" sub-tab in the Bond-crisis page mirroring the reference site's `/news` page 100%: real RSS headlines (ZeroHedge, Al Jazeera, Bangkok Post, CNN/MarketWatch, Reuters via Google News RSS) fetched every 5 minutes, titles auto-translated to Thai by DeepSeek, per-item impact score + category + related-model badges + expandable Thai analysis, sortable by date/impact, filterable by source and impact ≥ N, paginated 20 per page — all from free, key-less RSS sources with the DeepSeek key the user supplied.
+
+## Notes
+
+- **Domain:** portfolio-tracker app, Bond-crisis Tools tab (existing `MacroDashboard.tsx` / `ModelsDashboard.tsx` pattern — generic card rendering, no Tailwind, hand-rolled SVG, shared theme tokens, Thai-first UI).
+- **Skills every session should consult:** `web-app-reverse-engineering` (the reference bundle/Supabase shape was already extracted: tables `news_items` / `news_sources`, fields `title`, `summary`, `url`, `source`, `impact_score`, `category`, `published_at`, `title_th`, `summary_th`, `analysis_th`, `related_models`; UI has sort `impact`/`date`, source filter, `gte("impact_score", N)`, range pagination 20, refreshMs 300000), `browser-harness` if live-checking the reference UI.
+- **DeepSeek:** key in `backend/.env` as `DEEPSEEK_API_KEY` (already verified working — models `deepseek-v4-flash` / `deepseek-v4-pro`, OpenAI-compatible endpoint `https://api.deepseek.com`). Existing app pattern: `os.environ.get("..._API_KEY")`, never hardcode.
+- **Never fabricate:** a headline that fails RSS fetch or translation renders as unavailable — no placeholder text pretending to be news. Per-item failure isolation, like the scanner's per-ticker rule.
+- **Persistence:** SQLite (app's existing DB) so pagination/filtering is server-side and translation is cached (translate once, never re-translate an already-translated item) — mirrors the reference's Supabase-backed design.
+- **Tracker:** local-markdown (`tickets.md`). Work the frontier: open + unblocked + unassigned first.
+- **Do NOT resolve more than one ticket per session.**
+
+## Decisions so far
+
+<!-- index of closed tickets, one line each -->
+
+- [Ticket: Survey live RSS feeds](tickets.md) — 8 feeds / 7 hosts confirmed working (ZeroHedge, Al Jazeera, CNN World, MarketWatch, Reuters+top via Google News RSS, CNBC, Bangkok Post business+topstories); dead ends recorded; no new dependency (stdlib xml parses RSS 2.0); dedupe on canonicalized link; cap ZeroHedge summaries; RFC-822 pubDate parsing. Asset: `docs/research/rss-feeds-2026-08-09.md`.
+- [Ticket: DeepSeek translate + enrich pipeline](tickets.md) — one batched DeepSeek call per ~20 headlines with `response_format: json_object` enriches every item (Thai title, impact 0-100, category, related_models; 33s/batch, 222 tok/headline — json_object beats free-form by 34% and beats 10-item chunks; max_tokens 8000 required); Thai analysis generated only for impact ≥ 40 (user cost-control pick; ~5.2s/610 tok each). Asset: `docs/research/deepseek-enrichment-prototype-2026-08-09.md`.
+- [Ticket: Backend news service + /api/news](tickets.md) — `news_service.py` + router: 9 feeds fetched concurrently, stdlib-xml normalize (RSS+Atom, RFC-822+ISO dates), canonicalized-URL dedupe, SQLite `news_items`; **fetch+persist ~4s, DeepSeek enrichment in a background thread (40/round, translate-once)** — the synchronous version blocked ~8 min per sweep; sort/filter/pagination mirror the reference; no key → English titles, never fabricate. Live: 249 items, 40 Thai + 5 analyses in background.
+- [Ticket: News tab frontend](tickets.md) — `NewsDashboard.tsx` as the fourth Bond-crisis sub-tab (ข่าวสาร): impact-score block (color-coded), source/time/category pills, related-model badges in reference colors, Thai title with EN fallback, expandable Thai analysis (impact ≥ 40 only), sort (วันที่/IMPACT), source + IMPACT ≥ N filters, pagination 20/page; honest empty/error states. 7 tests pass; live smoke on 305 items.
+
+## Not yet specified
+
+- Which categories to keep (reference uses market/bond/crypto/world/war/economy/energy/thai) and how category assignment is done (DeepSeek classify vs RSS-channel default).
+
+## Out of scope
+
+- The reference site's other pages not already mirrored (sentiment index, bank-run stress monitor, country risk, scenario simulator, AI boardroom, 3D office) — the user scoped this effort to the news tab only.
+- Scraping the reference site's own Supabase `news_items` — its content is not ours to reuse; we build our own RSS pipeline.
+- News sources requiring paid keys (Bloomberg Terminal API, Dow Jones, etc.).
+- Mobile-native push notifications of news items.
+
+---
+
+## Ticket: Survey live RSS feeds (wayfinder:research, AFK)
+
+**Question:** Which RSS URLs in the starter set (ZeroHedge, Al Jazeera, Bangkok Post, CNN, MarketWatch, Reuters via Google News RSS) actually serve parseable RSS from this host — and what is the exact final source list for the pipeline?
+
+**Resolution (2026-08-09):** 8 feeds across 7 hosts confirmed working from this host via httpx + stdlib xml (no new dependency — RSS 2.0 is plain XML). Final list: ZeroHedge feedburner, Al Jazeera all, CNN World (`content` as summary — no description), MarketWatch topstories, Reuters via Google News search RSS (100 items, adds `source` element), Google News top stories (fallback), CNBC top news (bonus), Bangkok Post `/rss/data/business.xml` + `/rss/data/topstories.xml` (the `/rss` index page is HTML, real feeds live under `/rss/data/*.xml`). Dead ends: `zerohedge.com/rss.xml`, `money.cnn.com/rss/money_latest.rss`. No feed carries media:image (reference's image_url is mostly-null too — no parity loss). ~277 raw items per full sweep; dedupe on canonicalized link (strip Google News redirect params); cap ZeroHedge summaries (~273KB sweep); parse pubDate with `email.utils.parsedate_to_datetime`. Full probe table + findings: `docs/research/rss-feeds-2026-08-09.md`.
+
+- [x] Probe each candidate URL with the app's httpx pattern (the FRED curl-block lesson: shell curl fails here, Python httpx works) — record HTTP status, content-type, whether it parses as RSS/Atom (feedparser or stdlib xml), and observed size
+- [x] Note any rate-limiting / geo-blocking / bot-protection (e.g. Google News RSS from this host)
+- [x] Deliver a markdown asset listing the final source list with exact URLs + per-source category default + expected item count, linked in the resolution comment
+
+## Ticket: DeepSeek translate + enrich pipeline (wayfinder:prototype, HITL)
+
+**Question:** What is the cheapest reliable DeepSeek prompt shape that turns raw headlines into Thai titles, impact scores, categories, related-model tags — and Thai analyses — at acceptable quality and cost?
+
+**Resolution (2026-08-09, user-confirmed, refined by A/B):** One batched call per ~20 headlines (`deepseek-v4-flash`, temp 0.2, **`response_format: {"type": "json_object"}`**, max_tokens 8000) enriches every item: natural Thai `title_th`, anchored `impact_score` 0-100, reference categories, and DeepSeek-assigned `related_models` (proved accurate in the 20-item sample: Hormuz → inflation-oil + yield-shock, retail pullback → fed-pivot). **A/B test (2026-08-09):** 20/call + json_object = **33.0s, 4,438 tokens (222/headline)** vs the original free-form 20/call (53.4s, 6,711 tok, 336/headline) — json_object cuts output bloat ~34% and is 38% faster; 10/call chunks are WORSE (6,076 tok for 2 calls — system prompt paid twice), so batch at 20. Free-form at max_tokens 4000 truncates mid-JSON — 8000 + json_object parses clean. `analysis_th` (≤120-word Thai market read, temp 0.4) is generated ONLY for impact ≥ 40 (user's cost-control pick) — ~5.2s/~610 tokens each, quality fluent and market-aware. Full details + quality sample: `docs/research/deepseek-enrichment-prototype-2026-08-09.md`.
+
+- [x] Batch-translate ~20 real titles in one call (JSON out) vs per-item — measure latency + cost per headline
+- [x] Test impact-score assignment (0-100) and category classification (market/bond/crypto/world/war/economy/energy/thai) on the same batch — show the user a sample to judge quality
+- [x] Decide and record: analysis generated for all items vs impact ≥ N (cost control); related_models computed by DeepSeek vs keyword match
+- [x] Link the prototype script + sample output as assets
+
+## Ticket: Backend news service + /api/news (wayfinder:task, AFK)
+
+**Question:** What shape does the server-side pipeline take — RSS fetch → normalize → translate-once cache → SQLite → paginated/filterable endpoint — mirroring the reference's Supabase-backed design?
+
+**Blocked by:** Ticket: Survey live RSS feeds, Ticket: DeepSeek translate + enrich pipeline
+
+**Resolution (2026-08-09):** `news_service.py` fetches all 9 feeds concurrently (the build_dashboard parallel-wave lesson), normalizes via stdlib xml (RSS 2.0 + Atom namespace-aware, RFC-822 + ISO-8601 dates, `description→summary→content` fallback, 600-char summary cap for ZeroHedge), canonicalizes Google News redirect URLs for dedupe, and persists to SQLite `news_items` (reference shape + `related_models` JSON). **Critical design fix:** fetch+persist returns in ~4s, DeepSeek enrichment runs in a **background daemon thread** (`enrich_pending`, 40 items/round, translate-once — items already Thai-titled are skipped) — the first synchronous version blocked the page ~8 minutes for 277 headlines. `/api/news` supports sort (date/impact with nulls-last), filter (source, impact ≥ N), pagination 20/page with exact count, 5-min router cache + `POST /api/news/refresh`. No DeepSeek key → items persist with English titles and null Thai fields (never fabricate). Live smoke: 249 items fetched in 3.6s, background enrich filled 40 Thai titles + 5 analyses (Hormuz 75, CNBC 70, labor force 60 — quality verified).
+
+- [x] `news_service.py`: fetch all sources concurrently (the build_dashboard parallel-wave lesson), per-source failure isolation, never fabricate
+- [x] SQLite tables mirroring `news_items` shape (title, summary, url, source, impact_score, category, published_at, title_th, analysis_th, related_models) + dedupe by URL
+- [x] Translate-once cache: an item already Thai-titled is never re-translated
+- [x] `GET /api/news` with sort (date/impact), filter (source, impact ≥ N), pagination (page size 20, exact count) — mirrors the reference's range() calls
+- [x] Refresh semantics: fetch new items every 5 min on request (refreshMs 300000 in the reference), manual refresh endpoint
+- [x] Backend tests: dedupe, filter/sort/pagination, failure isolation, never-fabricate
+
+## Ticket: News tab frontend (wayfinder:task, HITL)
+
+**Question:** What does the 100%-parity news UI look like in this app's non-Tailwind, Thai-first design system?
+
+**Blocked by:** Ticket: Backend news service + /api/news
+
+**Resolution (2026-08-09):** `NewsDashboard.tsx` added as the fourth Bond-crisis sub-tab (ข่าวสาร, alongside ข้อมูลมหภาค/โมเดลทำกำไร/สัญญาณเทรด). Matches the reference UI: per-item cards with impact-score block (colored: ≥70 red-hot, ≥40 amber, ≥15 accent), source + relative time + category pill, related-model badges in the reference per-model colors with Thai labels, title_th with English fallback, summary, expandable Thai analysis (only when analysis_th exists — impact ≥ 40 items), external-link. Controls: sort (วันที่/IMPACT), source filter dropdown, IMPACT ≥ N filter (15/40/60), pagination 20/page with ellipsis. Empty/error/loading states honest — never a fabricated headline. 7 frontend tests pass; live smoke: 305 items, filter/sort/pagination verified against the real API.
+
+- [x] `NewsDashboard.tsx` sub-tab in Bond-crisis page (alongside macro/models/signals)
+- [x] Item cards: title (ไทย), summary, source badge + time, impact score, category pill, related-model badges in the reference per-model colors, external-link to the story
+- [x] Sort control (date/impact), source filter dropdown, impact ≥ N filter, pagination 20/page
+- [x] Expandable Thai analysis panel
+- [x] Empty/error states — unavailable renders as "—", never a fabricated headline
+
+## Ticket: Spec, tests, commit (wayfinder:task, AFK)
+
+**Question:** Is the whole news feature verified and documented before the map closes?
+
+**Blocked by:** Ticket: News tab frontend
+
+- [ ] Spec updated (`docs/specs/2026-08-08-macro-dashboard.md` or a new news spec — the macro spec already covers the Bond-crisis tab family)
+- [ ] Full backend + frontend suites pass
+- [ ] Live smoke: real RSS headlines render with Thai titles, filters work
+- [ ] Commit (user rule: update spec, then commit)
+
+
+---
+
+# MAP: Supabase migration (hosted DB + Realtime + Auth) — wayfinder:map
+
+## Destination
+
+Move this app from local SQLite to **Supabase Postgres** (free tier) while keeping the FastAPI backend exactly where it is today — **Phase 1: local machine (Windows + Docker)** pointing DATABASE_URL at Supabase; **Phase 2 (later): same backend deployed to a cheap cloud (Railway/Render/Fly) still using Supabase as the DB**. Along the way adopt Supabase **Realtime** (live news push instead of 5-min polling) and **Auth** (Google login like the reference site). The app architecture (FastAPI + SQLAlchemy + React/Vite) stays intact — this is a data-layer + platform migration, NOT a rewrite.
+
+## Notes
+
+- **Domain:** portfolio-tracker. Backend is pure SQLAlchemy (backend/app/database.py — the whole DB layer is one connection string + Base.metadata.create_all). Frontend is React/Vite; the reference bond-crisis site runs on Supabase (project vovprwjjauwqqiowwgqd) — its Realtime/Auth patterns are what we borrow.
+- **Constraints found in this repo:**
+  - database.py uses check_same_thread: False (SQLite-only connect arg — must drop for Postgres).
+  - nullslast() is SQLAlchemy-portable (works on both).
+  - Background enrichment thread (news translate) + Ollama (ai_narrative_service, local host.docker.internal:11434) both assume the backend runs on this machine — survive Phase 1 unchanged; Phase 2 (cloud) needs a persistent worker (not serverless) and Ollama must move to DeepSeek (user already has the key).
+  - Tests use an in-memory SQLite engine via conftest override — stay green regardless; only the prod connection changes.
+  - Supabase free tier: 500MB DB, 2 active projects, pauses after 1 week inactivity — fine for a personal app, matters for the cloud decision.
+- **User decisions so far:** Option A (keep FastAPI, Supabase = hosted DB + Realtime + Auth, free tier); two phases — local first, cloud later.
+- **Tracker:** local-markdown (tickets.md). Work the frontier. **Do NOT resolve more than one ticket per session.**
+
+## Decisions so far
+
+<!-- index of closed tickets, one line each -->
+
+## Not yet specified
+
+- Supabase free-tier Auth quota (50K MAU, 5K users) and whether Google OAuth needs a Google Cloud project or Supabase built-in providers suffice.
+- Realtime scope: live push for the news tab only, or also macro/model dashboards (they are 10-min cached; Realtime may be overkill).
+- Which endpoints/tabs sit behind Auth once login exists — today the app has NO auth at all; the reference gates everything behind Google login.
+- Phase 2 cloud provider choice (Railway vs Render vs Fly) and whether the background news thread needs a dedicated worker vs a simple always-on instance.
+- Data migration: dump existing portfolio.db → import to Supabase, or start fresh (holdings/watchlists are user data — likely migrate; signals/macro caches can be dropped).
+
+## DECISION (2026-08-09): user chose to stay on local SQLite — Supabase migration NOT pursued. Kept as reference for a future effort; all its tickets below are parked, not claimed.
+
+## Out of scope
+
+- Rewriting the backend as Supabase Edge Functions (Deno/TS) — rejected: the service layer (yfinance/FRED/CFTC/model scoring/RSS) is Python, rewrite cost is huge and nothing is gained.
+- Replacing yfinance/FRED/etc. with Supabase-hosted data — Supabase has no market-data offering; external sources stay external.
+- Moving the frontend off React/Vite (no Next.js migration — reference uses Next.js but the app frontend is already built and working).
+- The paused news-feature map (its tickets 4-5 remain open under the earlier MAP section — untouched by this effort).
+
+---
+
+## Ticket: Supabase project setup + connection recipe (wayfinder:research, AFK)
+
+**Question:** What is the exact recipe to point this SQLAlchemy app at a Supabase Postgres project — connection string, required libs, and every SQLite-only assumption that must change?
+
+- [ ] Create a Supabase project (free tier) and record: project URL, DB password, connection string (transaction pooler vs direct), anon + service_role keys
+- [ ] Identify every SQLite-only assumption in the codebase (check_same_thread, any SQLite pragmas, LIKE/collation quirks, JSON columns) via grep + read
+- [ ] Determine required lib changes (psycopg2 vs psycopg vs asyncpg) and any SQLAlchemy URL/engine args for Supabase (SSL, pool pre_ping, statement cache)
+- [ ] Test nullslast()/create_all/unique-index paths against a scratch Supabase DB (or a local Postgres container standing in)
+- [ ] Deliver a markdown asset: the connection recipe + diffs required, linked in the resolution comment
+
+## Ticket: Migrate portfolio.db data to Supabase (wayfinder:task, AFK)
+
+**Question:** How does existing user data (holdings, watchlists, portfolios, signals) move from the local SQLite file into Supabase Postgres — and what is safe to drop?
+
+**Blocked by:** Ticket: Supabase project setup + connection recipe
+
+- [ ] Inventory tables + row counts in portfolio.db; classify user data (migrate) vs cache (drop: signals sparkline, macro/model caches)
+- [ ] Write a one-shot migration script (read SQLite via SQLAlchemy, insert into Postgres via the same models) with idempotent re-runs
+- [ ] Verify row counts + spot-check values after migration
+- [ ] Record in the resolution: migrated counts per table, anything dropped
+
+## Ticket: Point FastAPI at Supabase Postgres (wayfinder:task, AFK)
+
+**Question:** What does the code change look like to make the production backend run against Supabase while tests stay on in-memory SQLite?
+
+**Blocked by:** Ticket: Migrate portfolio.db data to Supabase
+
+- [ ] database.py: read DATABASE_URL from env (default keeps local sqlite), drop check_same_thread for postgres, add SSL/pool args for Supabase
+- [ ] docker-compose.yml / .env: wire Supabase DATABASE_URL + keys without committing secrets
+- [ ] Full backend suite passes (tests unchanged — they use the in-memory override)
+- [ ] Live smoke: app boots against Supabase, holdings/watchlist CRUD round-trips, news refresh works
+
+## Ticket: Supabase Realtime for the news tab (wayfinder:prototype, HITL)
+
+**Question:** Should live news updates use Supabase Realtime (postgres_changes subscription) instead of the current 5-min polling — and what does that look like in this React app?
+
+**Blocked by:** Ticket: Point FastAPI at Supabase Postgres
+
+- [ ] Prototype: backend enables Realtime on news_items; frontend subscribes and renders new items as they land
+- [ ] Compare UX: instant push vs 5-min poll — show the user both
+- [ ] Decide scope: news tab only, or also macro/model dashboards (they are 10-min cached — likely overkill)
+- [ ] Link the prototype + decision as assets
+
+## Ticket: Supabase Auth + login gate (wayfinder:prototype, HITL)
+
+**Question:** What does Google login look like for this app, and which parts of the app sit behind it?
+
+**Blocked by:** Ticket: Point FastAPI at Supabase Postgres
+
+- [ ] Prototype: Supabase Auth (Google provider), frontend login button + session, backend validates the JWT
+- [ ] Show the user the flow; decide gating scope (everything vs specific tabs — the reference gates all behind Google login)
+- [ ] Decide: protect the new data via RLS or rely on app-level checks (single-user personal app today)
+- [ ] Link the prototype + decision as assets
+
+## Ticket: Phase 2 — cloud deploy with Supabase DB (wayfinder:task, HITL)
+
+**Question:** When Phase 1 works locally, what is the cheapest always-on cloud setup (Railway/Render/Fly) for the same backend — including the background news thread and replacing local Ollama?
+
+**Blocked by:** Ticket: Point FastAPI at Supabase Postgres
+
+- [ ] Compare Railway vs Render vs Fly for a persistent Python worker (not serverless — background thread needs an always-on process)
+- [ ] Decide Ollama handling: move ai_narrative to DeepSeek (key exists) vs run Ollama on the same VPS
+- [ ] Cost estimate + deploy runbook (env vars, health check, DB from Supabase)
+- [ ] Deliver the runbook as an asset

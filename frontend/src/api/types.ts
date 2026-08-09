@@ -548,3 +548,29 @@ export interface SignalsDashboard {
   data_sources: string[];
   notes: string[];
 }
+
+// --- News (mirrors the reference /news page: RSS headlines enriched with
+// Thai titles, impact scores, categories and related-model badges)
+export interface NewsItem {
+  id: string;
+  title: string;
+  summary: string | null;
+  url: string;
+  source: string;
+  category: string | null;
+  impact_score: number | null;
+  published_at: string | null;
+  title_th: string | null;
+  analysis_th: string | null;
+  related_models: string[];
+}
+
+export interface NewsList {
+  items: NewsItem[];
+  count: number;
+  page: number;
+  page_size: number;
+  pages: number;
+  sources: string[];
+  updated_at: string;
+}

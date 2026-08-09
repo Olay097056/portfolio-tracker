@@ -13,6 +13,7 @@ import type {
   InvestorProfile,
   MacroDashboard,
   ModelsDashboard,
+  NewsList,
   SignalsDashboard,
   TradingSignal,
   MarketData,
@@ -545,3 +546,19 @@ export function closeSignal(signalId: string): Promise<TradingSignal> {
   });
 }
 
+
+export function getNews(
+  page = 1,
+  sort = 'date',
+  source?: string,
+  minImpact?: number,
+): Promise<NewsList> {
+  const params = new URLSearchParams({ page: String(page), sort });
+  if (source) params.set('source', source);
+  if (minImpact !== undefined && minImpact !== null) params.set('min_impact', String(minImpact));
+  return request<NewsList>(`/api/news?${params.toString()}`);
+}
+
+export function refreshNews(): Promise<NewsList> {
+  return request<NewsList>('/api/news/refresh', { method: 'POST' });
+}

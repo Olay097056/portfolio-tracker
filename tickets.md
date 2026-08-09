@@ -690,3 +690,107 @@ A "วิกฤตแบงก์รัน" sub-tab in the Bond-crisis page mirr
 - [x] Full backend + frontend suites pass
 - [x] Live smoke: gauge shows the bank-run score, funding cards live, charts render
 - [x] Commit (user rule: update spec, then commit)
+---
+
+# MAP: Countries tab (รายประเทศ) for Bond-crisis — wayfinder:map
+
+## Destination
+
+A "รายประเทศ" sub-tab in the Bond-crisis page mirroring the reference site's `/countries` page 100%: 27 country cards (flag, Thai name, code · currency, country-risk badge เสี่ยงต่ำ/ปานกลาง/สูง/เฝ้าระวังวิกฤต, 0-100 risk score, 10Y yield, "X bps vs US" spread, score progress bar with the reference color bands, 60-day score sparkline, data-tier note), sortable มาตรฐาน/เสี่ยงมาก→น้อย/เสี่ยงน้อย→มาก, all from free sources (FRED 10Y yields) with the country-risk score computed in-app (the reference's Supabase-computed scores are not ours to use).
+
+## Notes
+
+- **Domain:** portfolio-tracker, Bond-crisis Tools tab. Patterns to reuse: `banking_service.py` (computed score from live inputs, shared macro cache), `ModelsDashboard`/`BankingDashboard` (ink-palette cards, hand-rolled SVG sparklines, no Tailwind, Thai-first).
+- **Reference extracted 2026-08-09 (countries/page-bd8b5f2037a3f46e.js + i18n 3474):**
+  - Data: `countries` (code, name_en/th, currency, flag emoji, data_tier realtime|daily|sparse|manual, display_order — 27 countries), `country_risk_scores` (score 0-100, level low|medium|high|crisis-watch, components, updated_at), `macro_series` category=yield for 10Y per country, rpc `country_risk_daily{days:60}` for the trend sparkline.
+  - Risk level colors: low=emerald, medium=amber, high=orange, crisis-watch=red (badge bg/text 15% opacity). Progress bar: ≥75 red, ≥55 orange, ≥30 amber, else emerald; width = score% (min 3).
+  - Score formula (from components): yield_level + data_freshness + yield_momentum + curve_inversion + fx_depreciation (+ oat_bund_spread for FR) — each a 0-100-ish sub-score, summed; exact weights are in their Supabase job, we design our own equivalent.
+  - Card: flag + name_th + "CODE · currency", risk badge; score (0 decimals) + "10Y" yield (2 decimals %) + "±X bps vs US" (amber if >0, sky if <0, hidden for US); sparkline (strokeUp #f87171, strokeDown #34d399) if ≥2 trend points; data-tier note; arrow icon.
+  - Header: title รายประเทศ + subtitle คะแนนความเสี่ยงประเทศ + sort toggle (มาตรฐาน/เสี่ยงมาก→น้อย/เสี่ยงน้อย→มาก, persisted to localStorage `bcd-countries-sort`) + "ความครอบคลุมข้อมูล →" link to /countries/coverage. refreshMs 300000. Footer: lastUpdated.
+  - i18n: countries=รายประเทศ, countryRisk=คะแนนความเสี่ยงประเทศ, riskTrend60=คะแนนย้อนหลัง 60 วัน, csortDefault=มาตรฐาน, csortHigh=เสี่ยงมาก→น้อย, csortLow=เสี่ยงน้อย→มาก, dataTierNote{realtime=ข้อมูลเรียลไทม์, daily=ข้อมูลรายวัน, sparse=ข้อมูลจำกัด อาจล่าช้าบางวัน, manual=ไม่มีตลาดรอง — ติดตามผ่านอันดับเครดิตและข่าว}.
+- **User decision (2026-08-09, UPDATED):** originally Option A (FRED 10Y only, ~13/27 — missing rendered "—"). User then said **"อยากได้ 27 ประเทศ"** — coverage of all 27 is now required. FRED IRLTLT01 stays the base (~13 OECD countries); the ~14 missing (TH VN LA SG HK CN SA AE RU IN ID BR TR PH MY) need a second free source — the research ticket now probes World Bank API / IMF IFS / yfinance / EODHD-free for long-term gov bond yields, picks the best free source, and the prototype calibrates on the full 27. Never fabricate: a country with no yield from any free source still renders "—", but the goal is all 27 covered.
+- **Never fabricate:** missing yield/score renders "—"; RU's 2018 data is flagged stale rather than presented as current.
+- **Tracker:** local-markdown (tickets.md). Work the frontier: open + unblocked first. **Do NOT resolve more than one ticket per session.**
+
+## Decisions so far
+
+<!-- index of closed tickets, one line each -->
+
+- [Ticket: Country yield source coverage — all 27 countries](tickets.md) — FRED IRLTLT01 covers 13 (RU stale 2018); every other API failed (World Bank indicator 502, IMF 404, BIS timeout, EODHD login-walled, Investing 403, yfinance none); **worldgovernmentbonds.com via Playwright** (chromium-1208 already installed) verified extracting TH 10Y 2.050% — covers the remaining 14. Asset: `docs/research/country-yield-sources-2026-08-09.md`.
+- [Ticket: Country risk score engine](tickets.md) — user-confirmed formula: yield_level (spread vs US, cap 25) + momentum (cap 10) + fx 3M (cap 24) + freshness (cap 5); levels ≥75/≥55/≥30; 24/27 scored, LA/SA/AE → "—" (no free 10Y source); RU stale-flagged. Asset: `docs/research/country-risk-score-engine-2026-08-09.md`.
+- [Ticket: Backend countries payload + /api/countries](tickets.md) — static 27-country registry; FRED (13) + Playwright worldgovernmentbonds (14) yields with 1M bp; user-confirmed score formula + levels; bps-vs-US; 60-day trend recomputed from FRED history; RU stale-flagged, LA/SA/AE None. `/api/countries` + `/refresh`, 6 new tests, 454 total pass.
+- [Ticket: Countries tab frontend](tickets.md) — `CountriesDashboard.tsx`: 27 cards (flag/name/badge/score/yield/bps/progress bar/sparkline/data-tier), sort toggle persisted, 6th Bond-crisis sub-tab; 5 new tests, 577 frontend pass. Docker fix: `_chromium_path()` globs ms-playwright cross-platform + Dockerfile.dev installs chromium — live 24/27 yields in docker.
+
+## Not yet specified
+
+- Coverage page (/countries/coverage) — mirror it or link out; it is a documentation table, likely low value (may rule out of scope).
+- FRED IRLTLT01 is *monthly* — "1D/current" semantics become "latest month", and the "bps vs US" spread uses monthly alignment; acceptable but must be stated in the UI data-tier note.
+
+## Out of scope
+
+- The reference site's remaining unmirrored pages (sentiment index, country risk detail pages /countries/:code, scenario simulator, AI boardroom, 3D office) — the user scoped this effort to the countries overview tab.
+- Paid yield sources (Trading Economics, EODHD paid tiers) — Option B deferred until Option A coverage proves inadequate.
+- Ratings (S&P/Moody's/DBRS) per country — no free source.
+- The paused Supabase-migration map — separate effort, its tickets stay parked.
+
+---
+
+## Ticket: Country yield source coverage — all 27 countries (wayfinder:research, AFK)
+
+**Question:** With FRED IRLTLT01 covering ~13 OECD countries, which FREE second source (World Bank API, IMF IFS, yfinance bond series, EODHD free tier) supplies long-term government bond yields for the missing ~14 (TH VN LA SG HK CN SA AE RU IN ID BR TR PH MY) — and what is the final 27-country source map with staleness flags?
+
+**Resolution (2026-08-09):** FRED IRLTLT01 = 13 countries (US JP GB CA AU CH KR MX ZA PL FR NO + RU-stale-2018). All other API candidates failed live probes: World Bank indicator endpoint 502 (host AND container — their outage, not our network), IMF IFS 404/204, BIS timeout, EODHD demo login-walled, Investing.com 403, yfinance no non-US bond tickers, OECD 404. **Chosen second source: worldgovernmentbonds.com scraped via Playwright** (headless Chromium already installed at ms-playwright chromium-1208; `pip install playwright` + explicit executable_path, no browser re-download) — verified extracting TH 10Y = 2.050% from the yield-table row `/10 years/`. Covers all remaining 14 countries (TH VN LA SG HK CN SA AE IN ID BR TR PH MY); FRED monthly vs site daily noted. Full survey + recipe + slugs: `docs/research/country-yield-sources-2026-08-09.md`.
+
+- [x] Probe World Bank API (`api.worldbank.org/v2/country/{cc}/indicator/...`) for long-term gov bond yields per missing country — record OK / value / latest date / no-data
+- [x] Probe IMF IFS / yfinance bond series / EODHD free tier as alternates where World Bank lacks a series
+- [x] Probe FRED IRLTLT01 for all 27 (base set, no custom UA — the TLS-fingerprint lesson); record OK / 404 / stale-last-date
+- [x] Deliver a markdown asset: final 27-country source map (series/URL per country), latest values, staleness flags, monthly-vs-daily alignment notes
+
+## Ticket: Country risk score engine (wayfinder:prototype, HITL)
+
+**Question:** What is the in-app formula for the 0-100 country risk score (yield_level vs US + yield_momentum + data_freshness + optional extras), calibrated on real FRED yields and judged by the user?
+
+**Resolution (2026-08-09, user-confirmed):** `score = yield_level (0-25, spread vs US) + yield_momentum (0-10, 1M bp÷10) + fx_depreciation (0-24, 3M window) + data_freshness (0-5)`. Levels: ≥75 crisis-watch / ≥55 high / ≥30 medium / else low. 24/27 scored on real data (FRED 13 + worldgovernmentbonds via Playwright 11); TR 32.8, MX 33.8, ZA 28.3 top — developed countries 0-3 — ordering matches reference. LA/SA/AE have NO free 10Y source (reference uses paid credit ratings) → score None, renders "—" with data-tier note. RU stale-2018 → freshness 5 + stale flag. Sparkline: recompute from stored FRED yield history for FRED countries; SQLite score snapshots for Playwright countries. Asset: `docs/research/country-risk-score-engine-2026-08-09.md`.
+
+- [x] Prototype the component math on the ~13 real yield series; show the user a sample of scores + levels (low/medium/high/crisis-watch) to judge
+- [x] Decide and record: exact component weights, level thresholds (reference progress bar implies ≥75 red / ≥55 orange / ≥30 amber / else emerald), stale-data handling (RU 2018)
+- [x] Decide and record: sparkline source (own score history vs recompute from stored yield history)
+- [x] Link the prototype script + sample output as assets
+
+## Ticket: Backend countries payload + /api/countries (wayfinder:task, AFK)
+
+**Question:** What shape does the server-side payload take — country metadata + computed risk scores + 10Y yields + bps-vs-US + 60-day trend — reusing macro_service's FRED fetch and the score engine?
+
+**Resolution (2026-08-09):** `countries_service.build_countries()` — static 27-country registry (code/name_th/en/currency/flag/data_tier/slug/fred-id, mirroring the reference table); FRED IRLTLT01 for 13 countries + Playwright worldgovernmentbonds for the other 14 (chromium-1208 explicit path; 1M bp from the yield-table column); user-confirmed score formula (yield_level spread vs US cap 25 + momentum cap 10 + fx 3M cap 24 + freshness cap 5); level thresholds ≥75/≥55/≥30; bps-vs-US hidden for US; 60-day trend recomputed from FRED yield history (FRED countries — user decision), empty for Playwright single-point countries until SQLite snapshots accumulate; RU stale-flagged, LA/SA/AE score None. `GET /api/countries` + `POST /refresh` (10-min cache), registered in main.py. Built 27 countries in ~20s live (FRED 13 parallel + Playwright 14). Tests: 6 new (27 countries present, formula components exact, stale RU, trend presence, cache, refresh) — full suite 454 passes.
+
+- [x] Country registry (27 countries: code/name_th/en/currency/flag/data_tier/display_order) as a static table mirroring the reference
+- [x] FRED 10Y yields fetched via the shared FRED fetcher (parallel wave, no custom UA); missing → None
+- [x] Risk scores from the prototype formula; level from thresholds; stale flag for RU
+- [x] bps-vs-US = (country 10Y − US 10Y) × 100, hidden for US
+- [x] 60-day trend per country (per the sparkline decision)
+- [x] `GET /api/countries` payload mirrors the reference data shape + data_sources; tests (missing → None, bps math, level thresholds, sort fields)
+
+## Ticket: Countries tab frontend (wayfinder:task, HITL)
+
+**Question:** What does the 100%-parity countries UI look like in this app's non-Tailwind, Thai-first design system?
+
+**Resolution (2026-08-09):** `CountriesDashboard.tsx` renders the full reference layout with hand-rolled SVG (no new dependency): 27 country cards (flag, name_th, code · currency, level badge เสี่ยงต่ำ/ปานกลาง/สูง/เฝ้าระวังวิกฤต in the reference colors, score rounded to int, 10Y yield, "±X bps vs US" amber/sky, score progress bar with the ≥75/≥55/≥30 color bands, 60-day SVG sparkline strokeUp #f87171 / strokeDown #34d399, data-tier note + stale flag, arrow); header รายประเทศ + subtitle คะแนนความเสี่ยงประเทศ; sort toggle มาตรฐาน/เสี่ยงมาก→น้อย/เสี่ยงน้อย→มาก persisted to localStorage `bcd-countries-sort`; refresh button + 5-min auto-refresh; "—" for missing values (LA/SA/AE). Wired as the รายประเทศ sub-tab in BondCrisisPage (6th tab). Tests: 5 new (cards render with scores/yields/badges, missing → "—", sort persists, refresh, error retry). Full suite 577 frontend + 454 backend pass.
+
+**Docker fix found during verification:** Playwright's chromium was NOT in the container — the host-path hardcode failed silently (yields None). Fix: `_chromium_path()` locates the browser cross-platform by globbing ms-playwright dirs (host chromium-1208 chrome-win64, container /root/.cache/ms-playwright chromium-1234 chrome-linux64); Dockerfile.dev installs `playwright + chromium --with-deps` into the image. Live /api/countries now returns 24/27 with yields in docker (LA/SA/AE genuinely have no free source — the reference uses paid credit ratings).
+
+- [x] `CountriesDashboard.tsx` sub-tab in Bond-crisis page (alongside macro/models/signals/banking/news)
+- [x] Country cards: flag, name_th, code · currency, risk badge (reference colors), score, 10Y yield, bps-vs-US, progress bar with color bands, 60-day sparkline (SVG, strokeUp #f87171 / strokeDown #34d399), data-tier note, arrow
+- [x] Sort toggle มาตรฐาน/เสี่ยงมาก→น้อย/เสี่ยงน้อย→มาก (persisted); header + subtitle + lastUpdated; "ความครอบคลุมข้อมูล →" link (target decided in a ticket)
+- [x] Empty/error states — missing renders "—", never fabricated
+- [x] Tests: cards render with fixture, sort orders, missing-yield "—", level colors
+
+## Ticket: Coverage page + spec, tests, commit (wayfinder:task, AFK)
+
+**Question:** Is the coverage table mirrored (or ruled out), and is the whole countries tab verified and documented?
+
+**Blocked by:** Ticket: Countries tab frontend
+
+- [ ] Decide coverage: mirror a simple data-tier table or rule out of scope (link text still shown)
+- [ ] Spec updated (Bond-crisis spec family)
+- [ ] Full backend + frontend suites pass; live smoke: 13 countries with real scores, others "—"
+- [ ] Commit (user rule: update spec, then commit)

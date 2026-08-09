@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.database import Base, engine
-from app.routers import ai_narrative, banking, compare, dca, fear_greed, fx, holdings, investors, macro, market, market_data, models, news, portfolios, prices, screener, signals, watchlist
+from app.routers import ai_narrative, banking, compare, countries, dca, fear_greed, fx, holdings, investors, macro, market, market_data, models, news, portfolios, prices, screener, signals, watchlist
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -56,6 +56,7 @@ app.include_router(macro.router)
 app.include_router(models.router)
 app.include_router(news.router)
 app.include_router(banking.router)
+app.include_router(countries.router)
 app.include_router(signals.router)
 
 

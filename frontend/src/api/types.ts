@@ -641,3 +641,43 @@ export interface BankingDashboard {
   updated_at: string;
   data_sources: string[];
 }
+
+// --- Countries (mirrors the reference /countries page: 27 country cards
+// with 10Y yields, computed risk scores, bps-vs-US and 60-day trend)
+export interface CountryTrendPoint {
+  date: string;
+  value: number;
+}
+
+export interface CountryComponents {
+  yield_level: number | null;
+  yield_momentum: number | null;
+  fx_depreciation: number | null;
+  data_freshness: number | null;
+}
+
+export interface CountryCard {
+  code: string;
+  name_en: string;
+  name_th: string;
+  currency: string;
+  flag: string;
+  data_tier: string;
+  data_tier_note_th: string;
+  yield_value: number | null;
+  yield_asof: string | null;
+  yield_stale: boolean;
+  chg_bp: number | null;
+  score: number | null;
+  level: string | null;
+  components: CountryComponents | null;
+  bps_vs_us: number | null;
+  trend: CountryTrendPoint[];
+}
+
+export interface CountriesDashboard {
+  countries: CountryCard[];
+  us_10y: number | null;
+  updated_at: string;
+  data_sources: string[];
+}

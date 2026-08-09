@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { BankingDashboard } from '../components/tools/BankingDashboard';
+import { CountriesDashboard } from '../components/tools/CountriesDashboard';
 import { MacroDashboard } from '../components/tools/MacroDashboard';
 import { ModelsDashboard } from '../components/tools/ModelsDashboard';
 import { SignalsDashboard } from '../components/tools/SignalsDashboard';
@@ -8,17 +9,19 @@ import { NewsDashboard } from '../components/tools/NewsDashboard';
 // Bond-crisis — main tab that hosts the macro dashboard (yield curve, money
 // market rates, credit spreads, macro assets), the profit models page
 // (six regime models scored 0-100), the trading signals trade desk, the
-// banking stress monitor and the news feed. Five sub-tabs mirroring the
-// reference site's ข้อมูลมหภาค (/macro), โมเดลทำกำไร (/models), สัญญาณเทรด
-// (/signals), วิกฤตแบงก์รัน (/banking) and ข่าวสาร (/news) pages.
+// banking stress monitor, the country-risk overview and the news feed. Six
+// sub-tabs mirroring the reference site's ข้อมูลมหภาค (/macro), โมเดลทำกำไร
+// (/models), สัญญาณเทรด (/signals), วิกฤตแบงก์รัน (/banking), รายประเทศ
+// (/countries) and ข่าวสาร (/news) pages.
 export function BondCrisisPage() {
-  const [tab, setTab] = useState<'macro' | 'models' | 'signals' | 'banking' | 'news'>('macro');
+  const [tab, setTab] = useState<'macro' | 'models' | 'signals' | 'banking' | 'countries' | 'news'>('macro');
 
   const tabs = [
     { id: 'macro' as const, label: 'ข้อมูลมหภาค' },
     { id: 'models' as const, label: 'โมเดลทำกำไร' },
     { id: 'signals' as const, label: 'สัญญาณเทรด' },
     { id: 'banking' as const, label: 'วิกฤตแบงก์รัน' },
+    { id: 'countries' as const, label: 'รายประเทศ' },
     { id: 'news' as const, label: 'ข่าวสาร' },
   ];
 
@@ -69,6 +72,8 @@ export function BondCrisisPage() {
         <SignalsDashboard />
       ) : tab === 'banking' ? (
         <BankingDashboard />
+      ) : tab === 'countries' ? (
+        <CountriesDashboard />
       ) : (
         <NewsDashboard />
       )}

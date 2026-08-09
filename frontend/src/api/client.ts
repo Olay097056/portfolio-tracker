@@ -6,6 +6,7 @@ import type {
   ChartRange,
   ComparableStock,
   CompareSuggestion,
+  CountriesDashboard,
   DividendSignalRow,
   FearGreed,
   Holding,
@@ -570,4 +571,12 @@ export function getBankingDashboard(): Promise<BankingDashboard> {
 
 export function refreshBankingDashboard(): Promise<BankingDashboard> {
   return request<BankingDashboard>('/api/banking/refresh', { method: 'POST' });
+}
+
+export function getCountriesDashboard(): Promise<CountriesDashboard> {
+  return request<CountriesDashboard>('/api/countries');
+}
+
+export function refreshCountriesDashboard(): Promise<CountriesDashboard> {
+  return request<CountriesDashboard>('/api/countries/refresh', { method: 'POST' });
 }

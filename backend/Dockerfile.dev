@@ -9,6 +9,12 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Playwright + headless Chromium for the countries-tab yield scrape
+# (worldgovernmentbonds.com — see docs/research/country-yield-sources-2026-08-09.md).
+# Installed into the image; the service locates it via /ms-playwright (set by
+# `playwright install`), so the same code runs on host and container.
+RUN pip install --no-cache-dir playwright && python -m playwright install --with-deps chromium
+
 # Source is bind-mounted by docker-compose in dev; this COPY just means the
 # image is runnable standalone too (e.g. `docker build` + `docker run` with no
 # compose/mount, for a quick sanity check).

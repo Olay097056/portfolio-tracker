@@ -199,3 +199,66 @@ def test_country_detail_missing_tenors_never_fabricated(monkeypatch):
     assert d["yield_curve"] == []
     assert d["risk"]["score"] is None
     assert d["mini_cards"][0]["value"] is None
+
+
+# ── Country AI brief + report ─────────────────────────────────────────────
+def _stub_ai(monkeypatch):
+    from app import country_ai_service as cas
+
+    monkeypatch.setattr(cas, "_call_deepseek", lambda system, user, max_tokens=8000: (
+        '{"brief_md": "สรุปสั้นๆ", "recommendations": ["ข้อ 1"], "scenarios": ["ฉาก 1"]}'
+        if "brief_md" in system or "สรุปสถานการณ์" in system else
+        '{"report_md": "## สรุปภาพรวม\\nรายละเอียด..."}'
+    ))
+    monkeypatch.setattr(cas, "_country_context", lambda code: "ประเทศ: X")
+
+
+def test_brief_generated_and_cached(monkeypatch):
+    _stub_ai(monkeypatch)
+    from app import country_ai_service as cas
+    monkeypatch.setattr(cas, "save_brief", lambda code, b: None)
+    r1 = _client().get("/api/countries/TH/brief")
+    assert r1.status_code == 200
+    d = r1.json()
+    assert d["brief_md"].startswith("สรุป")
+    assert d["recommendations"] == ["ข้อ 1"]
+    assert d["model_used"] == "deepseek-v4-flash"
+
+
+def test_brief_reuses_cached_copy(monkeypatch):
+    _stub_ai(monkeypatch)
+    from app import country_ai_service as cas
+    calls = {"n": 0}
+    real_gen = cas.generate_brief
+
+    def counting(code):
+        calls["n"] += 1
+        return real_gen(code)
+
+    monkeypatch.setattr(cas, "generate_brief", counting)
+    # First call saves a brief; second call within TTL must not regenerate
+    c = _client()
+    c.get("/api/countries/TH/brief")
+    n_after_first = calls["n"]
+    c.get("/api/countries/TH/brief")
+    assert calls["n"] == n_after_first  # cached, no second DeepSeek call
+
+
+def test_report_generated_on_demand(monkeypatch):
+    _stub_ai(monkeypatch)
+    from app import country_ai_service as cas
+    monkeypatch.setattr(cas, "save_report", lambda code, r: None)
+    r = _client().post("/api/countries/TH/report")
+    assert r.status_code == 200
+    d = r.json()
+    assert "สรุปภาพรวม" in d["report_md"]
+    assert d["model_used"] == "deepseek-v4-flash"
+
+
+def test_ai_failure_returns_503(monkeypatch):
+    from app import country_ai_service as cas
+    monkeypatch.setattr(cas, "_call_deepseek", lambda system, user, max_tokens=8000: None)
+    monkeypatch.setattr(cas, "_country_context", lambda code: "ประเทศ: X")
+    monkeypatch.setattr(cas, "get_brief", lambda code: None)
+    assert _client().get("/api/countries/TH/brief").status_code == 503
+    assert _client().post("/api/countries/TH/report").status_code == 503

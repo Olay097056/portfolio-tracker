@@ -97,6 +97,64 @@ def get_country_detail(code: str) -> CountryDetailOut:
     return CountryDetailOut(**payload)
 
 
+# ── Country AI brief + report ─────────────────────────────────────────────
+class BriefOut(BaseModel):
+    brief_md: str
+    recommendations: list[str] = []
+    scenarios: list[str] = []
+    model_used: str
+    generated_at: str
+
+
+class ReportOut(BaseModel):
+    report_md: str
+    model_used: str
+    generated_at: str
+
+
+_BRIEF_TTL_SECONDS = 24 * 3600  # brief cached 24h, regenerated on open
+
+
+@router.get("/{code}/brief", response_model=BriefOut)
+def get_country_brief(code: str) -> BriefOut:
+    """AI สรุปสถานการณ์ — auto-generated on page open, cached 24h.
+    Regenerates when stale; returns None-shaped 503 if generation fails."""
+    from datetime import datetime, timezone
+
+    from app import country_ai_service as cas
+
+    code = code.upper()
+    brief = cas.get_brief(code)
+    if brief:
+        gen = datetime.strptime(brief["generated_at"], "%d/%m/%Y %H:%M")
+        if (datetime.now(timezone.utc) - gen.replace(tzinfo=timezone.utc)).total_seconds() < _BRIEF_TTL_SECONDS:
+            return BriefOut(**brief)
+    fresh = cas.generate_brief(code)
+    if fresh:
+        cas.save_brief(code, fresh)
+        fresh["generated_at"] = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M")
+        return BriefOut(**fresh)
+    if brief:  # stale copy is better than nothing
+        return BriefOut(**brief)
+    raise HTTPException(status_code=503, detail="AI brief unavailable — DeepSeek call failed")
+
+
+@router.post("/{code}/report", response_model=ReportOut)
+def generate_country_report(code: str) -> ReportOut:
+    """รายงาน AI เชิงลึก — on-demand (user clicks), like the reference."""
+    from datetime import datetime, timezone
+
+    from app import country_ai_service as cas
+
+    code = code.upper()
+    report = cas.generate_report(code)
+    if report:
+        cas.save_report(code, report)
+        report["generated_at"] = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M")
+        return ReportOut(**report)
+    raise HTTPException(status_code=503, detail="Report generation failed — DeepSeek call failed")
+
+
 @router.post("/refresh", response_model=CountriesOut)
 def refresh_countries() -> CountriesOut:
     """Invalidate the cache and rebuild now."""

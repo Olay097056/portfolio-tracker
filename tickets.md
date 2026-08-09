@@ -820,6 +820,7 @@ Per-country detail pages for the Bond-crisis "รายประเทศ" tab, 
 
 - [Ticket: Yield curve tenors + backend /api/countries/:code](tickets.md) — `_wgb_yields()` grabs the FULL yield table (1Y-20Y + T-BILLs); `build_country_detail(code)` + `GET /api/countries/{code}` (404 unknown, before /refresh): full curve, risk scorecard, trend, us10, bps-vs-US, FX mini card. Live TH 12 tenors / TR 4 tenors; 3 new tests, 457 total pass.
 - [Ticket: DeepSeek AI brief + report for a country](tickets.md) — `country_ai_service.py`: brief + 15-section report via DeepSeek (user-approved samples); SQLite country_briefs/country_reports; `GET /{code}/brief` (24h cache) + `POST /{code}/report` (on-demand); 4 new tests, 461 total pass; live in docker.
+- [Ticket: Country detail page frontend](tickets.md) — `CountryDetailPage.tsx`: header/AI brief/yield curve SVG/scorecard bars/stress-test simulator (sliders + matrix)/report panel (markdown-lite); cards clickable; 5 new tests, 582 frontend pass; live in docker. **Map closed — 3/3 tickets resolved.**
 
 ## Not yet specified
 
@@ -860,6 +861,8 @@ Per-country detail pages for the Bond-crisis "รายประเทศ" tab, 
 
 **Question:** What does the 100%-parity detail page look like in this app's non-Tailwind, Thai-first design system?
 
-- [ ] Route `/countries/:code` (React Router or state) — country cards in CountriesDashboard become links
-- [ ] Sections: header (flag/name/data-tier/score/sparkline), AI brief panel, yield curve SVG chart (hand-rolled, tenors on x-axis), risk scorecard bars (≥15/≥8 bands), mini stat cards grid, duration stress-test simulator (sliders + matrix table), news panel, report panel (generate + render markdown)
-- [ ] Tests: sections render with fixture, stress-test math, missing → "—"
+**Resolution (2026-08-09):** `CountryDetailPage.tsx` — full detail view opened by clicking any country card (state-based, no router needed — matches the app's tab pattern). Sections (all hand-rolled SVG/markdown-lite, no new dependency): header (flag + name_th + data-tier note + big score colored by level + 160×32 sparkline + คะแนนย้อนหลัง 60 วัน); AI brief panel (💡 AI สรุปสถานการณ์ + brief_md + คำแนะนำ numbered + จินตนาการ numbered, accent border per reference); yield curve SVG chart (tenors on x-axis, spread-vs-US badge amber/sky, "ข้อมูลจำกัด" placeholder for missing curves); risk scorecard (component bars ≥15 red / ≥8 amber / else emerald, width t/30×100%, updated_at); mini stat cards (value + change_pct 3M); duration stress test (Duration slider 1-15, ΔYield slider 25-500 step 25, ΔPrice = -duration×ΔYield/100 box, matrix 3/5/8/12yr × +100/200/300 bps colored ≤-15 red / ≤-8 orange / else amber); report panel (สร้างรายงาน AI เชิงลึก button → POST report, markdown-lite renderer for headings/lists/paragraphs, model_used + generated_at, "ยังไม่มีรายงาน" empty copy per reference). Cards in CountriesDashboard are now clickable (role=button, hover border). Tests: 5 new (header/curve/scorecard/mini render, AI brief sections, stress-test math incl. matrix, report on click, missing → "—" + back) — full suite 582 frontend pass. Live smoke: /api/countries/TH returns 12 tenors + risk + mini in docker.
+
+- [x] Route `/countries/:code` (React Router or state) — country cards in CountriesDashboard become links
+- [x] Sections: header (flag/name/data-tier/score/sparkline), AI brief panel, yield curve SVG chart (hand-rolled, tenors on x-axis), risk scorecard bars (≥15/≥8 bands), mini stat cards grid, duration stress-test simulator (sliders + matrix table), news panel, report panel (generate + render markdown)
+- [x] Tests: sections render with fixture, stress-test math, missing → "—"

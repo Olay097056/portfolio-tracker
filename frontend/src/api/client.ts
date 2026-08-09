@@ -7,6 +7,9 @@ import type {
   ComparableStock,
   CompareSuggestion,
   CountriesDashboard,
+  CountryBrief,
+  CountryDetail,
+  CountryReport,
   DividendSignalRow,
   FearGreed,
   Holding,
@@ -579,4 +582,16 @@ export function getCountriesDashboard(): Promise<CountriesDashboard> {
 
 export function refreshCountriesDashboard(): Promise<CountriesDashboard> {
   return request<CountriesDashboard>('/api/countries/refresh', { method: 'POST' });
+}
+
+export function getCountryDetail(code: string): Promise<CountryDetail> {
+  return request<CountryDetail>(`/api/countries/${code}`);
+}
+
+export function getCountryBrief(code: string): Promise<CountryBrief> {
+  return request<CountryBrief>(`/api/countries/${code}/brief`);
+}
+
+export function generateCountryReport(code: string): Promise<CountryReport> {
+  return request<CountryReport>(`/api/countries/${code}/report`, { method: 'POST' });
 }

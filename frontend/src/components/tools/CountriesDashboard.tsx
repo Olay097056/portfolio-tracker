@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getCountriesDashboard, refreshCountriesDashboard } from '../../api/client';
 import type { CountriesDashboard as CountriesData, CountryCard } from '../../api/types';
+import { CountryDetailPage } from './CountryDetailPage';
 
 // Countries tab (รายประเทศ) — mirrors the reference /countries page: 27
 // country cards with 10Y yield, computed risk score, bps-vs-US, progress bar
@@ -86,7 +87,7 @@ function Sparkline({ points, up }: { points: { date: string; value: number }[]; 
 }
 
 // ── Country card ──────────────────────────────────────────────────────────
-function CountryCard({ country }: { country: CountryCard }) {
+function CountryCard({ country, onClick }: { country: CountryCard; onClick: () => void }) {
   const score = country.score;
   const barW = score === null || score === undefined ? 3 : Math.max(3, Math.min(100, score));
   const trendUp = (() => {
@@ -96,7 +97,15 @@ function CountryCard({ country }: { country: CountryCard }) {
   })();
 
   return (
-    <div style={{ background: INK.panel, border: `1px solid ${INK.panelBorder}`, borderRadius: 14, padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick(); }}
+      style={{ background: INK.panel, border: `1px solid ${INK.panelBorder}`, borderRadius: 14, padding: 20, display: 'flex', flexDirection: 'column', gap: 10, cursor: 'pointer', transition: 'border-color 0.15s' }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = '#2b3a5e'; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = INK.panelBorder; }}
+    >
       {/* Header: flag + name + code·currency + level badge */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
@@ -171,6 +180,7 @@ export function CountriesDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
+  const [selected, setSelected] = useState<string | null>(null);
   const [sort, setSort] = useState<SortKey>(() => {
     try {
       const saved = localStorage.getItem('bcd-countries-sort');
@@ -247,6 +257,11 @@ export function CountriesDashboard() {
   }
   if (!data) return null;
 
+  // Country detail view (mirrors /countries/:code)
+  if (selected) {
+    return <CountryDetailPage code={selected} onBack={() => setSelected(null)} />;
+  }
+
   const sortOptions: { key: SortKey; label: string }[] = [
     { key: 'default', label: 'มาตรฐาน' },
     { key: 'desc', label: 'เสี่ยงมาก→น้อย' },
@@ -292,7 +307,7 @@ export function CountriesDashboard() {
 
       {/* Country cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
-        {sorted.map((c) => <CountryCard key={c.code} country={c} />)}
+        {sorted.map((c) => <CountryCard key={c.code} country={c} onClick={() => setSelected(c.code)} />)}
       </div>
 
       {/* Footer */}

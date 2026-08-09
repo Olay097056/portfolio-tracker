@@ -681,3 +681,54 @@ export interface CountriesDashboard {
   updated_at: string;
   data_sources: string[];
 }
+
+// --- Country detail (mirrors the reference /countries/:code page)
+export interface CountryYieldPoint {
+  tenor: string;
+  value: number;
+}
+
+export interface CountryDetail {
+  country: {
+    code: string;
+    name_en: string;
+    name_th: string;
+    currency: string;
+    flag: string;
+    data_tier: string;
+    data_tier_note_th: string;
+  };
+  yield_curve: CountryYieldPoint[];
+  yield_asof: string | null;
+  yield_stale: boolean;
+  risk: {
+    score: number | null;
+    level: string | null;
+    components: CountryComponents | null;
+    updated_at: string;
+  } | null;
+  trend: CountryTrendPoint[];
+  us10: number | null;
+  bps_vs_us: number | null;
+  mini_cards: Array<{
+    series_id: string;
+    name_th: string;
+    unit: string;
+    value: number | null;
+    change_pct: number | null;
+  }>;
+}
+
+export interface CountryBrief {
+  brief_md: string;
+  recommendations: string[];
+  scenarios: string[];
+  model_used: string;
+  generated_at: string;
+}
+
+export interface CountryReport {
+  report_md: string;
+  model_used: string;
+  generated_at: string;
+}

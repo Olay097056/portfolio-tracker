@@ -33,6 +33,7 @@ import type {
   PriceSignalRow,
   RefreshStatus,
   ScanPeriod,
+  SimulateResponse,
   StockSearchResult,
   TickerPosition,
   TrendingData,
@@ -594,4 +595,11 @@ export function getCountryBrief(code: string): Promise<CountryBrief> {
 
 export function generateCountryReport(code: string): Promise<CountryReport> {
   return request<CountryReport>(`/api/countries/${code}/report`, { method: 'POST' });
+}
+
+export function simulateModels(overrides: Record<string, number>): Promise<SimulateResponse> {
+  return request<SimulateResponse>('/api/models/simulate', {
+    method: 'POST',
+    body: JSON.stringify({ overrides }),
+  });
 }

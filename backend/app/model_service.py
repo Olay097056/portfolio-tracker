@@ -18,7 +18,8 @@ indicators whose input data is unavailable are dropped (never guessed).
 Status follows the reference thresholds: >=40 building, >=60 active.
 """
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+import time
 
 from app import macro_service
 
@@ -252,6 +253,20 @@ def _score_sofr_effr_stress(ctx: dict) -> float | None:
     return _score_linear(spread, 0.0, 10.0) if spread is not None else None
 
 
+def _score_us_debt_gdp_rising(ctx: dict) -> float | None:
+    """US debt-to-GDP elevated -> fiscal fragility raises stress scores
+    (forecast map: debtPts slider maps to us_debt_gdp level)."""
+    d = _ctx_value(ctx, "us_debt_gdp")
+    return _score_linear(d, 100.0, 140.0) if d is not None else None
+
+
+def _score_us2y_elevated(ctx: dict) -> float | None:
+    """US 2Y yield level high -> front-end rates stress (forecast map:
+    us2y was a dead key with no level scorer)."""
+    y = _ctx_value(ctx, "us2y")
+    return _score_linear(y, 3.5, 5.5) if y is not None else None
+
+
 def _score_nas100_rally(ctx: dict) -> float | None:
     chg = _ctx_value(ctx, "nas100_chg_pct")
     return _score_linear(chg, -1.5, 1.5) if chg is not None else None
@@ -331,6 +346,8 @@ INDICATOR_SCORERS: dict[str, callable] = {
     "sofr_effr_funding": _score_sofr_effr_stress,
     "move_stress": _score_move_stress,
     "nas100_breakdown": _score_nas100_breakdown,
+    "us_debt_gdp_rising": _score_us_debt_gdp_rising,
+    "us2y_elevated": _score_us2y_elevated,
 }
 
 # Fallback: indicator name -> scorer by substring (the reference metadata uses
@@ -365,6 +382,9 @@ _INDICATOR_NAME_MAP: dict[str, str] = {
     "US2Y Collapse": "us2y_collapse",
     "Bank Reserves (WRESBAL)": "bank_reserves_wresbal",
     "ON RRP Buffer × Funding": "on_rrp_buffer_funding",
+    "SOFR-EFFR Spread": "sofr_effr_funding",
+    "US Debt-to-GDP": "us_debt_gdp_rising",
+    "US2Y Level": "us2y_elevated",
 }
 
 # Same indicator name means opposite things in stress vs risk-on models:
@@ -513,6 +533,7 @@ MODELS: list[dict] = [
             {"name": "USDJPY", "weight": 10, "logic": "JPY อ่อน → carry trade unwind"},
             {"name": "MOVE Index", "weight": 8, "logic": "ความผันผวนบอนด์สูง+พุ่ง (>90) → ยืนยัน rates-vol regime"},
             {"name": "10Y Auction Bid-to-Cover", "weight": 7, "logic": "อุปสงค์ประมูลอ่อน (<2.4x) → ผู้ซื้อหลักถอย → yield ขึ้นต่อ"},
+            {"name": "US2Y Level", "weight": 5, "logic": "2Y สูง (front-end rates stress) → 10Y พุ่งตาม"},
         ],
         "signal_map": [
             {"asset": "NAS100", "category": "macro", "direction": "short", "reason": "Growth stocks ถูกกดจาก higher yields"},
@@ -544,6 +565,7 @@ MODELS: list[dict] = [
             {"name": "US10Y", "weight": 10, "logic": "Yield พุ่งเร็ว → trigger credit stress"},
             {"name": "DXY", "weight": 10, "logic": "Dollar squeeze → กดดัน debtors"},
             {"name": "MOVE Index", "weight": 7, "logic": "ความผันผวนบอนด์ stress (>100) → เครดิตระเบิดมักมากับ rates vol"},
+            {"name": "US Debt-to-GDP", "weight": 8, "logic": "หนี้สหรัฐ/GDP สูงขึ้น → fiscal fragility → credit stress"},
         ],
         "signal_map": [
             {"asset": "NAS100", "category": "macro", "direction": "short", "reason": "Risk assets ถูกเทขาย"},
@@ -577,6 +599,7 @@ MODELS: list[dict] = [
             {"name": "HY Spread", "weight": 15, "logic": "Spread บาน → เครดิตตึง"},
             {"name": "VIX", "weight": 10, "logic": "ความกลัวเร่งตัว"},
             {"name": "Bank Reserves (WRESBAL)", "weight": 8, "logic": "เงินสำรองเข้าเขตขาดแคลน (<$3,000B) → ระบบเปราะต่อ funding shock"},
+            {"name": "SOFR-EFFR Spread", "weight": 7, "logic": "repo ตึง (spread > 10bps) → funding stress เฉียบพลัน"},
             {"name": "ON RRP Buffer × Funding", "weight": 5, "logic": "RRP buffer แห้ง (<$300B) + SOFR-EFFR ตึง → ไม่มีเบาะรองรับ repo stress"},
         ],
         "signal_map": [
@@ -661,6 +684,7 @@ def _build_context_from(dash: dict) -> dict:
         "reserves_chg_pct": chg("us_bank_reserves"),
         "on_rrp_b": val("us_on_rrp"),
         "sofr_effr_spread_bps": val("us_sofr_effr_spread"),
+        "us_debt_gdp": val("us_debt_gdp"),
         "usdjpy": extras.get("usdjpy"),
         "nas100_chg_pct": extras.get("nas100_chg_pct"),
         "kre_chg_pct": extras.get("kre_chg_pct"),
@@ -669,10 +693,102 @@ def _build_context_from(dash: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# News factor (revived per forecast-tab map ticket 05 — user decisions):
+#   - window: last 7 days
+#   - freshness weights: 0-2d ×1.0, 3-5d ×0.5, 6-7d ×0.25
+#   - sum of impact_score × weight, capped at 100
+#   - no related news in window -> factor is DROPPED (not counted in the
+#     denominator; the model can still reach the full 100)
+#   - direction: every related model gets the same boost (no polarity field)
+# ---------------------------------------------------------------------------
+_NEWS_WINDOW_DAYS = 7
+_NEWS_MIN_IMPACT = 20  # ignore noise headlines (matches the news tab default)
+_NEWS_FRESH_WEIGHTS = ((2, 1.0), (5, 0.5), (7, 0.25))  # (age_days_le, weight)
+_news_cache: dict[str, tuple[float, dict[str, float]]] = {}  # ts -> {model_id: score}
+
+def _news_factor_cache_ts() -> float:
+    return _news_cache.get("_ts", 0.0)
+
+def _clear_news_cache() -> None:
+    _news_cache.clear()
+
+def _compute_news_scores() -> dict[str, float]:
+    """impact-weighted news score (0-100) per model from news_items, 7-day
+    window, freshness-decayed. Weighted MEAN (user decision 2026-08-09 —
+    a sum saturates at the 100 cap too fast with a large feed): each related
+    item contributes impact × freshness weight, averaged over the items, so
+    5 fresh impact-60 headlines score 60, not 300. Returns {model_id: score}
+    — only models that have related news in the window."""
+    from app.database import SessionLocal
+    from app.news_service import NewsItem
+    import json as _json
+
+    sums: dict[str, float] = {}
+    counts: dict[str, int] = {}
+    try:
+        db = SessionLocal()
+        try:
+            since = datetime.now(timezone.utc) - timedelta(days=_NEWS_WINDOW_DAYS)
+            rows = (
+                db.query(NewsItem)
+                .filter(
+                    NewsItem.published_at >= since,
+                    NewsItem.impact_score.isnot(None),
+                    NewsItem.impact_score >= _NEWS_MIN_IMPACT,  # noise filter
+                )
+                .all()
+            )
+        finally:
+            db.close()
+    except Exception:
+        return {}  # news unavailable -> factors dropped, scores unchanged
+
+    now = datetime.now(timezone.utc)
+    for row in rows:
+        if not row.related_models or not row.published_at:
+            continue
+        try:
+            models = _json.loads(row.related_models)
+        except Exception:
+            continue
+        if not isinstance(models, list):
+            continue
+        # SQLite returns naive datetimes; normalize to aware before aging.
+        pub = row.published_at
+        if pub.tzinfo is None:
+            pub = pub.replace(tzinfo=timezone.utc)
+        age_days = (now - pub).total_seconds() / 86400.0
+        if age_days < 0 or age_days > _NEWS_WINDOW_DAYS:
+            continue
+        weight = next((w for limit, w in _NEWS_FRESH_WEIGHTS if age_days <= limit), 0.0)
+        if weight <= 0:
+            continue
+        for mid in models:
+            if isinstance(mid, str):
+                sums[mid] = sums.get(mid, 0.0) + float(row.impact_score or 0) * weight
+                counts[mid] = counts.get(mid, 0) + 1
+    return {mid: min(100.0, sums[mid] / counts[mid]) for mid, cnt in counts.items() if cnt}
+
+def news_scores() -> dict[str, float]:
+    """Cached per-model news scores (10 min), shared with the simulate
+    endpoint so the baseline freeze and the live dashboard agree."""
+    ts, scores = _news_cache.get("_ts", 0.0), _news_cache.get("_scores")
+    if scores is None or (time.time() - ts) > 600:
+        scores = _compute_news_scores()
+        _news_cache["_ts"] = time.time()
+        _news_cache["_scores"] = scores
+    return scores
+
+
+# ---------------------------------------------------------------------------
 # Scoring
 # ---------------------------------------------------------------------------
-def _score_model(model: dict, ctx: dict) -> dict:
-    """Score one model: indicator conditions, factor sub-scores and total."""
+def _score_model(model: dict, ctx: dict, news_override: float | None = None) -> dict:
+    """Score one model: indicator conditions, factor sub-scores and total.
+
+    news_override: 0-100 simulated "news intensity" for this model (forecast
+    tab). When None the real news factor is used; when the model has no
+    related news in the window the factor is dropped (not 0)."""
     conditions: list[dict] = []
     weighted_macro_sum = 0.0
     weight_total = 0.0
@@ -717,8 +833,22 @@ def _score_model(model: dict, ctx: dict) -> dict:
     market_structure = (sum(structure_parts) / len(structure_parts) * FACTOR_CAPS["market_structure"] / 100.0
                         if structure_parts else 0.0)
 
-    # news: no news feed in this app yet — honest 0 (not fabricated).
-    news = 0.0
+    # news: real factor from news_items (revived per forecast map ticket 05).
+    # news_override (0-100, simulated intensity from the forecast tab) wins
+    # when given; otherwise the impact-weighted freshness-decayed score from
+    # the DB. No related news in the window -> factor DROPPED (excluded from
+    # the total, so the model can still reach the full 100 — the same honest
+    # treatment as indicators with no live data).
+    if news_override is not None:
+        news_raw = news_override
+        news_present = news_override > 0
+    else:
+        news_raw = news_scores().get(model["model_id"], 0.0)
+        news_present = model["model_id"] in news_scores()
+    if news_present:
+        news = news_raw / 100.0 * FACTOR_CAPS["news"]
+    else:
+        news = 0.0
 
     # confirmation: does the market already behave like the model's regime?
     # Blend VIX (calm for risk-on, panic for stress) with the curve shape and

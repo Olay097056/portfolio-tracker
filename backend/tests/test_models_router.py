@@ -203,7 +203,7 @@ def test_yield_shock_reacts_to_high_yields(monkeypatch):
     """10Y > 4.5%, real yield high, USD strong, MOVE elevated, gold falling →
     yield-shock must be the top model."""
     _stub_macro_dashboard(monkeypatch, overrides={
-        "us10y": 4.95, "us2y": 4.5, "us30y": 5.6, "us_10y_real": 2.8,
+        "us10y": 4.95, "us2y": 5.2, "us30y": 5.6, "us_10y_real": 2.8,
         "dxy": 106.5, "vix": 26.0, "move": 118.0, "us_auction_btc": 2.3,
         "gold_chg_pct": -1.0, "us_bank_reserves": 3100.0, "reserves_chg_pct": 0.5,
     })

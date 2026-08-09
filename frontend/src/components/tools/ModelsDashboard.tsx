@@ -96,10 +96,12 @@ function ScoreHistoryChart({
   history,
   meta,
   thresholds,
+  newsFactorSince,
 }: {
   history: ModelHistoryPoint[];
   meta: ModelMeta[];
   thresholds: { building: number; active: number };
+  newsFactorSince?: string;
 }) {
   const [hover, setHover] = useState<number | null>(null);
 
@@ -109,6 +111,15 @@ function ScoreHistoryChart({
     const y = (v: number) => PAD_TOP + (1 - v / 100) * (CHART_H - PAD_TOP - PAD_BOTTOM);
     return { x, y };
   }, [history.length]);
+
+  // News-factor divider: history snapshots before this date were scored
+  // WITHOUT the news factor (hardcoded 0), after WITH it — the two halves
+  // are not on the same scale (decision from forecast map ticket 05).
+  const newsDivider = useMemo(() => {
+    if (!newsFactorSince) return null;
+    const idx = history.findIndex((h) => h.recorded_at.slice(0, 5) >= newsFactorSince.slice(0, 5));
+    return idx > 0 ? idx : null;
+  }, [history, newsFactorSince]);
 
   const yGrid = [0, 20, 40, 60, 80, 100];
   const labelEvery = Math.max(1, Math.ceil(history.length / 8));
@@ -159,6 +170,24 @@ function ScoreHistoryChart({
           </text>
         </g>
       ))}
+
+      {/* news-factor divider — scores before/after are not on the same scale */}
+      {newsDivider !== null && (
+        <g>
+          <line
+            x1={points.x(newsDivider)}
+            x2={points.x(newsDivider)}
+            y1={PAD_TOP}
+            y2={CHART_H - PAD_BOTTOM}
+            stroke={INK.amber}
+            strokeWidth={1.5}
+            strokeDasharray="6 3"
+          />
+          <text x={points.x(newsDivider) + 6} y={PAD_TOP + 10} fontSize={10} fill={INK.amber}>
+            คะแนนก่อน/หลังรวม news factor ({newsFactorSince})
+          </text>
+        </g>
+      )}
 
       {/* x-axis labels (thinned) */}
       {history.map((h, i) =>
@@ -501,7 +530,7 @@ export function ModelsDashboard() {
       {/* Score history chart */}
       <div style={{ background: INK.panel, border: `1px solid ${INK.panelBorder}`, borderRadius: 12, padding: 20 }}>
         <h4 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 600, color: INK.inkDim }}>ประวัติคะแนนโมเดล (30 วัน)</h4>
-        <ScoreHistoryChart history={data.history} meta={data.meta} thresholds={data.thresholds} />
+        <ScoreHistoryChart history={data.history} meta={data.meta} thresholds={data.thresholds} newsFactorSince={data.news_factor_since} />
         {/* legend */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginTop: 8 }}>
           {data.meta.map((m) => (

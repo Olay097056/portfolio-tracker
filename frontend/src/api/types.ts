@@ -466,6 +466,7 @@ export interface ModelsDashboard {
   status_meta: Record<string, { en: string; th: string }>;
   thresholds: { building: number; active: number };
   history: ModelHistoryPoint[];
+  news_factor_since?: string;
   updated_at: string;
   data_sources: string[];
 }
@@ -731,4 +732,40 @@ export interface CountryReport {
   report_md: string;
   model_used: string;
   generated_at: string;
+}
+
+// --- Forecast / Scenario Simulation (tab จำลองสถานการณ์) -------------------
+
+export interface SimulateFactors {
+  market_structure: number;
+  macro: number;
+  news: number;
+  confirmation: number;
+  risk_penalty: number;
+}
+
+export interface SimulatedModel {
+  model_id: string;
+  score: number;
+  status: 'inactive' | 'building' | 'active';
+  confidence: number;
+  delta: number;
+  factors: SimulateFactors;
+}
+
+export interface SliderSpec {
+  min: number;
+  max: number;
+  step: number;
+  default: number;
+  unit: string;
+  label_th: string;
+}
+
+export interface SimulateResponse {
+  baseline: SimulatedModel[];
+  simulated: SimulatedModel[];
+  missing_base: string[];
+  simulated_at: string;
+  slider_specs: Record<string, SliderSpec>;
 }

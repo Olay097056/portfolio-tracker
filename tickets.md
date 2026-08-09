@@ -720,16 +720,17 @@ A "รายประเทศ" sub-tab in the Bond-crisis page mirroring the re
 - [Ticket: Country risk score engine](tickets.md) — user-confirmed formula: yield_level (spread vs US, cap 25) + momentum (cap 10) + fx 3M (cap 24) + freshness (cap 5); levels ≥75/≥55/≥30; 24/27 scored, LA/SA/AE → "—" (no free 10Y source); RU stale-flagged. Asset: `docs/research/country-risk-score-engine-2026-08-09.md`.
 - [Ticket: Backend countries payload + /api/countries](tickets.md) — static 27-country registry; FRED (13) + Playwright worldgovernmentbonds (14) yields with 1M bp; user-confirmed score formula + levels; bps-vs-US; 60-day trend recomputed from FRED history; RU stale-flagged, LA/SA/AE None. `/api/countries` + `/refresh`, 6 new tests, 454 total pass.
 - [Ticket: Countries tab frontend](tickets.md) — `CountriesDashboard.tsx`: 27 cards (flag/name/badge/score/yield/bps/progress bar/sparkline/data-tier), sort toggle persisted, 6th Bond-crisis sub-tab; 5 new tests, 577 frontend pass. Docker fix: `_chromium_path()` globs ms-playwright cross-platform + Dockerfile.dev installs chromium — live 24/27 yields in docker.
+- [Ticket: Coverage page + spec, tests, commit](tickets.md) — coverage page ruled out of scope (9-channel table, no free sources for most); spec updated; 454 backend + 577 frontend pass; live smoke 24/27 yields in docker; committed `f5ff9fd`. **Map closed.**
 
 ## Not yet specified
 
-- Coverage page (/countries/coverage) — mirror it or link out; it is a documentation table, likely low value (may rule out of scope).
 - FRED IRLTLT01 is *monthly* — "1D/current" semantics become "latest month", and the "bps vs US" spread uses monthly alignment; acceptable but must be stated in the UI data-tier note.
 
 ## Out of scope
 
 - The reference site's remaining unmirrored pages (sentiment index, country risk detail pages /countries/:code, scenario simulator, AI boardroom, 3D office) — the user scoped this effort to the countries overview tab.
-- Paid yield sources (Trading Economics, EODHD paid tiers) — Option B deferred until Option A coverage proves inadequate.
+- **Coverage page (/countries/coverage)** — ruled out in [Ticket: Coverage page + spec, tests, commit](tickets.md): its 9-channel per-country table (FX, 10Y, curve, CPI, policy, debt/GDP, CA, reserves, ratings) mostly has no free source (ratings paid; World Bank indicator API 502, IMF 404).
+- Paid yield sources (Trading Economics, EODHD paid tiers) — deferred unless free coverage proves inadequate.
 - Ratings (S&P/Moody's/DBRS) per country — no free source.
 - The paused Supabase-migration map — separate effort, its tickets stay parked.
 
@@ -788,9 +789,9 @@ A "รายประเทศ" sub-tab in the Bond-crisis page mirroring the re
 
 **Question:** Is the coverage table mirrored (or ruled out), and is the whole countries tab verified and documented?
 
-**Blocked by:** Ticket: Countries tab frontend
+**Resolution (2026-08-09):** Coverage page **ruled out of scope** — the reference /countries/coverage table tracks 9 data channels per country (FX, 10Y, curve 2/5/30Y, CPI, policy, debt/GDP, current account, reserves, ratings); we have no free source for most (ratings paid; World Bank indicator API 502 / IMF 404 live-probed), so the header link is not rendered rather than dead-linking to a near-empty table. Spec updated (`docs/specs/2026-08-08-macro-dashboard.md` — Countries tab section: sources, formula, API, never-fabricate guarantees, coverage ruling). Full suites pass (backend 454, frontend 577); live smoke: /api/countries returns 27 countries, 24 with real yields in docker (TH 2.05% → 0.8, TR 32.24% → 32.8 medium, MX 9.45% → 33.8 medium), LA/SA/AE "—". Committed with the frontend ticket (`f5ff9fd`). **Map closed — all 5 tickets resolved.**
 
-- [ ] Decide coverage: mirror a simple data-tier table or rule out of scope (link text still shown)
-- [ ] Spec updated (Bond-crisis spec family)
-- [ ] Full backend + frontend suites pass; live smoke: 13 countries with real scores, others "—"
-- [ ] Commit (user rule: update spec, then commit)
+- [x] Decide coverage: mirror a simple data-tier table or rule out of scope (link text still shown)
+- [x] Spec updated (Bond-crisis spec family)
+- [x] Full backend + frontend suites pass; live smoke: 13 countries with real scores, others "—"
+- [x] Commit (user rule: update spec, then commit)

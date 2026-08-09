@@ -169,6 +169,56 @@ custom headers** for FRED (every other source keeps its UA). `docker-compose`
 stays on the default bridge network — `network_mode: host` is unreachable
 from the Windows host on Docker Desktop.
 
+## Countries tab (รายประเทศ) — added 2026-08-09, mirroring the reference /countries page
+
+The Bond-crisis page gained a sixth sub-tab: a country-risk overview with
+27 country cards (flag, Thai name, code · currency, risk badge, 0-100
+score, 10Y yield, bps vs US, progress bar, 60-day sparkline, data-tier
+note).
+
+### Data sources
+
+- **10Y yields** — FRED `IRLTLT01<CC>M156N` for 13 OECD countries (US JP GB
+  CA AU CH KR MX ZA PL FR NO; RU exists but is stale at 2018-06 and flagged)
+  + **worldgovernmentbonds.com scraped via Playwright** for the other 14
+  (TH VN SG HK CN IN ID BR TR PH MY LA SA AE — the last three have no free
+  source at all and render "—"). Chromium ships in the Docker image; the
+  service locates it cross-platform (`_chromium_path()`).
+- **Risk score** (user-confirmed 2026-08-09): `yield_level` (spread vs US,
+  cap 25) + `yield_momentum` (1M bp ÷ 10, cap 10) + `fx_depreciation`
+  (currency vs USD 3M, cap 24) + `data_freshness` (cap 5). Levels:
+  ≥75 crisis-watch / ≥55 high / ≥30 medium / else low (the reference
+  progress-bar bands).
+- **bps vs US** = (country 10Y − US 10Y) × 100, hidden for US.
+- **60-day trend** — recomputed from the stored FRED yield history (FRED
+  countries); Playwright countries' trends accumulate in SQLite over time.
+- **Currency depreciation** — Yahoo Finance `{ccy}=X` 3-month history.
+
+### API
+
+`GET /api/countries` (+ `POST /api/countries/refresh`) — 10-minute cache.
+Payload: `countries[]` (code, name_th/en, currency, flag, data_tier,
+data_tier_note_th, yield_value, yield_asof, yield_stale, chg_bp, score,
+level, components, bps_vs_us, trend[]), `us_10y`, `updated_at`,
+`data_sources`.
+
+### Never-fabricate guarantees
+
+- No yield source → `score: null` → renders "—" (LA, SA, AE).
+- RU's 2018 FRED data is shown but flagged `yield_stale: true` + freshness
+  component = 5.
+- A Playwright page that fails one sweep is retried once, then left "—"
+  until the next cache expiry.
+
+### Coverage page (/countries/coverage)
+
+**Ruled out of scope** — the reference coverage table tracks 9 data
+channels per country (FX, 10Y, curve 2/5/30Y, CPI, policy rate, debt/GDP,
+current account, reserves, ratings), most of which we have no free source
+for (ratings are paid; debt/CA/reserves sources failed live probes:
+World Bank indicator API 502, IMF 404). The header link is therefore not
+rendered rather than dead-linking to a near-empty table.
+
 ## Further Notes
 
 - The reference site gates its own "CME zones" card behind login; we are not replicating that (it needs their Supabase session).

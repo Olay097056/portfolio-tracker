@@ -626,6 +626,7 @@ A "วิกฤตแบงก์รัน" sub-tab in the Bond-crisis page mirr
 - [Ticket: KRE / BKX price source](tickets.md) — `KRE` works as-is (SPDR Regional Banking ETF); `BKX` must be `^BKX` (index — the bare symbol is delisted in yfinance). Fetch: `history(period="5d")`, 1D chg from last two closes; fallbacks KBE/XLF. Asset: `docs/research/kre-bkx-price-source-2026-08-09.md`.
 - [Ticket: Backend banking payload + /api/banking](tickets.md) — `banking_service.build_banking()` reuses the shared macro dashboard cache + bank-run model score as the gauge; KRE/^BKX via yfinance (one retry for Yahoo rate-limit); deposit-flow WoW + SOFR-EFFR bps histories from FRED raw rows. `/api/banking` + `/refresh`, 4 new tests, 448 total pass.
 - [Ticket: Banking tab frontend](tickets.md) — `BankingDashboard.tsx`: SVG gauge (reference zones), 4 funding cards with spread thresholds, 4 stat cards (deposits/discount/KRE/BKX), deposit-flow bar + SOFR-EFFR area charts, bank-run model card; 6 new tests, 572 frontend pass. Bonus: FRED was broken from Docker (CDN TLS-fingerprint bot detection rejects custom UAs) — fixed by sending no custom UA for FRED; live /api/banking now fully populated.
+- [Ticket: Spec, tests, commit](tickets.md) — spec updated with the Banking tab + FRED fix; suites 448 backend + 572 frontend; live smoke full. **MAP CLOSED 2026-08-09 — all tickets resolved, way clear to run.**
 
 ## Not yet specified
 
@@ -683,9 +684,9 @@ A "วิกฤตแบงก์รัน" sub-tab in the Bond-crisis page mirr
 
 **Question:** Is the whole banking tab verified and documented before the map closes?
 
-**Blocked by:** Ticket: Banking tab frontend
+**Resolution (2026-08-09):** Spec updated (`docs/specs/2026-08-08-macro-dashboard.md` — Banking tab section: gauge=bank-run score decision, shared-cache reuse, KRE/^BKX, two histories; plus the FRED TLS-fingerprint Docker fix documented so it never regresses). Full suites green: 448 backend + 572 frontend. Live smoke: /api/banking full (gauge 11.7, all funding cards populated, 55+60 history points) and /api/macro 60/66 available — the FRED fix raised the Docker dashboard's coverage too. Committed (spec commit on top of the feature commit). **MAP CLOSED — all 4 tickets resolved.**
 
-- [ ] Spec updated (the Bond-crisis spec family in docs/specs/)
-- [ ] Full backend + frontend suites pass
-- [ ] Live smoke: gauge shows the bank-run score, funding cards live, charts render
-- [ ] Commit (user rule: update spec, then commit)
+- [x] Spec updated (the Bond-crisis spec family in docs/specs/)
+- [x] Full backend + frontend suites pass
+- [x] Live smoke: gauge shows the bank-run score, funding cards live, charts render
+- [x] Commit (user rule: update spec, then commit)

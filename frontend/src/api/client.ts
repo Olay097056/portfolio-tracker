@@ -41,6 +41,10 @@ import type {
   WatchlistItemCreateInput,
   Zone,
   ZoneInput,
+  BoardroomMeeting,
+  BoardroomMeetingDetail,
+  BoardroomList,
+  BoardroomCreateInput,
 } from './types';
 import type { AiSignalMetrics } from '../utils/aiTechnicalSignal';
 
@@ -602,4 +606,21 @@ export function simulateModels(overrides: Record<string, number>): Promise<Simul
     method: 'POST',
     body: JSON.stringify({ overrides }),
   });
+}
+
+// ── Boardroom (ห้องประชุม AI) ─────────────────────────────────────────────
+export function listBoardroomMeetings(): Promise<BoardroomList> {
+  return request<BoardroomList>('/api/boardroom/meetings');
+}
+
+export function getBoardroomMeeting(id: string): Promise<BoardroomMeetingDetail> {
+  return request<BoardroomMeetingDetail>(`/api/boardroom/meetings/${id}`);
+}
+
+export function createBoardroomMeeting(input: BoardroomCreateInput): Promise<BoardroomMeeting> {
+  return request<BoardroomMeeting>('/api/boardroom/meetings', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function resumeBoardroomMeeting(id: string): Promise<BoardroomMeeting> {
+  return request<BoardroomMeeting>(`/api/boardroom/meetings/${id}/resume`, { method: 'POST' });
 }

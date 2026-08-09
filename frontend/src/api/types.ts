@@ -769,3 +769,78 @@ export interface SimulateResponse {
   simulated_at: string;
   slider_specs: Record<string, SliderSpec>;
 }
+
+// ── Boardroom (ห้องประชุม AI) ─────────────────────────────────────────────
+export interface BoardroomMeeting {
+  id: string;
+  status: 'running' | 'completed' | 'failed' | 'cancelled';
+  phase: string;
+  current_turn: number;
+  turn_plan: string | null;
+  agenda: string;
+  trigger_type: 'manual' | 'news' | 'model' | 'calendar';
+  mode: 'full' | 'short';
+  llm_calls: number;
+  tokens_in: number;
+  tokens_out: number;
+  error: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  ended_at: string | null;
+}
+
+export interface BoardroomMessage {
+  id: string;
+  turn: number;
+  phase: string;
+  seat_id: string;
+  seat_name: string;
+  kind: string;
+  content_md: string;
+  status: string;
+  error: string | null;
+  tokens_in: number;
+  tokens_out: number;
+  created_at: string | null;
+}
+
+export interface BoardroomClaim {
+  id: string;
+  seat_id: string;
+  phase: string;
+  claim_text: string;
+  metric: string | null;
+  verdict: 'verified' | 'partial' | 'failed' | 'unverifiable';
+  sub_reason: string | null;
+  reason: string | null;
+  checks: string | null;
+}
+
+export interface BoardroomSeat {
+  seat_id: string;
+  position_key: string;
+  provider: string;
+  model: string;
+  name_th: string;
+  name_en: string;
+  enabled: number;
+  sort: number;
+}
+
+export interface BoardroomMeetingDetail extends BoardroomMeeting {
+  resolution_md: string | null;
+  resolution_json: string | null;
+  messages: BoardroomMessage[];
+  claims: BoardroomClaim[];
+  seats: BoardroomSeat[];
+}
+
+export interface BoardroomList {
+  meetings: BoardroomMeeting[];
+}
+
+export interface BoardroomCreateInput {
+  agenda: string;
+  trigger_type?: 'manual' | 'news' | 'model' | 'calendar';
+  mode?: 'full' | 'short';
+}

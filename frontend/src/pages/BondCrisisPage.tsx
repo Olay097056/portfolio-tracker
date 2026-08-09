@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { BankingDashboard } from '../components/tools/BankingDashboard';
+import { BoardroomDashboard } from '../components/tools/BoardroomDashboard';
 import { CountriesDashboard } from '../components/tools/CountriesDashboard';
 import { ForecastDashboard } from '../components/tools/ForecastDashboard';
 import { MacroDashboard } from '../components/tools/MacroDashboard';
@@ -10,13 +11,13 @@ import { NewsDashboard } from '../components/tools/NewsDashboard';
 // Bond-crisis — main tab that hosts the macro dashboard (yield curve, money
 // market rates, credit spreads, macro assets), the profit models page
 // (six regime models scored 0-100), the trading signals trade desk, the
-// banking stress monitor, the country-risk overview, the scenario simulator
-// and the news feed. Seven sub-tabs mirroring the reference site's ข้อมูล
-// มหภาค (/macro), โมเดลทำกำไร (/models), สัญญาณเทรด (/signals), วิกฤตแบงก์รัน
-// (/banking), รายประเทศ (/countries), จำลองสถานการณ์ (/forecast) and
-// ข่าวสาร (/news) pages.
+// banking stress monitor, the country-risk overview, the scenario simulator,
+// the AI boardroom and the news feed. Eight sub-tabs mirroring the reference
+// site's ข้อมูลมหภาค (/macro), โมเดลทำกำไร (/models), สัญญาณเทรด (/signals),
+// วิกฤตแบงก์รัน (/banking), รายประเทศ (/countries), จำลองสถานการณ์ (/forecast),
+// ห้องประชุม (/boardroom) and ข่าวสาร (/news) pages.
 export function BondCrisisPage() {
-  const [tab, setTab] = useState<'macro' | 'models' | 'signals' | 'banking' | 'countries' | 'forecast' | 'news'>('macro');
+  const [tab, setTab] = useState<'macro' | 'models' | 'signals' | 'banking' | 'countries' | 'forecast' | 'boardroom' | 'news'>('macro');
 
   const tabs = [
     { id: 'macro' as const, label: 'ข้อมูลมหภาค' },
@@ -25,6 +26,7 @@ export function BondCrisisPage() {
     { id: 'banking' as const, label: 'วิกฤตแบงก์รัน' },
     { id: 'countries' as const, label: 'รายประเทศ' },
     { id: 'forecast' as const, label: 'จำลองสถานการณ์' },
+    { id: 'boardroom' as const, label: 'ห้องประชุม' },
     { id: 'news' as const, label: 'ข่าวสาร' },
   ];
 
@@ -79,6 +81,8 @@ export function BondCrisisPage() {
         <CountriesDashboard />
       ) : tab === 'forecast' ? (
         <ForecastDashboard />
+      ) : tab === 'boardroom' ? (
+        <BoardroomDashboard />
       ) : (
         <NewsDashboard />
       )}

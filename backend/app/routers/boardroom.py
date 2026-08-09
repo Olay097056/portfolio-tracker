@@ -34,6 +34,7 @@ class MeetingOut(BaseModel):
     status: str
     phase: str
     current_turn: int
+    turn_plan: str | None
     agenda: str
     trigger_type: str
     mode: str
@@ -103,7 +104,7 @@ def _dt_str(dt) -> str | None:
 def _meeting_out(m) -> MeetingOut:
     return MeetingOut(
         id=m.id, status=m.status, phase=m.phase, current_turn=m.current_turn,
-        agenda=m.agenda, trigger_type=m.trigger_type, mode=m.mode,
+        turn_plan=m.turn_plan, agenda=m.agenda, trigger_type=m.trigger_type, mode=m.mode,
         llm_calls=m.llm_calls, tokens_in=m.tokens_in, tokens_out=m.tokens_out,
         error=m.error, created_at=_dt_str(m.created_at), updated_at=_dt_str(m.updated_at),
         ended_at=_dt_str(m.ended_at),

@@ -11,7 +11,7 @@ import time
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
@@ -168,9 +168,10 @@ def refresh_news(db: Session = Depends(get_db)) -> NewsListOut:
     return get_news(db=db)
 
 
-@router.delete("/all", status_code=204)
-def delete_all_news(db: Session = Depends(get_db)) -> None:
-    """Test/debug helper: wipe the news table."""
+@router.delete("/all", status_code=204, response_class=Response)
+def delete_all_news(db: Session = Depends(get_db)) -> Response:
+    """Test/debug helper: wipe the news table. 204 — no response body."""
     db.query(news_service.NewsItem).delete()
     db.commit()
     _cache.clear()
+    return Response(status_code=204)

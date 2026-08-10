@@ -58,8 +58,8 @@ REFRESH_TTL_SECONDS = 300  # reference refreshMs 300000
 _HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0"}
 _TIMEOUT = 20.0
 
-DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
-DEEPSEEK_MODEL = "deepseek-v4-flash"
+DEEPSEEK_URL = "https://openrouter.ai/api/v1/chat/completions"
+DEEPSEEK_MODEL = "deepseek/deepseek-v4-flash-0731"
 
 
 def _deepseek_key() -> str | None:

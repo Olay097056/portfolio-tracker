@@ -5,6 +5,7 @@
 import pytest
 
 from app import countries_service
+from app.country_ai_service import AI_MODEL
 from app.main import app
 from app.routers import countries as countries_router
 from fastapi.testclient import TestClient
@@ -222,7 +223,7 @@ def test_brief_generated_and_cached(monkeypatch):
     d = r1.json()
     assert d["brief_md"].startswith("สรุป")
     assert d["recommendations"] == ["ข้อ 1"]
-    assert d["model_used"] == "deepseek-v4-flash"
+    assert d["model_used"] == AI_MODEL
 
 
 def test_brief_reuses_cached_copy(monkeypatch):
@@ -252,7 +253,7 @@ def test_report_generated_on_demand(monkeypatch):
     assert r.status_code == 200
     d = r.json()
     assert "สรุปภาพรวม" in d["report_md"]
-    assert d["model_used"] == "deepseek-v4-flash"
+    assert d["model_used"] == AI_MODEL
 
 
 def test_ai_failure_returns_503(monkeypatch):

@@ -557,8 +557,14 @@ def compute_stats(signals: list[dict]) -> SignalStats:
     win_pnl = sum(s.get("pnl_pct") or 0 for s in wins)
     loss_pnl = sum(abs(s.get("pnl_pct") or 0) for s in losses)
     if closed:
-        st.profit_factor = float("inf") if loss_pnl == 0 and win_pnl > 0 else (
-            round(win_pnl / loss_pnl, 2) if loss_pnl > 0 else None)
+        # No losses yet makes the ratio mathematically infinite, but float("inf")
+        # cannot be serialized: Starlette renders responses with
+        # json.dumps(allow_nan=False), so returning it raises ValueError *after*
+        # the route returns -- past this module's callers' except blocks -- and
+        # 500s all of /api/signals. That happens the first time a user closes a
+        # winner while holding no losers, i.e. on their first win. Leave it None;
+        # the UI reads "no losses" off win_count/loss_count and renders the ∞.
+        st.profit_factor = round(win_pnl / loss_pnl, 2) if loss_pnl > 0 else None
         st.expectancy = round(st.realized_pnl / len(closed), 2)
     if wins:
         st.avg_win = round(win_pnl / len(wins), 2)

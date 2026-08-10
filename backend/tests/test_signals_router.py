@@ -211,3 +211,22 @@ def test_stats_formulas_match_reference(monkeypatch):
     assert st.avg_rr == 2.0  # (110-100)/(100-95)
     assert len(st.equity_curve) == 2
     assert st.equity_curve[-1]["equity"] == 3.0
+
+
+def test_stats_stay_json_serializable_with_no_losing_trades():
+    """A user's first closed trade being a winner leaves zero losses, which makes
+    the profit factor infinite. float("inf") is not valid JSON -- Starlette
+    renders with json.dumps(allow_nan=False) -- so carrying it would 500 every
+    /api/signals call. profit_factor is None instead; the UI shows ∞ from the
+    win/loss counts."""
+    import json
+
+    from app.signals_service import compute_stats
+
+    st = compute_stats([
+        {"status": "tp_hit", "pnl_pct": 3.2, "entry_price": 100, "sl": 98, "tp": 104,
+         "created_at": "2026-08-08T10:00:00", "closed_at": "2026-08-09T10:00:00"},
+    ])
+    assert st.win_count == 1 and st.loss_count == 0
+    assert st.profit_factor is None
+    json.dumps(st.__dict__, allow_nan=False)  # what Starlette does; raises on inf

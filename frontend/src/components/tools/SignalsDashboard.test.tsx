@@ -113,6 +113,32 @@ describe('SignalsDashboard', () => {
     expect(screen.getAllByText(/ทำงาน/).length).toBeGreaterThan(0);
   });
 
+  // Infinity is not valid JSON, so the backend sends profit_factor: null both when
+  // there are no losses to divide by and when nothing has closed at all. Only the
+  // win/loss counts separate "infinitely profitable so far" from "no data yet".
+  it('shows ∞ for the profit factor when every closed trade won', async () => {
+    mockGet.mockResolvedValue({
+      ...baseData,
+      stats: makeStats({ profit_factor: null, closed_count: 1, win_count: 1, loss_count: 0 }),
+    });
+    render(<SignalsDashboard />);
+
+    const card = (await screen.findByText('Profit Factor')).parentElement;
+    expect(card?.textContent).toContain('∞');
+  });
+
+  it('shows — for the profit factor when nothing has closed yet', async () => {
+    mockGet.mockResolvedValue({
+      ...baseData,
+      stats: makeStats({ profit_factor: null, closed_count: 0, win_count: 0, loss_count: 0 }),
+    });
+    render(<SignalsDashboard />);
+
+    const card = (await screen.findByText('Profit Factor')).parentElement;
+    expect(card?.textContent).not.toContain('∞');
+    expect(card?.textContent).toContain('—');
+  });
+
   it('shows empty state with honest note when there are no signals', async () => {
     mockGet.mockResolvedValue({
       ...baseData,

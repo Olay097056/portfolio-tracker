@@ -4,7 +4,7 @@ import {
   getSignalsDashboard,
   refreshSignalsDashboard,
 } from '../../api/client';
-import type { SignalsDashboard as SignalsData, TradingSignal } from '../../api/types';
+import type { SignalStats, SignalsDashboard as SignalsData, TradingSignal } from '../../api/types';
 
 // Ink palette — same constants as ModelsDashboard (the app has NO Tailwind,
 // so every visual is inline style, matching the reference site's dark theme).
@@ -57,6 +57,19 @@ function fmtSigned(v: number | null | undefined): string {
 function pnlCls(v: number | null | undefined): string {
   if (v === null || v === undefined || v === 0) return INK.ink;
   return v > 0 ? INK.up : INK.down;
+}
+
+// Profit factor is gross wins / gross losses, so it has no finite value until a
+// losing trade exists. The backend sends null there — float("inf") is not valid
+// JSON and would 500 the whole endpoint — but null is also what it sends when
+// there is nothing to compute at all, so the two cases are told apart here:
+// wins with no losses is ∞, everything else is genuinely unavailable.
+function fmtProfitFactor(stats: SignalStats | undefined): string {
+  if (stats?.profit_factor !== null && stats?.profit_factor !== undefined) {
+    return fmtNum(stats.profit_factor);
+  }
+  if (stats && stats.win_count > 0 && stats.loss_count === 0) return '∞';
+  return '—';
 }
 
 function fmtDate(iso: string | null): string {
@@ -468,7 +481,7 @@ export function SignalsDashboard() {
         />
         <StatCard
           label="Profit Factor"
-          value={stats?.profit_factor === null || stats?.profit_factor === undefined ? '—' : Number.isFinite(stats.profit_factor) ? fmtNum(stats.profit_factor) : '∞'}
+          value={fmtProfitFactor(stats)}
         />
         <StatCard
           label="Drawdown สูงสุด"

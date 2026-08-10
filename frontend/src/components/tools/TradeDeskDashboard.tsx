@@ -190,6 +190,9 @@ function TeamCard({ team, masterOn, cap, onTurn, busy }: {
             }}>
               <span style={{ color: INK.text }}>
                 {p.market} <b style={{ color: p.side === 'long' ? INK.green : INK.red }}>{p.side === 'long' ? 'LONG ↑' : 'SHORT ↓'}</b>
+                {p.unit === 'bp' && (
+                  <span style={{ color: INK.sub, fontSize: 10, marginLeft: 6, border: '1px solid ' + INK.border, borderRadius: 4, padding: '0 4px' }}>ราคารายวัน</span>
+                )}
               </span>
               <span style={{ color: INK.sub }}>
                 {fmtUsd(p.entry_px, 2)} · SL {p.sl_pct}% / TP {p.tp_pct}%

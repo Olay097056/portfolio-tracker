@@ -913,6 +913,7 @@ export interface BoardroomStancesPayload {
 export interface TradePositionView {
   market: string;
   side: 'long' | 'short';
+  unit: string;   // pct | bp — กลุ่มราคา vs ยีลด์/สเปรด (ป้ายความสด)
   size: number;
   entry_px: number;
   sl_pct: number;

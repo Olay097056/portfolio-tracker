@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session, relationship
 
 from app.database import Base, get_db
 from app.boardroom_service import build_snapshot, llm_call, local_midnight_utc
-from app.boardroom_stance_service import _macro_data, resolve_price_key
+from app.boardroom_stance_service import _as_utc, _macro_data, _yf_candles, resolve_price_key
 from app import price_service
 
 # ── Config ──────────────────────────────────────────────────────────────────
@@ -33,6 +33,7 @@ DAILY_CAP_DEFAULT = 4
 CAPITAL_DEFAULT = 10_000.0
 WEEKLY_TARGET = {"A": 1.5, "B": 1.0}
 RISK_BAND = {"A": (5.0, 10.0), "B": (2.0, 5.0)}
+SL_TP_DEFAULTS = {"A": (5.0, 10.0), "B": (8.0, 15.0)}  # SL/TP บังคับ (ticket 04 ข้อ 3)
 
 # ── ORM ─────────────────────────────────────────────────────────────────────
 class TradeTeam(Base):
@@ -174,8 +175,19 @@ def team_equity(db: Session, team: TradeTeam) -> float:
 
 # ── SL/TP (ทำงานแม้สวิตช์ปิด — ตามต้นฉบับ) ───────────────────────────────────
 def check_sl_tp(db: Session) -> list[str]:
+    """SL/TP ย้อนหลัง (ticket 04 ข้อ 4): สแกนประวัติราคา เปิด→now ว่าเคยแตะ
+    SL/TP ก่อนไหม → ปิด ณ ราคานั้น (ไม่ขึ้นกับว่าใครเปิดแอปเมื่อไหร่).
+    ถ้าไม่มีประวัติ (หา candles/rows ไม่ได้) → fallback ราคาปัจจุบัน.
+    """
     closed = []
     for p in db.query(TradePosition).filter(TradePosition.status == "open").all():
+        hit = _sl_tp_hit_from_history(p)
+        if hit:
+            px, how = hit
+            _close_position(db, p, px, how)
+            closed.append(f"{p.market}:{how}@{px:.4g}")
+            continue
+        # fallback: ราคาปัจจุบัน (ไม่มีประวัติ)
         mark = current_price(p.market, p.unit)
         if mark is None:
             continue
@@ -196,6 +208,61 @@ def check_sl_tp(db: Session) -> list[str]:
     if closed:
         db.commit()
     return closed
+
+
+def _sl_tp_hit_from_history(p: TradePosition) -> tuple[float, str] | None:
+    """(ราคาแตะ, sl|tp) ตัวแรกที่ประวัติราคาเคยแตะหลังเปิดไม้ — ใช้ high/low (wick)."""
+    start = _as_utc(p.opened_at)
+    sl_px = p.entry_px * (1 - p.sl_pct / 100) if p.sl_pct else None
+    tp_px = p.entry_px * (1 + p.tp_pct / 100) if p.tp_pct else None
+    if p.side == "short":
+        sl_px = p.entry_px * (1 + p.sl_pct / 100) if p.sl_pct else None
+        tp_px = p.entry_px * (1 - p.tp_pct / 100) if p.tp_pct else None
+    if p.unit == "bp":
+        rows = _macro_history_rows(p.market) or []
+        for date_str, val in rows:
+            try:
+                d = datetime.fromisoformat(str(date_str)[:10]).replace(tzinfo=timezone.utc)
+            except ValueError:
+                continue
+            if d < start:
+                continue
+            if p.side == "long":
+                if sl_px is not None and val <= sl_px:
+                    return sl_px, "sl"
+                if tp_px is not None and val >= tp_px:
+                    return tp_px, "tp"
+            else:
+                if sl_px is not None and val >= sl_px:
+                    return sl_px, "sl"
+                if tp_px is not None and val <= tp_px:
+                    return tp_px, "tp"
+        return None
+    candles = _yf_candles(p.market) or []
+    for c in candles:
+        try:
+            t = datetime.fromisoformat(str(c.get("t") or "")[:10]).replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+        if t < start:
+            continue
+        lo, hi = float(c.get("l")), float(c.get("h"))
+        if p.side == "long":
+            if sl_px is not None and lo <= sl_px:
+                return sl_px, "sl"
+            if tp_px is not None and hi >= tp_px:
+                return tp_px, "tp"
+        else:
+            if sl_px is not None and hi >= sl_px:
+                return sl_px, "sl"
+            if tp_px is not None and lo <= tp_px:
+                return tp_px, "tp"
+    return None
+
+
+def _macro_history_rows(price_key: str) -> list | None:
+    """[(date, value)] ของ series bp — ผ่าน _macro_data (cache FRED 6 ชม.)."""
+    return (_macro_data().get("history") or {}).get(price_key)
 
 
 def _close_position(db: Session, p: TradePosition, px: float, how: str) -> None:
@@ -391,10 +458,14 @@ def _execute_order(db: Session, team: TradeTeam, order: dict, now: datetime) -> 
     if margin <= 0:
         return result
     size = margin / entry
+    # SL/TP: AI ตั้งเอง ถ้าไม่ส่ง → default ของทีม (ticket 04 ข้อ 3 — บังคับมีทุกไม้)
+    sl_def, tp_def = SL_TP_DEFAULTS.get(team.code, (5.0, 10.0))
+    sl_pct = float(order.get("sl_pct") or sl_def)
+    tp_pct = float(order.get("tp_pct") or tp_def)
     pos = TradePosition(
         team_id=team.id, market=price_key, unit=unit, side=side, size=size,
         margin_usd=margin, entry_px=entry,
-        sl_pct=float(order.get("sl_pct") or 0), tp_pct=float(order.get("tp_pct") or 0))
+        sl_pct=sl_pct, tp_pct=tp_pct)
     db.add(pos)
     team.balance -= margin
     result["opened"] = f"{price_key} {side} size={size:.4f} @{entry:.4f} margin=${margin:,.0f}"

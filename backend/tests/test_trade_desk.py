@@ -55,6 +55,7 @@ def stub_externals(monkeypatch):
     monkeypatch.setattr(td, "llm_call", fake_llm)
     monkeypatch.setattr(td, "build_snapshot", lambda db: {"model_scores": {}, "news": [],
                                                           "macro_history": {}})
+    monkeypatch.setattr(td, "_yf_candles", lambda t: None)  # กัน network (SL/TP ย้อนหลัง)
     # Patch ที่ต้นทาง (macro_service) ไม่ใช่ที่ td: ค่ามหภาคเดินผ่าน
     # boardroom_stance_service._macro_data() ซึ่งเรียก macro_service.build_dashboard()
     # โดยตรง -- stub ที่ td จะดักไม่ทันและเทสต์จะยิง FRED จริง
@@ -280,3 +281,52 @@ def test_bp_market_price_reads_the_real_dashboard_contract(monkeypatch):
     assert td.current_price("nope", "bp") is None
     # macro pack ของทีม B ต้องไม่ว่าง ไม่งั้นทีมสายมหภาคตัดสินใจโดยไม่มีข้อมูล
     assert td._macro_values() == {"us10y": 4.66, "us_hy_spread": 3.12}
+
+
+def test_sl_tp_defaults_applied_when_ai_omits(seeded):
+    """AI ไม่ส่ง SL/TP → ใช้ default ของทีม (A: 5/10 · B: 8/15) — ticket 04 ข้อ 3."""
+    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "A").first()
+    now = datetime.now(timezone.utc)
+    r = td._execute_order(seeded, team, {"action": "open", "market": "TLT",
+                                         "side": "long", "size_pct": 6}, now)
+    seeded.commit()  # autoflush=False → commit เอง
+    assert "opened" in r
+    pos = seeded.query(td.TradePosition).filter(td.TradePosition.team_id == team.id).first()
+    assert pos.sl_pct == 5.0 and pos.tp_pct == 10.0
+
+
+def test_sl_tp_retroactive_hit_from_candles(seeded):
+    """SL/TP ย้อนหลัง: เคยแตะ SL ระหว่างทาง → ปิด ณ ราคานั้น (ไม่ใช่ราคาปัจจุบัน).
+
+    เปิด 5 วันที่แล้ว entry 100 SL 5% (95) — candle วันที่ 5 มี low 94 (แตะ SL)
+    แล้วราคาปัจจุบันเด้งกลับ 102 → ต้องปิด sl @95 ไม่ใช่รอ 102
+    """
+    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "A").first()
+    from datetime import timedelta as dt_td
+    opened = datetime.now(timezone.utc) - dt_td(days=5)
+    pos = td.TradePosition(team_id=team.id, market="TLT", unit="pct", side="long",
+                           size=10.0, margin_usd=1000, entry_px=100.0,
+                           sl_pct=5.0, tp_pct=10.0, opened_at=opened, status="open")
+    seeded.add(pos)
+    seeded.commit()
+
+    days = [(opened + dt_td(days=i)).date().isoformat() for i in range(1, 7)]
+    import app.trade_desk_service as tdm
+    monkey = pytest.MonkeyPatch()
+    monkey.setattr(td, "_yf_candles", lambda t: [
+        {"t": days[0], "h": 102, "l": 99, "c": 101},
+        {"t": days[1], "h": 103, "l": 99, "c": 102},
+        {"t": days[2], "h": 104, "l": 98, "c": 103},
+        {"t": days[3], "h": 102, "l": 96, "c": 101},
+        {"t": days[4], "h": 103, "l": 94, "c": 99},   # แตะ SL (low 94 ≤ 95)
+        {"t": days[5], "h": 105, "l": 100, "c": 102},  # เด้งกลับ 102 (สูงกว่า entry)
+    ])
+    monkey.setattr(tdm.price_service, "get_price", lambda t: 102.0)
+    try:
+        closed = tdm.check_sl_tp(seeded)
+        assert closed == ["TLT:sl@95"]
+        pos = seeded.query(td.TradePosition).filter(td.TradePosition.id == pos.id).first()
+        assert pos.status == "sl" and abs(pos.close_px - 95.0) < 1e-9
+        assert pos.realized_pnl < 0
+    finally:
+        monkey.undo()

@@ -25,7 +25,7 @@ function fixture(over: Partial<TradeDeskState> = {}): TradeDeskState {
         monthly_floor_pct: 5, monthly_stretch_pct: 20, interval_hours: 4,
         next_turn_at: '2026-08-10T07:00:00Z', directive_md: '', turns_today: 1,
         cost_today_usd: 0.00047, cost_total_usd: 0.00141,
-        positions: [{ market: 'BTC-USD', side: 'long', size: 0.0086, entry_px: 70000,
+        positions: [{ market: 'BTC-USD', side: 'long', unit: 'pct', size: 0.0086, entry_px: 70000,
                       sl_pct: 3, tp_pct: 6, status: 'open', realized_pnl: 0 }],
         closed_positions: [{ market: 'TLT', side: 'long', entry_px: 82.76, close_px: 84.2,
                              status: 'tp', realized_pnl: 80, closed_at: '2026-08-09T10:00:00Z' }],
@@ -132,6 +132,20 @@ describe('TradeDeskDashboard', () => {
     render(<TradeDeskDashboard />);
     await screen.findByText('ทีม A · สายเทรนด์');
     expect(screen.getByText(/พอร์ตจำลอง ไม่ใช่การเทรดจริง/)).toBeTruthy();
+  });
+
+  it('ไม้ bp แสดงป้าย "ราคารายวัน" (กลุ่ม yield/spread — FRED รายวัน)', async () => {
+    mock.getTradeDeskState.mockResolvedValue(fixture({
+      teams: fixture().teams.map((t) => t.id === 't1' ? {
+        ...t,
+        positions: [{ market: 'US10Y', side: 'long', size: 1.2, entry_px: 4.66,
+                      sl_pct: 1, tp_pct: 3, unit: 'bp', status: 'open', realized_pnl: 0 }],
+      } : t),
+    }));
+    render(<TradeDeskDashboard />);
+    await screen.findByText('ทีม A · สายเทรนด์');
+    expect(screen.getAllByText('US10Y').length).toBeGreaterThan(0);  // การ์ด + ตารางรวม
+    expect(screen.getAllByText('ราคารายวัน').length).toBeGreaterThan(0);
   });
 
   it('สลับสวิตช์หลักเรียก API + reload', async () => {

@@ -1289,9 +1289,18 @@ def _latest_trigger_log(db: Session) -> BoardroomTriggerLog | None:
 
 
 def _meetings_today(db: Session) -> int:
-    start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    # local-day start converted to UTC (created_at stored as aware UTC)
+    local_now = datetime.now()
+    start_local = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    start_utc = start_local.astimezone(timezone.utc)
     return (db.query(BoardroomMeeting)
-            .filter(BoardroomMeeting.created_at >= start).count())
+            .filter(BoardroomMeeting.created_at >= start_utc).count())
+
+
+def local_midnight_utc() -> datetime:
+    """Start of the local day as an aware UTC datetime (สำหรับแสดงผล/นับวัน)."""
+    local_now = datetime.now()
+    return local_now.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
 
 
 def _dedupe_hit(db: Session, trigger_key: str) -> bool:

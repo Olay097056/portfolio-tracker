@@ -10,7 +10,6 @@ Endpoints (wayfinder ticket 06):
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -141,7 +140,7 @@ def list_meetings(db: Session = Depends(get_db)):
     meetings = (db.query(boardroom_service.BoardroomMeeting)
                 .order_by(desc(boardroom_service.BoardroomMeeting.created_at))
                 .limit(50).all())
-    start_of_day = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    start_of_day = boardroom_service.local_midnight_utc()
     today_meetings = (db.query(boardroom_service.BoardroomMeeting)
                       .filter(boardroom_service.BoardroomMeeting.created_at >= start_of_day)
                       .count())

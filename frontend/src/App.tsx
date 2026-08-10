@@ -5,9 +5,8 @@ import { PortfoliosPage } from './pages/PortfoliosPage';
 import { BondCrisisPage } from './pages/BondCrisisPage';
 import { ToolsPage } from './pages/ToolsPage';
 import { WatchlistPage } from './pages/WatchlistPage';
-import { DataRefreshPage } from './pages/DataRefreshPage';
 
-type Tab = 'dashboard' | 'bond-crisis' | 'portfolios' | 'tools' | 'watchlist' | 'data';
+type Tab = 'dashboard' | 'bond-crisis' | 'portfolios' | 'tools' | 'watchlist';
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard' },
@@ -15,7 +14,6 @@ const TABS = [
   { id: 'portfolios', label: 'Portfolios' },
   { id: 'tools', label: 'Tools' },
   { id: 'watchlist', label: 'Watchlist' },
-  { id: 'data', label: 'Data' },
 ] as const satisfies { id: Tab; label: string }[];
 
 export function App() {
@@ -61,7 +59,6 @@ export function App() {
         {activeTab === 'portfolios' && <PortfoliosPage />}
         {activeTab === 'tools' && <ToolsPage />}
         {activeTab === 'watchlist' && <WatchlistPage />}
-        {activeTab === 'data' && <DataRefreshPage />}
       </main>
     </div>
   );

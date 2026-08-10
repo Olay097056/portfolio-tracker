@@ -14,9 +14,6 @@ describe('ToolsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Portfolio Builder/i }));
     expect(screen.getAllByRole('heading', { name: /Portfolio Builder/i }).length).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByRole('button', { name: /Stock Screener/i }));
-    expect(screen.getByRole('heading', { name: /US Stock Screener/i })).toBeInTheDocument();
-
     fireEvent.click(screen.getByRole('button', { name: /Investor Tracker/i }));
     expect(screen.getByRole('heading', { name: /Super Investor Tracker/i })).toBeInTheDocument();
   });

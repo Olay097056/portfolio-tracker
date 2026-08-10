@@ -31,9 +31,8 @@ import type {
   PortfolioTargetUpdate,
   PortfolioUpdateInput,
   PriceSignalRow,
-  RefreshStatus,
-  ScanPeriod,
-  SimulateResponse,
+    ScanPeriod,
+    SimulateResponse,
   StockSearchResult,
   TickerPosition,
   TrendingData,
@@ -284,37 +283,6 @@ export function deleteAllZones(ticker: string, range: ChartRange): Promise<void>
 
 export function getTickerPosition(ticker: string): Promise<TickerPosition | null> {
   return request<TickerPosition | null>(`/market/chart/position?ticker=${encodeURIComponent(ticker)}`);
-}
-
-async function startRefresh(path: string, body: Record<string, unknown> = {}): Promise<RefreshStatus> {
-  const response = await fetch(`${BASE_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const responseBody = await response.json().catch(() => ({}) as Record<string, unknown>);
-
-  if (response.status === 202) {
-    return responseBody as RefreshStatus;
-  }
-
-  // A refresh was already running when we asked to start one -- from the UI's
-  // perspective that's not a failure, there IS a refresh in progress, just
-  // not one this call started. Surface its status instead of throwing.
-  const detail = (responseBody as { detail?: { status?: RefreshStatus; message?: string } }).detail;
-  if (response.status === 409 && detail?.status) {
-    return detail.status;
-  }
-
-  throw new ApiError(response.status, detail?.message ?? response.statusText);
-}
-
-export function getScreenerRefreshStatus(): Promise<RefreshStatus> {
-  return request<RefreshStatus>('/api/screener/refresh-status');
-}
-
-export function startScreenerRefresh(limit?: number): Promise<RefreshStatus> {
-  return startRefresh('/api/screener/refresh', { limit: limit ?? null });
 }
 
 // --- Fear & Greed index ---

@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { DcaProjectionCalculator } from '../components/tools/DcaProjectionCalculator';
 import { PassiveIncomeCalculator } from '../components/tools/PassiveIncomeCalculator';
 import { PortfolioBuilderWizard } from '../components/tools/PortfolioBuilderWizard';
-import { StockScreener } from '../components/tools/StockScreener';
 import { InvestorTracker } from '../components/tools/InvestorTracker';
 import { StockComparison } from '../components/tools/StockComparison';
 import { FearGreedIndex } from '../components/tools/FearGreedIndex';
@@ -13,7 +12,6 @@ type ToolsTab =
   | 'dca-projection'
   | 'passive-income'
   | 'portfolio-builder'
-  | 'stock-screener'
   | 'investor-tracker'
   | 'stock-comparison'
   | 'fear-greed';
@@ -22,7 +20,6 @@ const TABS = [
   { id: 'dca-projection', label: '🧮 DCA Projection' },
   { id: 'passive-income', label: '💰 Passive Income' },
   { id: 'portfolio-builder', label: '🏗️ Portfolio Builder' },
-  { id: 'stock-screener', label: '📡 Stock Screener' },
   { id: 'investor-tracker', label: '🕵️‍♂️ Investor Tracker' },
   { id: 'stock-comparison', label: '⚖️ Stock Comparison' },
   { id: 'fear-greed', label: '😱 Fear & Greed' },
@@ -58,16 +55,6 @@ const FEATURE_CARDS = [
     border: 'rgba(99, 102, 241, 0.35)',
     color: '#818cf8',
     description: 'สร้างพอร์ตลงทุนอัตโนมัติตามเป้าหมายความเสี่ยง (Aggressive Growth, Dividend, Conservative)',
-  },
-  {
-    id: 'stock-screener' as const,
-    title: 'Stock Screener',
-    badge: '📡 SCREENER',
-    icon: '🔍',
-    gradient: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.25) 100%)',
-    border: 'rgba(245, 158, 11, 0.35)',
-    color: '#f59e0b',
-    description: 'สแกนและคัดกรองหุ้นอเมริกาด้วยดัชนีทางเทคนิคและงบการเงิน (konbalongtun style)',
   },
   {
     id: 'investor-tracker' as const,
@@ -133,7 +120,7 @@ export function ToolsPage() {
             Tools
           </h2>
           <span style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>
-            เครื่องมือวิเคราะห์การลงทุน ปรับแต่งพอร์ต และสแกนโมเมนตัมหุ้นอเมริกา (wethaiinvest style)
+            เครื่องมือวิเคราะห์การลงทุนและปรับแต่งพอร์ต (wethaiinvest style)
           </span>
         </div>
 
@@ -256,7 +243,6 @@ export function ToolsPage() {
         {activeTab === 'dca-projection' && <DcaProjectionCalculator currency={currency} fxRate={fxRate} />}
         {activeTab === 'passive-income' && <PassiveIncomeCalculator currency={currency} fxRate={fxRate} />}
         {activeTab === 'portfolio-builder' && <PortfolioBuilderWizard />}
-        {activeTab === 'stock-screener' && <StockScreener currency={currency} fxRate={fxRate} />}
         {activeTab === 'investor-tracker' && <InvestorTracker currency={currency} fxRate={fxRate} />}
         {activeTab === 'stock-comparison' && <StockComparison />}
         {activeTab === 'fear-greed' && <FearGreedIndex />}

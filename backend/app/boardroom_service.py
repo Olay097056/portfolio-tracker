@@ -997,12 +997,14 @@ class BoardroomEngine:
         content, usage = self._call(
             meeting, sys,
             f"บทสนทนาเต็มของที่ประชุม:\n\n{prior[:12000]}\n\n"
-            "ลงมติ: สรุปมติจากข้อสรุปที่ผ่านการพิสูจน์เท่านั้น (ตามผลตรวจของผู้ท้าทายและระบบ) — ห้ามแต่งตัวเลข ราคาอ้างอิงใช้จาก [ราคาอ้างอิง ณ เปิดประชุม]\n"
-            "ตอบเป็น JSON เท่านั้น (ห้ามมีข้อความนอก JSON):\n"
+            "ลงมติ: สรุปมติจากข้อสรุปที่ผ่านการพิสูจน์เท่านั้น (ตามผลตรวจของผู้ท้าทายและระบบ) — ห้ามแต่งตัวเลข ราคาอ้างอิงใช้จาก [ราคาอ้างอิง ณ เปิดประชุม]\\n"
+            "กติกา stances: asset เขียนเป็นตัวย่อ/ชื่อตลาด + หมวดกำกับ · unit = bp สำหรับยีลด์/สเปรด, pct สำหรับราคา · "
+            "due_at = วันประชุมจบ + horizon_days · qualified=false ถ้าความมั่นใจ <60 หรือมีผู้หนุนอิสระ <2 (มุมมอง — ไม่เข้าสถิติ)\\n"
+            "ตอบเป็น JSON เท่านั้น (ห้ามมีข้อความนอก JSON):\\n"
             '{"resolution_md": "<markdown ฉบับวิเคราะห์เต็ม (มีอ้างอิงตัวเลข)>",'
             '"resolution_json": {"plain": {"summary": "...", "proven": ["..."], "unproven": ["..."], "watch": ["..."], "outlook": "..."},'
             '"claim_summary": {"verified": 0, "failed": 0, "unverified": 0},'
-            '"stances": [{"asset": "US10Y", "stance": "long|short|neutral|insufficient_evidence", "confidence": 0, "horizon": "short|medium|long", "horizon_days": 0, "price_at": <ตัวเลขจากข้อมูลจริง>, "reason": "..."}],'
+            '"stances": [{"asset": "<ตัวย่อ/ชื่อสินทรัพย์ + หมวด เช่น US10Y ยีลด์, TLT ETF, XAUUSD สินค้าโภคภัณฑ์, BTC-USD คริปโต>", "stance": "long|short|neutral|insufficient_evidence", "confidence": 0, "horizon": "short|medium|long", "horizon_days": 0, "unit": "bp|pct", "due_at": "<ISO วันที่ครบกำหนด = วันประชุมจบ + horizon_days>", "qualified": true, "price_at": <ตัวเลขจากข้อมูลจริง>, "reason": "..."}],'
             '"verification": [{"claim": "...", "verdict": "true|false|?"}]}}',
             temperature=0.3, max_tokens=8000)
         clean, data = _parse_json_block(content)
@@ -1101,7 +1103,15 @@ class BoardroomEngine:
 
     # -- resolution side effects ---------------------------------------------
     def _after_resolution(self, meeting, rj: dict):
-        """Store memory notes from proven conclusions + update seat stats."""
+        """Memory + seat stats + materialize stances (boardroom-signals)."""
+        # สัญญาณจากที่ประชุม (แผน boardroom-signals — ticket 04): materialize stances
+        try:
+            from app import boardroom_stance_service
+            boardroom_stance_service.materialize_stances(
+                self.db, meeting.id, rj, ended_at=meeting.ended_at)
+        except Exception:
+            self.db.rollback()  # อย่าให้สัญญาณล้มทำให้ประชุม fail
+
         plan = json.loads(meeting.turn_plan)
         skipped_r2 = any(t.get("seat") == "_skip_" for t in plan)
         conf0 = CONF0_UNANIMOUS if skipped_r2 else CONF0_CONTESTED

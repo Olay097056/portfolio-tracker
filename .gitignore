@@ -16,3 +16,4 @@ frontend/dist/
 frontend/vite.config.js
 frontend/vite.config.d.ts
 API openrouter.txt
+backend/data/

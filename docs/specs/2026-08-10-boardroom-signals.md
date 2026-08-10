@@ -55,7 +55,7 @@ Status: **Shipped** — commits `44f0b2b` (backend) + `a0d0848` (frontend sub-ta
 ```
 
 - หน่วย: `classify_unit(asset)` — regex `/^(US|TH|JP|VN|FR|EA)\d{1,3}[YW]$/` → bp (ยิลด์) · set {US_HY_SPREAD, US_IG_SPREAD, US_SOFR_EFFR_SPREAD, FR_OAT_BUND_SPREAD, LA_MOFL_SPREAD} → bp (สเปรด) · ที่เหลือ pct
-- ราคา/ประวัติ: **bp → `macro_service.build_dashboard()`** (FRED รายวัน, cache 10 นาที — values + rows/history) · **pct → `price_service.get_price`** (yfinance fast_info) + `_yf_candles` (จาก signals_service — 60 daily candles [{o,h,l,c,t}])
+- ราคา/ประวัติ: **bp → `macro_service.build_dashboard()`** (FRED รายวัน, cache 10 นาที — values จาก `sections[].items[].value`) + **history → `macro_service.fred_history_map()`** (31 ซีรีส์ yield/spread ขนาน, **cache 6 ชม.** — `_macro_data()` เก็บ `sections[].items[]` ที่มี FRED id แล้วดึงประวัติแยก — **items ไม่มี rows/history อย่าไปอ่าน** — dead-read ที่แก้แล้ว 2026-08-10) · **pct → `price_service.get_price`** (yfinance fast_info) + `_yf_candles` (จาก signals_service — 60 daily candles [{o,h,l,c,t}])
 
 ## 4. P&L + ผลสรุป (คำนวณสด on-read — ไม่มี storage/scheduler)
 

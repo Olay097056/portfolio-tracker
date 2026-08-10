@@ -48,11 +48,18 @@ def make_rj(stances: list[dict]) -> dict:
 
 @pytest.fixture(autouse=True)
 def _stub_external(monkeypatch):
-    """ราคา/FRED/search ถูก stub — ไม่ยิง network จริง."""
+    """ราคา/FRED/search ถูก stub ที่ขอบเขต network — ไม่ยิง network จริง.
+
+    stub ที่ build_dashboard + fred_history_map (ไม่ใช่ svc._macro_data ทั้งก้อน)
+    → เส้นทาง _macro_data จริงถูกเทสต์ด้วย (pipeline history — fix 07)
+    """
     monkeypatch.setattr(svc, "_yf_search", lambda q: None)  # search ไม่เจอโดย default
     monkeypatch.setattr(svc, "_yf_candles", lambda t: None)
-    monkeypatch.setattr(svc, "_macro_data", lambda: {"values": {}, "history": {}})
-    # price_service.get_price ถูกเรียกผ่าน import ภายใน — patch ที่ module ต้นทาง
+    import app.macro_service
+    monkeypatch.setattr(app.macro_service, "build_dashboard",
+                        lambda: {"sections": []})
+    monkeypatch.setattr(app.macro_service, "fred_history_map", lambda ids: {})
+    # price_service.get_price ถูกเรียกผ่าน import ภายใน — patch ที่โมดูลต้นทาง
     import app.price_service
     monkeypatch.setattr(app.price_service, "get_price", lambda t: None)
 
@@ -190,6 +197,64 @@ def test_settlement_on_read_after_due(db_session):
     # ราคา ณ due (day5) = close ของ day4 = 4425 → +0.57% < push(5d: 0.5×√(5/3)≈0.65%) → push
     assert res["verdict"] == "push"
     monkeypatch.undo()
+
+
+def test_bp_settlement_after_due_with_fred_history(db_session):
+    """bp stance (ยิลด์) เลยกำหนดแล้ว settle ได้จริงจาก FRED history.
+
+    Regression dead-read: _macro_data()["history"] ว่างถาวร (items ไม่มี rows)
+    → bp stance ค้าง "รอสรุปผล" ไม่มีวัน settle (boardroom-signals 07 fix)
+    """
+    ended = now() - timedelta(days=10)
+    due = ended + timedelta(days=5)
+    st = svc.BoardroomStance(
+        id="st_bp", meeting_id="m_bp", asset="US10Y", price_key="us10y",
+        unit="bp", direction="long", price_at=4.66,
+        started_at=ended, due_at=due, horizon_days=5, qualified=True)
+    db_session.add(st)
+    db_session.commit()
+
+    monkeypatch = pytest.MonkeyPatch()
+    # ราคา ณ due (ended+5d) = 4.75 → +9bp > push 5d (4×√(5/3)≈5.16bp) → win
+    rows = [[str((ended + timedelta(days=i)).date()),
+             4.66 + (0.09 * min(i, 5) / 5)] for i in range(7)]
+    monkeypatch.setattr(svc, "_macro_data", lambda: {
+        "values": {"us10y": 4.75},
+        "history": {"us10y": rows},
+    })
+    try:
+        res = svc._settlement_for(st)
+        assert res["state"] == "settled"
+        assert res["verdict"] == "win"
+        # จุดตรวจ: d1/d3 ถึงแล้ว → correct มีค่า (ไม่ใช่ None)
+        checks = svc._checks_for(st)
+        scored = [c for c in checks if c["correct"] is not None]
+        assert len(scored) >= 1
+        assert all(c["unit"] == "bp" for c in checks)
+    finally:
+        monkeypatch.undo()
+
+
+def test_macro_data_includes_history_via_fred_map(monkeypatch):
+    """pipeline จริง: _macro_data ดึง history ผ่าน fred_history_map (ไม่ใช่ items.rows)."""
+    from app import macro_service as ms
+    monkeypatch.setattr(ms, "build_dashboard", lambda: {
+        "sections": [{"items": [
+            {"series_id": "us10y", "value": 4.69, "available": True},
+            {"series_id": "us_hy_spread", "value": 2.71, "available": True},
+            {"series_id": "xauusd", "value": 4399.7, "available": True},
+        ]}],
+    })
+    monkeypatch.setattr(ms, "fred_history_map", lambda ids: {
+        "DGS10": [["2026-07-25", 4.6], ["2026-08-06", 4.69]],
+        "BAMLH0A0HYM2": [["2026-07-25", 2.8], ["2026-08-06", 2.71]],
+    })
+    md = svc._macro_data()
+    assert md["values"]["us10y"] == 4.69
+    assert "us10y" in md["history"] and md["history"]["us10y"][-1] == ["2026-08-06", 4.69]
+    assert "us_hy_spread" in md["history"]
+    # ซีรีส์ที่ไม่มี FRED id (xauusd) ต้องไม่มี history — ไม่พยายามดึง
+    assert "xauusd" not in md["history"]
 
 
 def test_settlement_awaiting_when_no_price(db_session):

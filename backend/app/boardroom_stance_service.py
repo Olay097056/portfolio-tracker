@@ -217,10 +217,15 @@ def resolve_price_key(asset: str, db: Session | None = None) -> tuple[str, str, 
 # ราคา/ประวัติ (reuse price_service / macro_service / yfinance)
 # ---------------------------------------------------------------------------
 def _macro_data() -> dict[str, Any]:
-    """{values: {series_id: value}, history: {series_id: [[date, value]]}} — FRED."""
+    """{values: {series_id: value}, history: {series_id: [[date, value]]}} — FRED.
+
+    history มาจาก macro_service.fred_history_map() (cache 6 ชม.) — เดิมอ่าน
+    items.rows/history ที่ไม่มีอยู่จริง → ว่างถาวร (dead-read fix 2026-08-10)
+    """
     from app import macro_service
     out: dict[str, Any] = {"values": {}, "history": {}}
     dash = macro_service.build_dashboard()
+    fred_ids: dict[str, str] = {}   # series_id ภายใน → FRED id
     for sec in dash.get("sections", []):
         for it in sec.get("items", []):
             sid = it.get("series_id")
@@ -228,9 +233,14 @@ def _macro_data() -> dict[str, Any]:
                 continue
             if it.get("available") and it.get("value") is not None:
                 out["values"][sid] = float(it["value"])
-            rows = it.get("rows") or it.get("history")
-            if isinstance(rows, list) and rows:
-                out["history"][sid] = [[r[0], float(r[1])] for r in rows if len(r) >= 2]
+            cfg = macro_service._SERIES.get(sid) or {}
+            if cfg.get("fred"):
+                fred_ids[sid] = cfg["fred"]
+    if fred_ids:
+        inv = {frid: sid for sid, frid in fred_ids.items()}
+        for frid, rows in macro_service.fred_history_map(list(fred_ids.values())).items():
+            sid = inv.get(frid, frid)
+            out["history"][sid] = [[str(r[0]), float(r[1])] for r in rows]
     return out
 
 

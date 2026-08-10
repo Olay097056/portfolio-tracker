@@ -217,6 +217,27 @@ def test_verify_claim_change_and_partial():
     assert c2["verdict"] == "verified"
 
 
+def test_verify_claim_direction_trend_uses_history():
+    """แนวโน้มย้อนหลัง (direction-only) ต้อง verify ได้จาก macro_history.
+
+    Regression dead-read: macro_history ว่างถาวร → _direction_of คืน None →
+    claims ทิศทางทั้งหมด unverifiable (boardroom-signals 07 fix)
+    """
+    from datetime import datetime, timedelta, timezone
+    now_dt = datetime.now(timezone.utc)
+    today = now_dt.date().isoformat()
+    yest = (now_dt - timedelta(days=1)).date().isoformat()
+    old = (now_dt - timedelta(days=10)).date().isoformat()
+    snap = make_snapshot()
+    snap["macro_history"] = {"us10y": [[old, 4.6], [yest, 4.69], [today, 4.72]]}  # ขึ้น
+    c = br.verify_claim({"claim": "US10Y แนวโน้มขึ้น", "metric": "us10y",
+                         "expected": {"direction": "up"}}, snap)
+    assert c["verdict"] == "verified"
+    c_bad = br.verify_claim({"claim": "US10Y แนวโน้มลง", "metric": "us10y",
+                             "expected": {"direction": "down"}}, snap)
+    assert c_bad["verdict"] == "failed"
+
+
 def test_verify_claim_unverifiable():
     snap = make_snapshot()
     opinion = br.verify_claim({"claim": "เฟดจะเปลี่ยนท่าที", "metric": None, "expected": None}, snap)

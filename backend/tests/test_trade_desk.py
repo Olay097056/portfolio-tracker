@@ -55,8 +55,21 @@ def stub_externals(monkeypatch):
     monkeypatch.setattr(td, "llm_call", fake_llm)
     monkeypatch.setattr(td, "build_snapshot", lambda db: {"model_scores": {}, "news": [],
                                                           "macro_history": {}})
-    monkeypatch.setattr(td, "build_dashboard",
-                        lambda: {"values": {"us10y": 4.66, "us2y": 4.19}})
+    # Patch ที่ต้นทาง (macro_service) ไม่ใช่ที่ td: ค่ามหภาคเดินผ่าน
+    # boardroom_stance_service._macro_data() ซึ่งเรียก macro_service.build_dashboard()
+    # โดยตรง -- stub ที่ td จะดักไม่ทันและเทสต์จะยิง FRED จริง
+    #
+    # รูปร่างต้องตรงของจริง: {sections: [{items: [{series_id, value, available}]}]}
+    # stub เดิมคืน {"values": {...}} ซึ่งเป็นรูปร่างที่ build_dashboard ไม่เคยคืน จึง
+    # กลบบั๊กที่ทำให้ตลาดกลุ่ม bp เปิดไม้ไม่ได้เลย และ macro pack ของทีม B ว่างเปล่า
+    from app import macro_service as _ms
+    monkeypatch.setattr(_ms, "build_dashboard", lambda: {
+        "sections": [{"items": [
+            {"series_id": "us10y", "value": 4.66, "available": True},
+            {"series_id": "us2y", "value": 4.19, "available": True},
+        ]}],
+    })
+    monkeypatch.setattr(_ms, "fred_history_map", lambda ids: {})  # กันยิง FRED จริง
     # ราคา: คงที่ — BTC 70k, TLT 82.76, CL 78.72, US10Y 4.66
     prices = {"BTC-USD": 70_000.0, "TLT": 82.76, "CL": 78.72, "^GSPC": 7757.64,
               "^IXIC": 26690.62, "^DJI": 44_000.0, "ETH-USD": 3_500.0}
@@ -240,3 +253,30 @@ def test_no_write_to_trading_signals(seeded):
                 manual=True)
     n = seeded.execute(text("SELECT COUNT(*) FROM trading_signals")).scalar()
     assert n == 0
+
+
+def test_bp_market_price_reads_the_real_dashboard_contract(monkeypatch):
+    """ราคากลุ่ม bp ต้องอ่านจาก sections[].items[] ตามที่ build_dashboard คืนจริง.
+
+    Regression: โค้ดเดิมอ่าน build_dashboard()["values"] ซึ่งเป็นคีย์ที่ไม่มีอยู่จริง
+    -- current_price(..., "bp") จึงคืน None เสมอ แปลว่าตลาด yield/spread เปิดไม้
+    ไม่ได้เลย (skipped: no_current_price) ไม่เข้า equity และไม่ถูก SL/TP เงียบสนิท
+    เทสต์เดิมไม่จับเพราะ stub คืน {"values": {...}} ซึ่งของจริงไม่เคยคืน."""
+    from app import macro_service as _ms
+
+    monkeypatch.setattr(_ms, "build_dashboard", lambda: {
+        "yield_curve": {}, "gold_cme": {}, "updated_at": "", "data_sources": [],
+        "sections": [{"items": [
+            {"series_id": "us10y", "value": 4.66, "available": True},
+            {"series_id": "us_hy_spread", "value": 3.12, "available": True},
+            {"series_id": "us2y", "value": None, "available": False},
+        ]}],
+    })
+    monkeypatch.setattr(_ms, "fred_history_map", lambda ids: {})  # กันยิง FRED จริง
+
+    assert td.current_price("us10y", "bp") == 4.66
+    assert td.current_price("us_hy_spread", "bp") == 3.12
+    assert td.current_price("us2y", "bp") is None        # available=False → ไม่แต่งค่า
+    assert td.current_price("nope", "bp") is None
+    # macro pack ของทีม B ต้องไม่ว่าง ไม่งั้นทีมสายมหภาคตัดสินใจโดยไม่มีข้อมูล
+    assert td._macro_values() == {"us10y": 4.66, "us_hy_spread": 3.12}

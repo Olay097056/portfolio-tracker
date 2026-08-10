@@ -338,6 +338,31 @@ def _fetch_fred_series_map(series_ids: list[str]) -> dict[str, list[tuple[str, f
     return dict(zip(series_ids, results))
 
 
+# ── FRED history cache (dead-read fix 2026-08-10 — boardroom-signals 07) ───
+# FRED เป็นข้อมูลรายวัน → TTL 6 ชม. เพียงพอ; 31 ซีรีส์ขนาน ≈ 5–6s ครั้งแรก
+_FRED_HISTORY_TTL_SECONDS = 6 * 3600
+_fred_history_cache: dict[str, tuple[float, list]] = {}
+
+
+def fred_history_map(series_ids: list[str]) -> dict[str, list]:
+    """[(date, value)] เก่า→ใหม่ ต่อ FRED series_id — cache 6 ชม. (ดึงเฉพาะที่ขาด).
+
+    ใช้โดย boardroom_stance_service._macro_data() และ boardroom_service.build_snapshot()
+    (สองจุดนี้เคยอ่าน items.rows/history ที่ไม่มีอยู่จริง → history ว่างถาวร)
+    """
+    now = _time.time()
+    missing = [sid for sid in series_ids
+               if sid not in _fred_history_cache
+               or now - _fred_history_cache[sid][0] > _FRED_HISTORY_TTL_SECONDS]
+    if missing:
+        fetched = _fetch_fred_series_map(missing)
+        for sid, rows in fetched.items():
+            if rows:
+                _fred_history_cache[sid] = (now, rows)
+    return {sid: _fred_history_cache[sid][1] for sid in series_ids
+            if sid in _fred_history_cache}
+
+
 def _fetch_tga() -> list[tuple[str, float]] | None:
     """TGA opening balance from the Treasury Fiscal Data API.
 

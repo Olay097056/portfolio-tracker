@@ -499,22 +499,14 @@ def build_snapshot(db: Session) -> dict:
     from app import macro_service, model_service
     from app.news_service import NewsItem
 
-    dash = macro_service.build_dashboard()
+    # macro values+history ผ่าน _macro_data() — เดิมอ่าน items.rows/history ที่ไม่มี
+    # อยู่จริง → history ว่างถาวร (dead-read fix 2026-08-10 — boardroom-signals 07)
+    from app.boardroom_stance_service import _macro_data
+    md = _macro_data()
+    macro_values: dict[str, float] = md["values"]
+    macro_history: dict[str, list] = md["history"]
+
     models = model_service.build_models()
-
-    macro_values: dict[str, float] = {}
-    macro_history: dict[str, list] = {}
-    for sec in dash.get("sections", []):
-        for it in sec.get("items", []):
-            sid = it.get("series_id")
-            if not sid:
-                continue
-            if it.get("available") and it.get("value") is not None:
-                macro_values[sid] = float(it["value"])
-            rows = it.get("rows") or it.get("history")
-            if isinstance(rows, list) and rows:
-                macro_history[sid] = [[r[0], float(r[1])] for r in rows if len(r) >= 2]
-
     model_scores: dict[str, float] = {}
     model_names: dict[str, str] = {m.get("model_id"): m.get("name_th") or m.get("model_id")
                                    for m in models.get("meta", [])}

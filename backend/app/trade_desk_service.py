@@ -24,9 +24,8 @@ from sqlalchemy.orm import Session, relationship
 
 from app.database import Base, get_db
 from app.boardroom_service import build_snapshot, llm_call, local_midnight_utc
-from app.boardroom_stance_service import resolve_price_key
+from app.boardroom_stance_service import _macro_data, resolve_price_key
 from app import price_service
-from app.macro_service import build_dashboard
 
 # ── Config ──────────────────────────────────────────────────────────────────
 TURN_INTERVAL_HOURS = {"A": 4, "B": 12}
@@ -145,18 +144,19 @@ COST_OUT_PER_TOKEN = 0.28 / 1e6     # $0.28/1M
 def turn_cost(tokens_in: int, tokens_out: int) -> float:
     return tokens_in * COST_IN_PER_TOKEN + tokens_out * COST_OUT_PER_TOKEN
 def current_price(price_key: str, unit: str = "pct") -> float | None:
-    """ราคาปัจจุบัน: pct → yfinance · bp → macro ล่าสุด (FRED daily)."""
+    """ราคาปัจจุบัน: pct → yfinance · bp → macro ล่าสุด (FRED daily).
+
+    bp ต้องผ่าน `_macro_data()` เท่านั้น: `build_dashboard()` คืน
+    {yield_curve, gold_cme, sections, updated_at, data_sources} -- ไม่มีคีย์
+    "values" ค่าซีรีส์อยู่ใน sections[].items[].{series_id,value} ต้องเดินเก็บเอง
+    ซึ่ง `_macro_data()` ทำไว้แล้ว การอ่าน dash["values"] ตรงๆ จะได้ None เสมอ
+    เงียบๆ แปลว่าตลาดกลุ่ม bp เปิดไม้ไม่ได้เลยและไม่เข้า equity/SL/TP."""
     if unit == "pct":
         return price_service.get_price(price_key)
     try:
-        dash = build_dashboard()
-        mv = dash.get("values") or {}
-        if price_key in mv:
-            v = mv[price_key]
-            return float(v) if v is not None else None
+        return _macro_values().get(price_key)
     except Exception:
-        pass
-    return None
+        return None
 
 
 def team_equity(db: Session, team: TradeTeam) -> float:
@@ -212,9 +212,12 @@ def _close_position(db: Session, p: TradePosition, px: float, how: str) -> None:
 
 # ── Context (data pack ตามสาย — ทีมเห็นเฉพาะพอร์ตตัวเอง) ─────────────────────
 def _macro_values() -> dict:
+    """{series_id: value} จาก FRED — ทีม B (สายมหภาค) กินชุดนี้เป็นหลัก.
+
+    ใช้ `_macro_data()` ของ boardroom_stance_service ที่เดิน sections[].items[]
+    ให้แล้ว -- อย่าอ่าน build_dashboard()["values"] ตรงๆ เพราะไม่มีคีย์นั้น."""
     try:
-        dash = build_dashboard()
-        return dash.get("values") or {}
+        return _macro_data().get("values") or {}
     except Exception:
         return {}
 

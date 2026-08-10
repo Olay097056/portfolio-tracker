@@ -255,8 +255,16 @@ def _apply_overrides(ctx: dict, overrides: dict) -> tuple[dict, list[str]]:
     if gold:
         c["gold_chg_pct"] = gold
         c["xauusd"] = (_FALLBACK_BASE["xauusd"] if c.get("xauusd") is None else c["xauusd"]) * (1 + gold / 100.0)
-    if overrides.get("oilPct"):
-        c["wti_chg_pct"] = overrides["oilPct"]
+    oil = overrides.get("oilPct", 0.0)
+    if oil:
+        # _score_oil_high (model_service.py) reads ctx["usoil"] as a price
+        # LEVEL (linear 60->85 -> capped at 100), not a % change field -- ctx
+        # has no such field at all. Writing to a "wti_chg_pct" key here was a
+        # bug: no scorer reads it, so the oil slider had zero effect on any
+        # model's score. Scale the level instead, same pattern as goldPct
+        # below.
+        base_oil = _FALLBACK_BASE["usoil"] if c.get("usoil") is None else c["usoil"]
+        c["usoil"] = base_oil * (1 + oil / 100.0)
     if overrides.get("depositPct"):
         c["deposits_chg_pct"] = overrides["depositPct"]
     if overrides.get("dwBillion"):

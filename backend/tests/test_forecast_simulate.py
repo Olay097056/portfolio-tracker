@@ -136,3 +136,20 @@ def test_simulate_missing_base_reports_fallback(monkeypatch):
     _stub_yf_extras(monkeypatch)
     body = _client().post("/api/models/simulate", json={"overrides": {"oilPct": 10}}).json()
     assert isinstance(body["missing_base"], list)
+
+
+def test_simulate_oil_slider_moves_inflation_oil_score(monkeypatch):
+    """oilPct must actually move the inflation-oil model. Regression test:
+    _apply_overrides used to write a 'wti_chg_pct' ctx key that no scorer
+    reads (_score_oil_high reads the 'usoil' price level) -- the slider had
+    zero effect on any model's score, silently, with no error."""
+    _stub_macro_dashboard(monkeypatch)
+    _stub_yf_extras(monkeypatch)
+    body = _client().post("/api/models/simulate", json={"overrides": {"oilPct": 50}}).json()
+    base = {m["model_id"]: m for m in body["baseline"]}
+    sim = {m["model_id"]: m for m in body["simulated"]}
+    assert sim["inflation-oil"]["score"] != base["inflation-oil"]["score"]
+
+    body_down = _client().post("/api/models/simulate", json={"overrides": {"oilPct": -30}}).json()
+    sim_down = {m["model_id"]: m for m in body_down["simulated"]}
+    assert sim_down["inflation-oil"]["score"] < sim["inflation-oil"]["score"]

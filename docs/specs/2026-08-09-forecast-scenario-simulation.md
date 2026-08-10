@@ -1,7 +1,11 @@
 # จำลองสถานการณ์ (Scenario Simulation tab) — Bond-crisis sub-tab #7
 
 Date: 2026-08-09
-Status: Spec (wayfinder map `.scratch/forecast-tab/map.md` — all 8 tickets resolved, user decisions captured 2026-08-09)
+Status: **Shipped** — commit `2f89c1a` implements this spec in full (wayfinder map `.scratch/forecast-tab/map.md` — all 8 tickets resolved, user decisions captured 2026-08-09). The map's own destination said this effort would hand off a spec for another model to build from; the executing session (Hermes) built and committed the feature directly instead. Kept here as the as-built reference, corrected against the shipped code below.
+
+**Post-ship correction (2026-08-09, verified against the running code):**
+- **Bug fixed:** the `oilPct` slider wrote to a ctx key (`wti_chg_pct`) no scorer reads, so it had zero effect on any model's score. Fixed in `_apply_overrides` (`routers/models.py`) to scale `usoil` — the level `_score_oil_high` actually reads — the same way `goldPct` already scaled `xauusd`. Regression test added: `test_simulate_oil_slider_moves_inflation_oil_score`.
+- **Doc-only fixes** (the shipped code was already correct; only this table had the wrong values): `hyBps` maps to ctx key `hy_spread_bps` (not `us_hy_spread`), added directly with no `/100`; the curve formula is `(us10y−us2y)×100` (bps), matching `macro_service.py`'s own `spread_10y2y_bps` calculation.
 
 ## 1. ขอบเขต (Scope)
 
@@ -21,11 +25,11 @@ Slider ล้วน (ตามต้นฉบับ): **ค่าส่วนต
 
 | key | ชื่อไทย (จาก i18n ต้นฉบับ) | หน่วย | ช่วง | ขั้น | default | map ไป ctx | กติกาพันกัน |
 |---|---|---|---|---|---|---|---|
-| `fedBps` | Fed ขึ้น/ลดดอกเบี้ย | bps | −200..200 | 25 | 0 | `us10y` += fedBps/100×0.5, `us2y` += fedBps/100, `curve_10y2y_bps` = us10y−us2y | ต่อเนื่อง (3 คีย์พร้อมกัน) |
-| `oilPct` | ราคาน้ำมันเปลี่ยน | % | −40..60 | 5 | 0 | `wti_chg_pct` = oilPct | — |
+| `fedBps` | Fed ขึ้น/ลดดอกเบี้ย | bps | −200..200 | 25 | 0 | `us10y` += fedBps/100×0.5, `us2y` += fedBps/100, `curve_10y2y_bps` = (us10y−us2y)×100 | ต่อเนื่อง (3 คีย์พร้อมกัน) |
+| `oilPct` | ราคาน้ำมันเปลี่ยน | % | −40..60 | 5 | 0 | `usoil` = base×(1+oilPct/100) | — |
 | `goldPct` | ราคาทองคำเปลี่ยน | % | −20..40 | 5 | 0 | `gold_chg_pct` = goldPct, `xauusd` = base×(1+goldPct/100) | ต่อเนื่อง (2 คีย์) |
 | `vixPts` | VIX เปลี่ยน | pts | −10..30 | 1 | 0 | `vix` = base + vixPts | — |
-| `hyBps` | HY Spread เปลี่ยน | bps | −100..400 | 25 | 0 | `us_hy_spread` = base + hyBps/100 | — |
+| `hyBps` | HY Spread เปลี่ยน | bps | −100..400 | 25 | 0 | `hy_spread_bps` = base + hyBps | — |
 | `cpiPts` | เงินเฟ้อ CPI เปลี่ยน | pt | −2..3 | 0.25 | 0 | `us_cpi_yoy` = base + cpiPts | — |
 | `depositPct` | เงินฝากแบงก์ (2 สัปดาห์) | % | −3..1 | 0.25 | 0 | `deposits_chg_pct` (WoW) = depositPct | — |
 | `dwBillion` | Fed Discount Window พุ่ง | $B | 0..100 | 5 | 0 | `discount_window_b` = base + dwBillion | — |

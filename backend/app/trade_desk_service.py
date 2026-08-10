@@ -475,6 +475,14 @@ def build_state(db: Session) -> dict:
         open_pos = db.query(TradePosition).filter(
             TradePosition.team_id == team.id, TradePosition.status == "open").all()
         margin = sum(p.margin_usd for p in open_pos)
+        closed = db.query(TradePosition).filter(
+            TradePosition.team_id == team.id,
+            TradePosition.status.in_(("closed", "sl", "tp"))).order_by(
+                TradePosition.closed_at.desc()).limit(20).all()
+        turns = db.query(TradeTurn).filter(TradeTurn.team_id == team.id).order_by(
+            TradeTurn.started_at.desc()).limit(10).all()
+        cost_today = sum(t.cost_usd for t in turns if
+                         t.started_at and t.started_at >= local_midnight_utc())
         teams.append({
             "id": team.id, "code": team.code, "name_th": team.name_th,
             "name_en": team.name_en, "status": team.status,
@@ -487,11 +495,25 @@ def build_state(db: Session) -> dict:
             "next_turn_at": team.next_turn_at.isoformat() if team.next_turn_at else None,
             "directive_md": team.directive_md or "",
             "turns_today": turns_today(db, team.id),
+            "cost_today_usd": round(cost_today, 6),
+            "cost_total_usd": round(sum(t.cost_usd for t in turns), 6),
             "positions": [{
                 "market": p.market, "side": p.side, "size": round(p.size, 4),
                 "entry_px": p.entry_px, "sl_pct": p.sl_pct, "tp_pct": p.tp_pct,
                 "status": p.status, "realized_pnl": round(p.realized_pnl, 2),
             } for p in open_pos],
+            "closed_positions": [{
+                "market": p.market, "side": p.side, "entry_px": p.entry_px,
+                "close_px": p.close_px, "status": p.status,
+                "realized_pnl": round(p.realized_pnl, 2),
+                "closed_at": p.closed_at.isoformat() if p.closed_at else None,
+            } for p in closed],
+            "turns": [{
+                "id": t.id, "tokens_in": t.tokens_in, "tokens_out": t.tokens_out,
+                "cost_usd": round(t.cost_usd, 6),
+                "started_at": t.started_at.isoformat() if t.started_at else None,
+                "lead_decision": json.loads(t.lead_decision or "{}"),
+            } for t in turns],
         })
     return {
         "master_on": settings.master_on,

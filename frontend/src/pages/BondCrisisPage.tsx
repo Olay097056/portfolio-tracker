@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BankingDashboard } from '../components/tools/BankingDashboard';
 import { BoardroomDashboard } from '../components/tools/BoardroomDashboard';
 import { BoardroomSignalsDashboard } from '../components/tools/BoardroomSignalsDashboard';
+import { TradeDeskDashboard } from '../components/tools/TradeDeskDashboard';
 import { CountriesDashboard } from '../components/tools/CountriesDashboard';
 import { ForecastDashboard } from '../components/tools/ForecastDashboard';
 import { MacroDashboard } from '../components/tools/MacroDashboard';
@@ -18,7 +19,7 @@ import { NewsDashboard } from '../components/tools/NewsDashboard';
 // วิกฤตแบงก์รัน (/banking), รายประเทศ (/countries), จำลองสถานการณ์ (/forecast),
 // ห้องประชุม (/boardroom) and ข่าวสาร (/news) pages.
 export function BondCrisisPage() {
-  const [tab, setTab] = useState<'macro' | 'models' | 'signals' | 'banking' | 'countries' | 'forecast' | 'boardroom' | 'boardroom-signals' | 'news'>('macro');
+  const [tab, setTab] = useState<'macro' | 'models' | 'signals' | 'banking' | 'countries' | 'forecast' | 'boardroom' | 'boardroom-signals' | 'trade-desk' | 'news'>('macro');
   const [signalsFocusMeeting, setSignalsFocusMeeting] = useState<string | null>(null);
 
   const goMeetingFromSignals = (meetingId: string) => {
@@ -35,6 +36,7 @@ export function BondCrisisPage() {
     { id: 'forecast' as const, label: 'จำลองสถานการณ์' },
     { id: 'boardroom' as const, label: 'ห้องประชุม' },
     { id: 'boardroom-signals' as const, label: 'สัญญาณที่ประชุม' },
+    { id: 'trade-desk' as const, label: 'ทีมเทรด' },
     { id: 'news' as const, label: 'ข่าวสาร' },
   ];
 
@@ -93,6 +95,8 @@ export function BondCrisisPage() {
         <BoardroomDashboard focusMeetingId={signalsFocusMeeting} />
       ) : tab === 'boardroom-signals' ? (
         <BoardroomSignalsDashboard onGoMeeting={goMeetingFromSignals} />
+      ) : tab === 'trade-desk' ? (
+        <TradeDeskDashboard />
       ) : (
         <NewsDashboard />
       )}

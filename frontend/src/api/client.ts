@@ -46,6 +46,7 @@ import type {
   BoardroomList,
   BoardroomCreateInput,
   BoardroomStancesPayload,
+  TradeDeskState,
 } from './types';
 import type { AiSignalMetrics } from '../utils/aiTechnicalSignal';
 
@@ -628,4 +629,22 @@ export function resumeBoardroomMeeting(id: string): Promise<BoardroomMeeting> {
 
 export function getBoardroomStances(): Promise<BoardroomStancesPayload> {
   return request<BoardroomStancesPayload>('/api/boardroom/stances');
+}
+
+export function getTradeDeskState(): Promise<TradeDeskState> {
+  return request<TradeDeskState>('/api/trade-desk/state');
+}
+
+export function runTradeDeskTurn(teamCode: string): Promise<Record<string, unknown>> {
+  return request<Record<string, unknown>>(
+    `/api/trade-desk/turn?team_code=${encodeURIComponent(teamCode)}`, { method: 'POST' });
+}
+
+export function setTradeDeskSettings(body: {
+  master_on?: boolean;
+  per_team_daily_cap?: number;
+}): Promise<Record<string, unknown>> {
+  return request<Record<string, unknown>>('/api/trade-desk/settings', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
 }

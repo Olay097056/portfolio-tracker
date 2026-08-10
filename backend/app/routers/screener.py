@@ -3,34 +3,15 @@ from datetime import datetime, timezone
 import json
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, and_, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import ScreenerStock
-from app import screener_refresh_manager
 
 router = APIRouter(prefix="/api/screener", tags=["screener"])
-
-
-class RefreshRequest(BaseModel):
-    limit: Optional[int] = None  # only for testing a partial refresh; omit for the full universe
-
-
-@router.post("/refresh", status_code=202)
-def start_screener_refresh(req: RefreshRequest = RefreshRequest()):
-    started = screener_refresh_manager.start_refresh(limit=req.limit)
-    status = screener_refresh_manager.get_status()
-    if not started:
-        raise HTTPException(status_code=409, detail={"message": "A refresh is already running", "status": status})
-    return status
-
-
-@router.get("/refresh-status")
-def get_screener_refresh_status():
-    return screener_refresh_manager.get_status()
 
 
 class StockSearchResult(BaseModel):

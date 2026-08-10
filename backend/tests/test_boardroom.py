@@ -125,6 +125,9 @@ def engine(db_session):
 def _stub_llm(monkeypatch):
     stub = StubLLM()
     monkeypatch.setattr(br, "llm_call", stub)
+    # รอยรั่ว network: test_full_meeting_completes ไม่ส่ง snapshot → create_meeting
+    # เรียก build_snapshot จริง (FRED + yfinance 60 tickers — ~140 คอล/รอบ)
+    monkeypatch.setattr(br, "build_snapshot", lambda db: make_snapshot())
     return stub
 
 

@@ -636,7 +636,7 @@ def llm_call(system: str, user: str, *, temperature: float = 0.7,
         "temperature": temperature,
         "max_tokens": max_tokens,
         "stream": False,
-        "thinking": {"type": "disabled"},
+        "reasoning": {"enabled": False},  # OpenRouter — ปิด reasoning จริง (thinking:disabled ไม่มีผล)
     }
     last_err: Exception | None = None
     for attempt in range(RETRIES + 1):
@@ -659,8 +659,8 @@ def llm_call(system: str, user: str, *, temperature: float = 0.7,
             last_err = LLMError(f"HTTP {r.status_code}: {r.text[:200]}")
             time.sleep(2 * (attempt + 1))
             continue
-        if attempt == 0 and "thinking" in payload:
-            payload.pop("thinking")
+        if attempt == 0 and "reasoning" in payload:
+            payload.pop("reasoning")
             last_err = LLMError(f"HTTP {r.status_code}: {r.text[:200]}")
             continue
         raise LLMError(f"HTTP {r.status_code}: {r.text[:300]}")

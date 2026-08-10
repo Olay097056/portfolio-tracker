@@ -223,6 +223,7 @@ def _enrich_batch(items: list[dict]) -> list[dict]:
                 "temperature": 0.2,
                 "max_tokens": 8000,
                 "response_format": {"type": "json_object"},
+                "reasoning": {"enabled": False},  # OpenRouter — ปิด reasoning
             },
             timeout=180,
         )

@@ -26,7 +26,13 @@ function fixture(over: Partial<TradeDeskState> = {}): TradeDeskState {
         next_turn_at: '2026-08-10T07:00:00Z', directive_md: '', turns_today: 1,
         cost_today_usd: 0.00047, cost_total_usd: 0.00141,
         positions: [{ market: 'BTC-USD', side: 'long', unit: 'pct', size: 0.0086, entry_px: 70000,
-                      sl_pct: 3, tp_pct: 6, status: 'open', realized_pnl: 0 }],
+                      sl_pct: 3, tp_pct: 6, status: 'open', realized_pnl: 0,
+                      mark: 70500, live_pnl: 4.30 }],
+        snapshots: [
+          { equity: 10100, snapped_at: '2026-08-10T01:00:00Z' },
+          { equity: 10300, snapped_at: '2026-08-10T02:00:00Z' },
+          { equity: 10500, snapped_at: '2026-08-10T03:00:00Z' },
+        ],
         closed_positions: [{ market: 'TLT', side: 'long', entry_px: 82.76, close_px: 84.2,
                              status: 'tp', realized_pnl: 80, closed_at: '2026-08-09T10:00:00Z' }],
         turns: [{ id: 'tr1', tokens_in: 2200, tokens_out: 450, cost_usd: 0.000434,
@@ -41,7 +47,7 @@ function fixture(over: Partial<TradeDeskState> = {}): TradeDeskState {
         monthly_floor_pct: 5, monthly_stretch_pct: 20, interval_hours: 12,
         next_turn_at: '2026-08-10T15:00:00Z', directive_md: '', turns_today: 2,
         cost_today_usd: 0.00094, cost_total_usd: 0.00094,
-        positions: [], closed_positions: [], turns: [],
+        positions: [], snapshots: [], closed_positions: [], turns: [],
       },
     ],
     ...over,
@@ -139,13 +145,24 @@ describe('TradeDeskDashboard', () => {
       teams: fixture().teams.map((t) => t.id === 't1' ? {
         ...t,
         positions: [{ market: 'US10Y', side: 'long', size: 1.2, entry_px: 4.66,
-                      sl_pct: 1, tp_pct: 3, unit: 'bp', status: 'open', realized_pnl: 0 }],
+                      sl_pct: 1, tp_pct: 3, unit: 'bp', status: 'open', realized_pnl: 0,
+                      mark: 4.66, live_pnl: 0 }],
       } : t),
     }));
     render(<TradeDeskDashboard />);
     await screen.findByText('ทีม A · สายเทรนด์');
     expect(screen.getAllByText('US10Y').length).toBeGreaterThan(0);  // การ์ด + ตารางรวม
     expect(screen.getAllByText('ราคารายวัน').length).toBeGreaterThan(0);
+  });
+
+  it('ไม้เปิดโชว์ P&L สด (mark→live) + กราฟ equity วาด polyline จาก snapshots', async () => {
+    const { container } = render(<TradeDeskDashboard />);
+    await screen.findByText('ทีม A · สายเทรนด์');
+    // mark 70500 → P&L สด $4.30 (เขียว — กำไร; <b> ข้างใน span มีสีเขียว)
+    const pnl = screen.getByText('$4.30');
+    expect((pnl as HTMLElement).style.color).toBe('rgb(63, 185, 80)');
+    // กราฟ: snapshots 3 จุด → polyline (ไม่ใช่เส้นประ)
+    expect(container.querySelector('polyline')).toBeTruthy();
   });
 
   it('สลับสวิตช์หลักเรียก API + reload', async () => {

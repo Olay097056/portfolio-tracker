@@ -69,31 +69,47 @@ function Panel({ children, title, sub }: { children: ReactNode; title?: string; 
 
 // ── equity chart (SVG วาดเอง — ไม่มี recharts) ──────────────────────────────
 function EquityChart({ teams }: { teams: TradeTeamView[] }) {
-  // ไม่มี snapshots ต่อจุดใน state — วาดจาก equity ปัจจุบันเป็นเส้นสุดท้าย + จุด
+  // วาดจาก snapshots จริง (ล่าสุด 30 จุดต่อทีม); ไม่มี snapshot → เส้นประ + จุดปัจจุบัน
   const w = 560, h = 120;
-  const has = teams.filter((t) => Number.isFinite(t.equity));
-  if (has.length === 0) {
+  const series = teams.map((t) => ({
+    code: t.code,
+    color: t.code === 'A' ? INK.sky : INK.violet,
+    pts: ((t.snapshots && t.snapshots.length >= 2)
+      ? t.snapshots : [{ equity: t.equity, snapped_at: null }])
+      .map((s) => s.equity).filter(Number.isFinite),
+  })).filter((s) => s.pts.length > 0);
+  if (series.length === 0) {
     return <div style={{ color: INK.faint, fontSize: 13, textAlign: 'center', padding: 24 }}>ยังไม่มีข้อมูล equity</div>;
   }
-  const max = Math.max(...has.map((t) => t.equity), 1);
-  const min = Math.min(...has.map((t) => t.equity), 0);
+  const all = series.flatMap((s) => s.pts);
+  const max = Math.max(...all, 1);
+  const min = Math.min(...all, 0);
   const range = max - min || 1;
-  const colors = { A: INK.sky, B: INK.violet };
+  const X = (i: number, n: number) => (n === 1 ? w / 2 : (i / (n - 1)) * (w - 24) + 12);
+  const Y = (v: number) => h - ((v - min) / range) * (h - 16) - 8;
   return (
     <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={h} style={{ display: 'block' }}>
       {[0, 1, 2].map((i) => {
         const y = h - (h - 16) * (i / 3) - 8;
         return <line key={i} x1={0} x2={w} y1={y} y2={y} stroke={INK.border} strokeWidth={1} />;
       })}
-      {has.map((t) => {
-        const x = t.code === 'A' ? w * 0.25 : w * 0.65;
-        const y = h - ((t.equity - min) / range) * (h - 16) - 8;
+      {series.map((s) => {
+        const n = s.pts.length;
+        const last = s.pts[n - 1];
         return (
-          <g key={t.id}>
-            <line x1={x - 60} x2={x + 60} y1={y} y2={y} stroke={colors[t.code]} strokeWidth={2} strokeDasharray="4 3" />
-            <circle cx={x} cy={y} r={5} fill={colors[t.code]} />
-            <text x={x} y={y - 10} textAnchor="middle" fill={colors[t.code]} fontSize={11}>
-              {t.code} {fmtUsd(t.equity)}
+          <g key={s.code}>
+            {n >= 2 ? (
+              <polyline
+                points={s.pts.map((v, i) => `${X(i, n)},${Y(v)}`).join(' ')}
+                fill="none" stroke={s.color} strokeWidth={2}
+              />
+            ) : (
+              <line x1={X(0, 1) - 60} x2={X(0, 1) + 60} y1={Y(last)} y2={Y(last)}
+                    stroke={s.color} strokeWidth={2} strokeDasharray="4 3" />
+            )}
+            <circle cx={X(n - 1, n)} cy={Y(last)} r={5} fill={s.color} />
+            <text x={X(n - 1, n)} y={Y(last) - 10} textAnchor="middle" fill={s.color} fontSize={11}>
+              {s.code} {fmtUsd(last)}
             </text>
           </g>
         );
@@ -195,7 +211,13 @@ function TeamCard({ team, masterOn, cap, onTurn, busy }: {
                 )}
               </span>
               <span style={{ color: INK.sub }}>
-                {fmtUsd(p.entry_px, 2)} · SL {p.sl_pct}% / TP {p.tp_pct}%
+                {fmtUsd(p.entry_px, 2)} →{' '}
+                <span style={{ color: p.mark != null ? INK.text : INK.sub }}>{p.mark != null ? fmtUsd(p.mark, 2) : '—'}</span>
+                {' '}· P&L{' '}
+                <b style={{ color: p.live_pnl == null ? INK.sub : (p.live_pnl >= 0 ? INK.green : INK.red) }}>
+                  {p.live_pnl != null ? fmtUsd(p.live_pnl, 2) : '—'}
+                </b>
+                {' '}· SL {p.sl_pct}% / TP {p.tp_pct}%
               </span>
             </div>
           ))}

@@ -920,6 +920,8 @@ export interface TradePositionView {
   tp_pct: number;
   status: string;
   realized_pnl: number;
+  mark: number | null;      // ราคาปัจจุบัน (P&L สด)
+  live_pnl: number | null;  // dir × size × (mark − entry)
 }
 
 export interface TradeClosedPosition {
@@ -963,6 +965,7 @@ export interface TradeTeamView {
   cost_today_usd: number;
   cost_total_usd: number;
   positions: TradePositionView[];
+  snapshots: { equity: number; snapped_at: string | null }[];
   closed_positions: TradeClosedPosition[];
   turns: TradeTurnView[];
 }

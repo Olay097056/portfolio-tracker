@@ -330,3 +330,17 @@ def test_sl_tp_retroactive_hit_from_candles(seeded):
         assert pos.realized_pnl < 0
     finally:
         monkey.undo()
+
+
+def test_state_includes_mark_live_pnl_and_snapshots(seeded):
+    """state ต้องคืน unit/mark/live_pnl ต่อไม้ + snapshots (equity curve)."""
+    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "A").first()
+    td.run_turn(seeded, team, manual=True)
+    state = td.build_state(seeded)
+    t = next(x for x in state["teams"] if x["code"] == "A")
+    assert len(t["positions"]) == 1
+    p = t["positions"][0]
+    assert p["unit"] == "pct"
+    assert p["mark"] == 70_000.0       # stub ราคา
+    assert p["live_pnl"] == 0.0        # entry == mark
+    assert len(t["snapshots"]) >= 1    # เทิร์นเขียน snapshot แล้ว

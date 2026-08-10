@@ -265,6 +265,23 @@ def _macro_history_rows(price_key: str) -> list | None:
     return (_macro_data().get("history") or {}).get(price_key)
 
 
+def _position_mark(p: TradePosition) -> float | None:
+    """ราคา mark ล่าสุดของไม้ (ย้อนหลัง SL/TP ใช้ของเดิม — ตัวนี้คือ 'ตอนนี้')."""
+    try:
+        return current_price(p.market, p.unit)
+    except Exception:
+        return None
+
+
+def _position_live_pnl(p: TradePosition) -> float | None:
+    """P&L สดต่อไม้ = dir × size × (mark − entry) — None ถ้าหาราคาไม่ได้."""
+    mark = _position_mark(p)
+    if mark is None:
+        return None
+    dirn = 1 if p.side == "long" else -1
+    return round(dirn * p.size * (mark - p.entry_px), 2)
+
+
 def _close_position(db: Session, p: TradePosition, px: float, how: str) -> None:
     dirn = 1 if p.side == "long" else -1
     pnl = dirn * p.size * (px - p.entry_px)
@@ -556,7 +573,7 @@ def build_state(db: Session) -> dict:
         turns = db.query(TradeTurn).filter(TradeTurn.team_id == team.id).order_by(
             TradeTurn.started_at.desc()).limit(10).all()
         cost_today = sum(t.cost_usd for t in turns if
-                         t.started_at and t.started_at >= local_midnight_utc())
+                         t.started_at and _as_utc(t.started_at) >= local_midnight_utc())
         teams.append({
             "id": team.id, "code": team.code, "name_th": team.name_th,
             "name_en": team.name_en, "status": team.status,
@@ -572,10 +589,18 @@ def build_state(db: Session) -> dict:
             "cost_today_usd": round(cost_today, 6),
             "cost_total_usd": round(sum(t.cost_usd for t in turns), 6),
             "positions": [{
-                "market": p.market, "side": p.side, "size": round(p.size, 4),
-                "entry_px": p.entry_px, "sl_pct": p.sl_pct, "tp_pct": p.tp_pct,
+                "market": p.market, "side": p.side, "unit": p.unit,
+                "size": round(p.size, 4), "entry_px": p.entry_px,
+                "sl_pct": p.sl_pct, "tp_pct": p.tp_pct,
                 "status": p.status, "realized_pnl": round(p.realized_pnl, 2),
+                "mark": _position_mark(p), "live_pnl": _position_live_pnl(p),
             } for p in open_pos],
+            "snapshots": [{
+                "equity": round(s.equity, 2),
+                "snapped_at": s.snapped_at.isoformat() if s.snapped_at else None,
+            } for s in db.query(TradeSnapshot).filter(
+                TradeSnapshot.team_id == team.id).order_by(
+                TradeSnapshot.snapped_at.desc()).limit(30).all()][::-1],
             "closed_positions": [{
                 "market": p.market, "side": p.side, "entry_px": p.entry_px,
                 "close_px": p.close_px, "status": p.status,

@@ -45,6 +45,7 @@ import type {
   BoardroomMeetingDetail,
   BoardroomList,
   BoardroomCreateInput,
+  BoardroomStancesPayload,
 } from './types';
 import type { AiSignalMetrics } from '../utils/aiTechnicalSignal';
 
@@ -623,4 +624,8 @@ export function createBoardroomMeeting(input: BoardroomCreateInput): Promise<Boa
 
 export function resumeBoardroomMeeting(id: string): Promise<BoardroomMeeting> {
   return request<BoardroomMeeting>(`/api/boardroom/meetings/${id}/resume`, { method: 'POST' });
+}
+
+export function getBoardroomStances(): Promise<BoardroomStancesPayload> {
+  return request<BoardroomStancesPayload>('/api/boardroom/stances');
 }

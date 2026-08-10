@@ -844,3 +844,67 @@ export interface BoardroomCreateInput {
   trigger_type?: 'manual' | 'news' | 'model' | 'calendar';
   mode?: 'full' | 'short';
 }
+
+// ── Boardroom Signals (สัญญาณจากที่ประชุม) ─────────────────────────────────
+export interface BoardroomStanceCheck {
+  k: 'd1' | 'd3' | 'd7';
+  correct: boolean | null;
+  change_pct: number | null;
+  unit: string;
+}
+
+export interface BoardroomStance {
+  id: string;
+  meeting_id: string;
+  asset: string;
+  price_key: string | null;
+  source: string | null;
+  unit: 'bp' | 'pct';
+  direction: 'long' | 'short';
+  price_at: number | null;
+  current: number | null;
+  pnl: number | null;
+  dd: number | null;
+  due_at: string | null;
+  started_at: string;
+  horizon_days: number;
+  confidence: number | null;
+  consensus: string | null;
+  qualified: boolean;
+  reason: string | null;
+  unit_mismatch: boolean;
+  state: 'pending' | 'settled' | 'awaiting' | 'unresolved';
+  verdict: 'win' | 'loss' | 'push' | null;
+  checks: BoardroomStanceCheck[];
+}
+
+export interface BoardroomTrackRow {
+  asset: string;
+  unit: string;
+  wins: number;
+  losses: number;
+  pushes: number;
+  win_pct: number | null;
+  avg: number | null;
+}
+
+export interface BoardroomStanceStats {
+  pending_count: number;
+  settled_count: number;
+  win_rate: number | null;
+  win_rate_display: string | null;
+  wins: number;
+  losses: number;
+  pushes: number;
+  n: number;
+  cold_start: boolean;
+  pnl_live: { pct: number | null; bp: number | null; pct_n: number; bp_n: number };
+  pnl_realized: { pct: number | null; bp: number | null; pct_n: number; bp_n: number };
+  track_record: BoardroomTrackRow[];
+  checks_summary: { k: string; judged: number; pct: number | null; wins: number }[];
+}
+
+export interface BoardroomStancesPayload {
+  stances: BoardroomStance[];
+  stats: BoardroomStanceStats;
+}

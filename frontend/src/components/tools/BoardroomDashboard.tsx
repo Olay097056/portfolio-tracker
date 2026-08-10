@@ -490,7 +490,7 @@ function ClaimStats({ claims, seats }: { claims: BoardroomClaim[]; seats: Boardr
 }
 
 // ── main dashboard ─────────────────────────────────────────────────────────
-export function BoardroomDashboard() {
+export function BoardroomDashboard({ focusMeetingId }: { focusMeetingId?: string | null }) {
   const [meetings, setMeetings] = useState<BoardroomMeeting[]>([]);
   const [detail, setDetail] = useState<BoardroomMeetingDetail | null>(null);
   const [showOpen, setShowOpen] = useState(false);
@@ -499,6 +499,16 @@ export function BoardroomDashboard() {
   const [resumingId, setResumingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+
+  // จากแท็บ "สัญญาณที่ประชุม": กด "ไปที่ประชุม" → โหลดมตินั้นอัตโนมัติ
+  const [focusedId, setFocusedId] = useState<string | null>(focusMeetingId ?? null);
+  useEffect(() => {
+    if (focusMeetingId && focusMeetingId !== focusedId) {
+      setFocusedId(focusMeetingId);
+      loadDetail(focusMeetingId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusMeetingId]);
 
   const anyRunning = meetings.some((m) => m.status === 'running');
   const detailRunning = detail?.status === 'running';

@@ -36,7 +36,7 @@ def test_get_ai_narrative_parses_a_valid_model_response():
     # be misleading) -- it's computed deterministically by _detect_conflicts and overrides
     # whatever the model returns. See test_get_ai_narrative_conflicting_signals_are_rule_based.
     fake_response = '{"sentiment": "bearish", "narrative": "ระวัง RSI overbought รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response) as mock_call:
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response) as mock_call:
         result = get_ai_narrative("NVDA", _sample_metrics())
 
     assert result.sentiment == "bearish"
@@ -48,7 +48,7 @@ def test_get_ai_narrative_conflicting_signals_are_rule_based_not_model_provided(
     # The model is prompted to write about conflicts, but never asked (or trusted) to enumerate
     # them itself -- if it hallucinates a conflicting_signals field anyway, it must be ignored.
     fake_response = '{"sentiment": "bullish", "narrative": "x รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "conflicting_signals": ["a made-up conflict the model invented"], "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response):
         result = get_ai_narrative("NVDA", _sample_metrics())
 
     assert result.conflicting_signals is not None
@@ -61,7 +61,7 @@ def test_get_ai_narrative_no_conflicts_when_signals_agree():
         update={"rsi14": 55.0, "confidence_score": _sample_metrics().confidence_score.model_copy(update={"score": 70})}
     )
     fake_response = '{"sentiment": "bullish", "narrative": "x รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response):
         result = get_ai_narrative("NVDA", agreeing_metrics)
 
     assert result.conflicting_signals is None
@@ -69,7 +69,7 @@ def test_get_ai_narrative_no_conflicts_when_signals_agree():
 
 def test_get_ai_narrative_caches_per_ticker_per_day():
     fake_response = '{"sentiment": "neutral", "narrative": "test รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "conflicting_signals": null, "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response) as mock_call:
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response) as mock_call:
         get_ai_narrative("NVDA", _sample_metrics())
         get_ai_narrative("NVDA", _sample_metrics())  # second call, same ticker/day -- should hit cache
 
@@ -77,14 +77,14 @@ def test_get_ai_narrative_caches_per_ticker_per_day():
 
 
 def test_get_ai_narrative_raises_on_malformed_json():
-    with patch.object(ai_narrative_service, "_call_ollama", return_value="this is not json"):
+    with patch.object(ai_narrative_service, "_call_llm", return_value="this is not json"):
         with pytest.raises(AiNarrativeError):
             get_ai_narrative("NVDA", _sample_metrics())
 
 
 def test_get_ai_narrative_raises_on_wrong_shape():
     # valid JSON, but missing required fields / wrong sentiment value
-    with patch.object(ai_narrative_service, "_call_ollama", return_value='{"sentiment": "very bullish", "narrative": "x"}'):
+    with patch.object(ai_narrative_service, "_call_llm", return_value='{"sentiment": "very bullish", "narrative": "x"}'):
         with pytest.raises(AiNarrativeError):
             get_ai_narrative("NVDA", _sample_metrics())
 
@@ -100,14 +100,14 @@ def test_get_ai_narrative_raises_when_model_echoes_the_json_template_placeholder
         {"sentiment": "neutral", "narrative": NARRATIVE_PLACEHOLDER_TEXT, "caveats": [CAVEATS_PLACEHOLDER_TEXT]},
         ensure_ascii=False,
     )
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response):
         with pytest.raises(AiNarrativeError, match="template"):
             get_ai_narrative("NVDA", _sample_metrics())
 
 
 def test_get_ai_narrative_raises_on_suspiciously_short_narrative():
     fake_response = '{"sentiment": "neutral", "narrative": "สั้นไป", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response):
         with pytest.raises(AiNarrativeError):
             get_ai_narrative("NVDA", _sample_metrics())
 
@@ -115,7 +115,7 @@ def test_get_ai_narrative_raises_on_suspiciously_short_narrative():
 def test_degenerate_response_is_never_cached_so_a_retry_actually_re_calls_ollama():
     fake_bad = '{"sentiment": "neutral", "narrative": "สั้นไป", "caveats": []}'
     fake_good = '{"sentiment": "neutral", "narrative": "เนื้อหาการวิเคราะห์ที่สมบูรณ์และมีความยาวเพียงพอสำหรับผ่านการตรวจสอบของระบบในรอบนี้อย่างแท้จริง", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", side_effect=[fake_bad, fake_good]) as mock_call:
+    with patch.object(ai_narrative_service, "_call_llm", side_effect=[fake_bad, fake_good]) as mock_call:
         with pytest.raises(AiNarrativeError):
             get_ai_narrative("NVDA", _sample_metrics())
         result = get_ai_narrative("NVDA", _sample_metrics())
@@ -124,10 +124,10 @@ def test_degenerate_response_is_never_cached_so_a_retry_actually_re_calls_ollama
     assert "เนื้อหาการวิเคราะห์" in result.narrative
 
 
-def test_get_ai_narrative_raises_on_ollama_timeout():
-    import requests
+def test_get_ai_narrative_raises_on_openrouter_timeout():
+    import httpx
 
-    with patch("app.ai_narrative_service.requests.post", side_effect=requests.exceptions.Timeout()):
+    with patch("app.ai_narrative_service.httpx.post", side_effect=httpx.TimeoutException("timed out")):
         with pytest.raises(AiNarrativeError, match="timed out"):
             get_ai_narrative("NVDA", _sample_metrics())
 
@@ -135,7 +135,7 @@ def test_get_ai_narrative_raises_on_ollama_timeout():
 def test_conflict_rule_a_fires_on_strong_squeeze_with_neutral_rsi():
     metrics = _sample_metrics().model_copy(update={"bb_width_pct": 4.0, "is_squeeze": True, "rsi14": 50.0})
     fake_response = '{"sentiment": "neutral", "narrative": "x รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response):
         result = get_ai_narrative("NVDA", metrics)
 
     assert result.conflicting_signals is not None
@@ -146,7 +146,7 @@ def test_conflict_rule_a_does_not_fire_outside_the_squeeze_or_rsi_window():
     # BB Width not tight enough (< 5 required).
     metrics = _sample_metrics().model_copy(update={"bb_width_pct": 8.0, "is_squeeze": True, "rsi14": 50.0})
     fake_response = '{"sentiment": "neutral", "narrative": "x รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response):
         result = get_ai_narrative("NVDA", metrics)
     assert result.conflicting_signals is None or not any("Squeeze" in c for c in result.conflicting_signals)
 
@@ -162,7 +162,7 @@ def test_conflict_rule_b_fires_on_bullish_trend_near_resistance():
         }
     )
     fake_response = '{"sentiment": "bullish", "narrative": "x รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response):
         result = get_ai_narrative("NVDA", metrics)
 
     assert result.conflicting_signals is not None
@@ -174,7 +174,7 @@ def test_conflict_rule_b_does_not_fire_when_resistance_is_far_away():
         update={"nearest_resistance": ZoneRefIn(label="R1 (200.00)", price=200.0, distance_pct=15.0)}
     )
     fake_response = '{"sentiment": "bullish", "narrative": "x รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response):
         result = get_ai_narrative("NVDA", metrics)
     assert result.conflicting_signals is None or not any("แนวต้าน" in c for c in result.conflicting_signals)
 
@@ -191,7 +191,7 @@ def test_conflicts_are_capped_to_two_highest_priority_when_more_fire():
         }
     )
     fake_response = '{"sentiment": "bullish", "narrative": "x รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response):
         result = get_ai_narrative("NVDA", metrics)
 
     assert result.conflicting_signals is not None
@@ -204,7 +204,7 @@ def test_conflicts_are_capped_to_two_highest_priority_when_more_fire():
 def test_prompt_never_interpolates_a_bare_null_for_a_missing_indicator():
     metrics = _sample_metrics().model_copy(update={"volume_ratio": None, "atr14": None})
     fake_response = '{"sentiment": "neutral", "narrative": "x รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response) as mock_call:
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response) as mock_call:
         get_ai_narrative("NVDA", metrics)
 
     prompt = mock_call.call_args[0][0]
@@ -217,7 +217,7 @@ def test_prompt_never_interpolates_a_bare_null_for_a_missing_indicator():
 def test_prompt_shows_price_and_rsi_trend_when_previous_values_present():
     metrics = _sample_metrics().model_copy(update={"current_price": 571.48, "price_prev": 558.1, "rsi14": 58.6, "rsi14_prev": 54.2})
     fake_response = '{"sentiment": "neutral", "narrative": "x รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response) as mock_call:
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response) as mock_call:
         get_ai_narrative("NVDA", metrics)
 
     prompt = mock_call.call_args[0][0]
@@ -228,7 +228,7 @@ def test_prompt_shows_price_and_rsi_trend_when_previous_values_present():
 def test_prompt_says_previous_data_unavailable_rather_than_omit_or_fabricate_it():
     metrics = _sample_metrics().model_copy(update={"current_price": 571.48, "price_prev": None})
     fake_response = '{"sentiment": "neutral", "narrative": "x รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response) as mock_call:
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response) as mock_call:
         get_ai_narrative("NVDA", metrics)
 
     prompt = mock_call.call_args[0][0]
@@ -238,7 +238,7 @@ def test_prompt_says_previous_data_unavailable_rather_than_omit_or_fabricate_it(
 def test_prompt_includes_market_context_when_both_sector_and_trend_provided():
     metrics = _sample_metrics().model_copy(update={"sector": "Technology", "market_trend": "ขาขึ้น"})
     fake_response = '{"sentiment": "neutral", "narrative": "x รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response) as mock_call:
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response) as mock_call:
         get_ai_narrative("NVDA", metrics)
 
     prompt = mock_call.call_args[0][0]
@@ -250,7 +250,7 @@ def test_prompt_includes_52_week_context_when_present():
         update={"week52_high": 620.0, "week52_low": 400.0, "distance_from_52w_high_pct": 7.8, "distance_from_52w_low_pct": 42.9}
     )
     fake_response = '{"sentiment": "neutral", "narrative": "x รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response) as mock_call:
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response) as mock_call:
         get_ai_narrative("NVDA", metrics)
 
     prompt = mock_call.call_args[0][0]
@@ -262,7 +262,7 @@ def test_prompt_includes_52_week_context_when_present():
 
 def test_prompt_52_week_context_falls_back_to_no_data_when_absent():
     fake_response = '{"sentiment": "neutral", "narrative": "x รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response) as mock_call:
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response) as mock_call:
         get_ai_narrative("NVDA", _sample_metrics())
 
     prompt = mock_call.call_args[0][0]
@@ -271,7 +271,7 @@ def test_prompt_52_week_context_falls_back_to_no_data_when_absent():
 
 def test_prompt_market_context_falls_back_to_no_data_when_absent():
     fake_response = '{"sentiment": "neutral", "narrative": "x รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response) as mock_call:
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response) as mock_call:
         get_ai_narrative("NVDA", _sample_metrics())
 
     prompt = mock_call.call_args[0][0]
@@ -291,7 +291,7 @@ def test_insufficient_data_skips_ollama_entirely():
             "moving_averages": _sample_metrics().moving_averages.model_copy(update={"sma20": None}),
         }
     )
-    with patch.object(ai_narrative_service, "_call_ollama") as mock_call:
+    with patch.object(ai_narrative_service, "_call_llm") as mock_call:
         result = get_ai_narrative("NVDA", sparse_metrics)
 
     mock_call.assert_not_called()
@@ -311,7 +311,7 @@ def test_insufficient_data_threshold_is_missing_at_least_four_of_five_core_field
         }
     )
     fake_response = '{"sentiment": "neutral", "narrative": "x รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response) as mock_call:
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response) as mock_call:
         get_ai_narrative("NVDA", metrics)
 
     mock_call.assert_called_once()
@@ -322,7 +322,7 @@ def test_sentiment_forced_to_neutral_when_squeeze_conflict_fires_even_if_model_s
     # direction, the model answered sentiment="bullish" anyway. Not trusted -- forced to neutral.
     metrics = _sample_metrics().model_copy(update={"bb_width_pct": 3.5, "is_squeeze": True, "rsi14": 50.0})
     fake_response = '{"sentiment": "bullish", "narrative": "x รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response):
         result = get_ai_narrative("NVDA", metrics)
 
     assert result.sentiment == "neutral"
@@ -331,7 +331,7 @@ def test_sentiment_forced_to_neutral_when_squeeze_conflict_fires_even_if_model_s
 def test_sentiment_left_alone_when_no_squeeze_conflict():
     metrics = _sample_metrics().model_copy(update={"is_squeeze": False})
     fake_response = '{"sentiment": "bearish", "narrative": "x รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response):
         result = get_ai_narrative("NVDA", metrics)
 
     assert result.sentiment == "bearish"
@@ -341,7 +341,7 @@ def test_fact_check_flags_rsi_called_high_when_it_is_neutral():
     # Live-tested 2026-08-07: the model called RSI 51.0 "อยู่ในโซนสูง" (high zone).
     metrics = _sample_metrics().model_copy(update={"rsi14": 51.0})
     fake_response = '{"sentiment": "bullish", "narrative": "RSI ที่อยู่ในโซนสูง แสดงถึงความแข็งแกร่ง รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response):
         result = get_ai_narrative("NVDA", metrics)
 
     assert any("RSI" in c and "51.0" in c for c in result.caveats)
@@ -350,7 +350,7 @@ def test_fact_check_flags_rsi_called_high_when_it_is_neutral():
 def test_fact_check_does_not_flag_rsi_called_high_when_it_really_is():
     metrics = _sample_metrics().model_copy(update={"rsi14": 78.0})
     fake_response = '{"sentiment": "bullish", "narrative": "RSI ที่อยู่ในโซนสูง แสดงถึงความแข็งแกร่ง รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response):
         result = get_ai_narrative("NVDA", metrics)
 
     assert not any("RSI" in c and "โปรดตรวจสอบ" in c for c in result.caveats)
@@ -362,7 +362,7 @@ def test_fact_check_flags_macd_called_confirming_when_it_is_neutral():
         update={"macd": _sample_metrics().macd.model_copy(update={"crossover": "NEUTRAL", "is_bullish_crossover": False})}
     )
     fake_response = '{"sentiment": "bullish", "narrative": "MACD ยืนยันแนวโน้มขาขึ้นที่ชัดเจน รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response):
         result = get_ai_narrative("NVDA", metrics)
 
     assert any("MACD" in c and "NEUTRAL" in c for c in result.caveats)
@@ -372,7 +372,7 @@ def test_fact_check_flags_volume_called_above_average_when_it_is_below():
     # Live-tested 2026-08-07: the model called 0.8x volume "สูงกว่าค่าเฉลี่ย 20 วัน".
     metrics = _sample_metrics().model_copy(update={"volume_ratio": 0.8})
     fake_response = '{"sentiment": "bullish", "narrative": "Volume Ratio ที่สูงกว่าค่าเฉลี่ย 20 วัน รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response):
         result = get_ai_narrative("NVDA", metrics)
 
     assert any("Volume" in c and "0.8" in c for c in result.caveats)
@@ -384,7 +384,7 @@ def test_fact_check_flags_ma_called_golden_cross_when_it_is_not():
         update={"moving_averages": _sample_metrics().moving_averages.model_copy(update={"ma_cross_state": "NEUTRAL", "is_bullish_alignment": False})}
     )
     fake_response = '{"sentiment": "bullish", "narrative": "Moving Average ยังตัดกันเป็นผลดีต่อการเคลื่อนไหวของราคา รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response):
         result = get_ai_narrative("NVDA", metrics)
 
     assert any("Moving Average" in c and "NEUTRAL" in c for c in result.caveats)
@@ -392,7 +392,7 @@ def test_fact_check_flags_ma_called_golden_cross_when_it_is_not():
 
 def test_fact_check_adds_no_caveat_when_narrative_makes_no_flagged_claims():
     fake_response = '{"sentiment": "neutral", "narrative": "หุ้นตัวนี้เคลื่อนไหวในกรอบ ยังไม่มีสัญญาณชัดเจน รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "caveats": ["ตัวอย่างข้อควรระวังเดิม"]}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response):
         result = get_ai_narrative("NVDA", _sample_metrics())
 
     assert result.caveats == ["ตัวอย่างข้อควรระวังเดิม"]
@@ -409,7 +409,7 @@ def test_fact_check_catches_lowercase_overbought_in_parentheses_real_spcx_case()
         'ผ่านมาจาก 18.33 เป็น 43.99 ซึ่งบ่งชี้ว่าตลาดกำลังเข้าสู่ภาวะซื้อขายมากเกินไป (overbought) '
         'นอกจากนี้ Moving Average ยังไม่มีข้อมูลในรอบนี้", "caveats": []}'
     )
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response):
         result = get_ai_narrative("SPCX", metrics)
 
     assert any("Overbought" in c and "43.99" in c for c in result.caveats)
@@ -423,7 +423,7 @@ def test_fact_check_catches_ma_over_generalized_to_no_data_when_sma20_is_real():
         update={"moving_averages": _sample_metrics().moving_averages.model_copy(update={"sma20": 130.0, "sma50": None, "sma200": None})}
     )
     fake_response = '{"sentiment": "neutral", "narrative": "นอกจากนี้ Moving Average ยังไม่มีข้อมูลในรอบนี้ แต่ MACD แสดงให้เห็นว่าโมเมนตัมยังคงอยู่ในทิศทางขาขึ้น", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response):
         result = get_ai_narrative("SPCX", metrics)
 
     assert any("Moving Average" in c and "SMA20" in c for c in result.caveats)
@@ -434,22 +434,22 @@ def test_fact_check_does_not_flag_ma_no_data_claim_when_all_ma_fields_really_are
         update={"moving_averages": _sample_metrics().moving_averages.model_copy(update={"sma20": None, "sma50": None, "sma200": None})}
     )
     fake_response = '{"sentiment": "neutral", "narrative": "Moving Average ยังไม่มีข้อมูลในรอบนี้ รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาว", "caveats": []}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response):
         result = get_ai_narrative("SPCX", metrics)
 
     assert not any("Moving Average" in c and "SMA20" in c for c in result.caveats)
 
 
-def test_get_ai_narrative_raises_on_ollama_unreachable():
-    import requests
+def test_get_ai_narrative_raises_on_openrouter_unreachable():
+    import httpx
 
-    with patch("app.ai_narrative_service.requests.post", side_effect=requests.exceptions.ConnectionError()):
-        with pytest.raises(AiNarrativeError, match="reach Ollama"):
+    with patch("app.ai_narrative_service.httpx.post", side_effect=httpx.ConnectError("connection refused")):
+        with pytest.raises(AiNarrativeError, match="Could not reach OpenRouter"):
             get_ai_narrative("NVDA", _sample_metrics())
 
 
 def test_analyze_route_returns_503_on_failure(client):
-    with patch.object(ai_narrative_service, "_call_ollama", return_value="not json"):
+    with patch.object(ai_narrative_service, "_call_llm", return_value="not json"):
         response = client.post(
             "/ai-narrative/analyze",
             json={"ticker": "NVDA", "metrics": _sample_metrics().model_dump(by_alias=False)},
@@ -459,7 +459,7 @@ def test_analyze_route_returns_503_on_failure(client):
 
 def test_analyze_route_returns_200_on_success(client):
     fake_response = '{"sentiment": "bullish", "narrative": "แข็งแกร่ง รายละเอียดเพิ่มเติมสำหรับสถานการณ์นี้ในเชิงเทคนิคเพื่อให้ครบตามความยาวที่กำหนดไว้ในการทดสอบ", "conflicting_signals": null, "caveats": ["ตัวอย่างเดียว ไม่ใช่คำแนะนำการลงทุน"]}'
-    with patch.object(ai_narrative_service, "_call_ollama", return_value=fake_response):
+    with patch.object(ai_narrative_service, "_call_llm", return_value=fake_response):
         response = client.post(
             "/ai-narrative/analyze",
             json={"ticker": "NVDA", "metrics": _sample_metrics().model_dump(by_alias=False)},

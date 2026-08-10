@@ -1,8 +1,8 @@
 # backend/app/ai_narrative_service.py
-"""Ollama-backed AI narrative for the AI Technical Signal feature (wayfinder ticket 09,
-contract decided in ticket 04). Local-only LLM, on-demand (never auto-triggered — llama3.2:3b
-takes ~39s per call on this CPU-only host per ticket 02's measurement), cached per (ticker, date)
-so a same-day re-request for the same ticker doesn't re-run inference.
+"""DeepSeek-via-OpenRouter backed AI narrative for the AI Technical Signal feature (wayfinder
+tickets 09/04; LLM switched from Ollama to OpenRouter 2026-08-10). Cloud LLM, on-demand (never
+auto-triggered), cached per (ticker, date) so a same-day re-request for the same ticker doesn't
+re-run inference.
 
 The frontend already computes every indicator (aiTechnicalSignal.ts) — this module never
 recomputes anything, it only formats those already-computed values into a prompt and asks the
@@ -14,23 +14,18 @@ from __future__ import annotations
 import json
 from datetime import date
 
-import requests
+import httpx
 
+from app.news_service import DEEPSEEK_MODEL, DEEPSEEK_URL, _deepseek_key
 from app.schemas import AiNarrativeOut, AiSignalMetricsIn
 
-OLLAMA_URL = "http://host.docker.internal:11434/api/generate"
-# Switched from llama3.2:3b (ticket 02's pick, on reasoning-quality grounds) to the Thai-tuned
-# model after live user feedback that the narrative read as awkward/hard to follow and too
-# short. Safe to switch now that conflict detection no longer depends on the LLM noticing it
-# unprompted -- see _detect_conflicts() below, added the same day after a live re-test showed
-# *neither* model reliably caught a planted RSI-overbought/bullish-MACD conflict once the prompt
-# asked for a longer, more structured narrative (llama3.2:3b's output degraded into an
-# incoherent fragment; typhoon2-3b wrote fluent Thai but still misread RSI-overbought as
-# confirming bullish strength, the same failure mode ticket 02 first found). Rather than keep
-# gambling on which 3B model's reasoning is less unreliable this week, conflicts are now computed
-# deterministically in Python and handed to the model as a fact to explain, not a thing to spot.
-MODEL = "scb10x/llama3.2-typhoon2-3b-instruct"
-TIMEOUT_SECONDS = 120  # typhoon2-3b measured slower (~70s) than llama3.2:3b (~39s) on this host
+# Conflicts are computed deterministically in Python and handed to the model as a fact to
+# explain, not a thing to spot (see _detect_conflicts) — survives the model swap below.
+# 2026-08-10: switched the LLM from Ollama local (typhoon2-3b, ~39-70s CPU) to DeepSeek via
+# OpenRouter (deepseek/deepseek-v4-flash-0731, reasoning disabled) — measured 11.2s / $0.00027
+# per call on the real prompt (ai-analyst-openrouter ticket 01). Same config as the rest of the
+# app (news_service.DEEPSEEK_*), so no separate Ollama process/container to run.
+TIMEOUT_SECONDS = 300  # DeepSeek long-form Thai narrative; generous but OpenRouter is cloud
 
 # In-process memory only -- lives inside whichever uvicorn worker handles the request, not a
 # shared/persistent store. clear_cache() run from a separate script/process (e.g. a one-off
@@ -354,30 +349,48 @@ def _fact_check_narrative(narrative: str, m: AiSignalMetricsIn) -> list[str]:
     return warnings
 
 
-def _call_ollama(prompt: str) -> str:
+def _call_llm(prompt: str) -> str:
+    """DeepSeek via OpenRouter (same config as the rest of the app — news_service.DEEPSEEK_*).
+
+    reasoning disabled (OpenRouter-native; `thinking` didn't stick) + json_object so the model
+    returns the AiNarrativeOut JSON directly, as the prompt already asks. Returns the raw
+    content string; the caller's _parse_model_output handles anything non-JSON.
+    """
+    key = _deepseek_key()
+    if not key:
+        raise AiNarrativeError("DEEPSEEK_API_KEY not set (OpenRouter)")
     try:
-        resp = requests.post(
-            OLLAMA_URL,
-            json={"model": MODEL, "prompt": prompt, "stream": False, "format": "json"},
+        r = httpx.post(
+            DEEPSEEK_URL,
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            json={
+                "model": DEEPSEEK_MODEL,
+                "messages": [
+                    {"role": "system", "content": "คุณคือนักวิเคราะห์เทคนิคอลหุ้นที่ตอบเป็นภาษาไทย"},
+                    {"role": "user", "content": prompt},
+                ],
+                "max_tokens": 8000,
+                "stream": False,
+                "response_format": {"type": "json_object"},
+                "reasoning": {"enabled": False},
+            },
             timeout=TIMEOUT_SECONDS,
         )
-    except requests.exceptions.Timeout as e:
-        raise AiNarrativeError(f"Ollama call timed out after {TIMEOUT_SECONDS}s") from e
-    except requests.exceptions.ConnectionError as e:
-        raise AiNarrativeError("Could not reach Ollama (is it running? OLLAMA_HOST=0.0.0.0 set?)") from e
+    except httpx.TimeoutException as e:
+        raise AiNarrativeError(f"OpenRouter call timed out after {TIMEOUT_SECONDS}s") from e
+    except httpx.HTTPError as e:
+        raise AiNarrativeError(f"Could not reach OpenRouter: {type(e).__name__}") from e
 
-    if resp.status_code != 200:
-        raise AiNarrativeError(f"Ollama returned HTTP {resp.status_code}: {resp.text[:200]}")
+    if r.status_code != 200:
+        raise AiNarrativeError(f"OpenRouter returned HTTP {r.status_code}: {r.text[:200]}")
 
     try:
-        body = resp.json()
-    except ValueError as e:
-        raise AiNarrativeError("Ollama's own response wasn't valid JSON") from e
-
-    response_text = body.get("response")
-    if not response_text:
-        raise AiNarrativeError("Ollama response had no 'response' field")
-    return response_text
+        content = r.json()["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, ValueError) as e:
+        raise AiNarrativeError("OpenRouter response had no content to parse") from e
+    if not content:
+        raise AiNarrativeError("OpenRouter returned empty content")
+    return content
 
 
 def _parse_model_output(raw: str) -> AiNarrativeOut:
@@ -433,10 +446,10 @@ def get_ai_narrative(ticker: str, metrics: AiSignalMetricsIn) -> AiNarrativeOut:
 
     conflicts = _detect_conflicts(metrics)
     prompt = _build_prompt(ticker, metrics, conflicts)
-    raw = _call_ollama(prompt)
+    raw = _call_llm(prompt)
     result = _parse_model_output(raw)
     if _is_degenerate_response(result):
-        # Never cache this -- a retry should actually re-call Ollama, not get stuck replaying
+        # Never cache this -- a retry should actually re-call the LLM, not get stuck replaying
         # the same empty non-answer for the rest of the day (see _is_degenerate_response).
         raise AiNarrativeError("Model echoed the prompt's own JSON template instead of writing real analysis")
     # conflicting_signals is authoritative from the rule-based detector, not the model's own JSON

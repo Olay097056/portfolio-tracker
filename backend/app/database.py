@@ -9,11 +9,15 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 # this they would read and write the developer's real portfolio.db.
 SQLALCHEMY_DATABASE_URL = os.environ.get("PORTFOLIO_DB_URL", "sqlite:///./portfolio.db")
 
-# check_same_thread is SQLite-only; Postgres (Supabase) needs no connect_args.
-# Keep it conditional so the SQLite dev/test path still works across threads.
+# check_same_thread is SQLite-only; Supabase pooler (pgbouncer transaction
+# mode) breaks psycopg3 prepared statements (DuplicatePreparedStatement on
+# executemany) -> disable them via prepare_threshold=None. Local Postgres is
+# unaffected (the option just disables client-side prepare).
 _connect_args = {}
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
     _connect_args["check_same_thread"] = False
+elif "postgresql" in SQLALCHEMY_DATABASE_URL:
+    _connect_args["prepare_threshold"] = None
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args=_connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

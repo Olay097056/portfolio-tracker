@@ -11,6 +11,8 @@ import type {
   CountryDetail,
   CountryReport,
   DividendSignalRow,
+  OverviewBrief,
+  OverviewDashboard,
   FearGreed,
   Holding,
   HoldingCreateInput,
@@ -297,6 +299,15 @@ export function getMacroDashboard(): Promise<MacroDashboard> {
 
 export function refreshMacroDashboard(): Promise<MacroDashboard> {
   return request<MacroDashboard>('/api/macro/refresh', { method: 'POST' });
+}
+
+// --- Overview Dashboard (bond-crisis ภาพรวม) ---
+export function getOverviewDashboard(): Promise<OverviewDashboard> {
+  return request<OverviewDashboard>('/api/overview');
+}
+
+export function refreshOverviewBrief(): Promise<OverviewBrief> {
+  return request<OverviewBrief>('/api/overview/brief', { method: 'POST' });
 }
 
 // --- Profit Models ---

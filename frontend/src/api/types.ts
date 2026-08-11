@@ -976,3 +976,89 @@ export interface TradeDeskState {
   teams: TradeTeamView[];
   updated_at: string;
 }
+
+// --- Overview Dashboard (bond-crisis ภาพรวม) ---
+export interface OverviewTrigger {
+  name: string;
+  strength: number;
+}
+
+export interface OverviewRegime {
+  phase: string;
+  phase_th: string | null;
+  phase_en: string | null;
+  top_model_id: string;
+  top_model_name_th: string | null;
+  top_model_name_en: string | null;
+  top_model_score: number | null;
+  top_model_status: string | null;
+  top_model_trade_direction: string | null;
+  top_model_color: string | null;
+  confidence: number | null;
+  gap_to_second: number | null;
+  is_transition_zone: boolean;
+  triggers: OverviewTrigger[];
+  updated_at: string | null;
+}
+
+export interface OverviewKeyFigure {
+  series_id: string;
+  name_th: string;
+  value: number | null;
+  unit: string;
+  change_pct: number | null;
+  change_val: number | null;
+}
+
+export interface OverviewYieldPoint {
+  tenor: string;
+  yield: number | null;
+}
+
+export interface OverviewModelCard {
+  rank: number | null;
+  model_id: string;
+  name_th: string;
+  short_th: string;
+  score: number | null;
+  status: string | null;
+  confidence: number | null;
+  color: string;
+}
+
+export interface OverviewCountryRisk {
+  country_code: string;
+  score: number | null;
+  level: string | null;
+}
+
+export interface OverviewBriefEvent {
+  date: string;
+  title: string;
+  impact: string;
+  country: string;
+  date_th?: string;
+  forecast?: string;
+  previous?: string;
+}
+
+export interface OverviewBrief {
+  brief_md: string;
+  recommendations: string[];
+  scenarios: string[];
+  key_events: OverviewBriefEvent[];
+  model_used?: string;
+  generated_at?: string;
+}
+
+export interface OverviewDashboard {
+  regime: OverviewRegime | null;
+  models: OverviewModelCard[];
+  key_figures: OverviewKeyFigure[];
+  yield_curve: OverviewYieldPoint[];
+  country_risk: { top: OverviewCountryRisk[]; total: number };
+  warnings: unknown[];
+  brief: OverviewBrief | null;
+  updated_at: string;
+  data_sources: string[];
+}

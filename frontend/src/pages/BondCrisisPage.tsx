@@ -7,6 +7,7 @@ import { CountriesDashboard } from '../components/tools/CountriesDashboard';
 import { ForecastDashboard } from '../components/tools/ForecastDashboard';
 import { MacroDashboard } from '../components/tools/MacroDashboard';
 import { ModelsDashboard } from '../components/tools/ModelsDashboard';
+import { OverviewDashboard } from '../components/tools/OverviewDashboard';
 import { SignalsDashboard } from '../components/tools/SignalsDashboard';
 import { NewsDashboard } from '../components/tools/NewsDashboard';
 
@@ -19,7 +20,7 @@ import { NewsDashboard } from '../components/tools/NewsDashboard';
 // วิกฤตแบงก์รัน (/banking), รายประเทศ (/countries), จำลองสถานการณ์ (/forecast),
 // ห้องประชุม (/boardroom) and ข่าวสาร (/news) pages.
 export function BondCrisisPage() {
-  const [tab, setTab] = useState<'macro' | 'models' | 'signals' | 'banking' | 'countries' | 'forecast' | 'boardroom' | 'boardroom-signals' | 'trade-desk' | 'news'>('macro');
+  const [tab, setTab] = useState<'overview' | 'macro' | 'models' | 'signals' | 'banking' | 'countries' | 'forecast' | 'boardroom' | 'boardroom-signals' | 'trade-desk' | 'news'>('overview');
   const [signalsFocusMeeting, setSignalsFocusMeeting] = useState<string | null>(null);
 
   const goMeetingFromSignals = (meetingId: string) => {
@@ -28,6 +29,7 @@ export function BondCrisisPage() {
   };
 
   const tabs = [
+    { id: 'overview' as const, label: 'ภาพรวม' },
     { id: 'macro' as const, label: 'ข้อมูลมหภาค' },
     { id: 'models' as const, label: 'โมเดลทำกำไร' },
     { id: 'signals' as const, label: 'สัญญาณเทรด' },
@@ -79,7 +81,9 @@ export function BondCrisisPage() {
         ))}
       </div>
 
-      {tab === 'macro' ? (
+      {tab === 'overview' ? (
+        <OverviewDashboard />
+      ) : tab === 'macro' ? (
         <MacroDashboard />
       ) : tab === 'models' ? (
         <ModelsDashboard />

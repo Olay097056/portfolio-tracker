@@ -1100,3 +1100,12 @@ export interface HyperliquidMarketsResponse {
   by_category: Record<string, number>;
   updated_at: string;
 }
+
+// --- Job status (office 3D) ---
+export interface JobRunView {
+  id: number; job_name: string; started_at: string | null;
+  finished_at: string | null; status: string; detail: string | null;
+}
+export interface JobStatus {
+  recent_runs: JobRunView[]; running: boolean;
+}

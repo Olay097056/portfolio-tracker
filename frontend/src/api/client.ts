@@ -51,6 +51,7 @@ import type {
   TradeDeskState,
   TradeDeskTurnResult,
   HyperliquidMarketsResponse,
+  JobStatus,
 } from './types';
 import type { AiSignalMetrics } from '../utils/aiTechnicalSignal';
 
@@ -634,4 +635,9 @@ export function triggerTradeDeskTurn(teamCode: string, agenda?: string): Promise
 // --- Hyperliquid markets ---
 export function getHyperliquidMarkets(): Promise<HyperliquidMarketsResponse> {
   return request<HyperliquidMarketsResponse>('/api/hyperliquid/markets');
+}
+
+// --- Job status (office 3D) ---
+export function getJobStatus(): Promise<JobStatus> {
+  return request<JobStatus>('/api/jobs/status');
 }

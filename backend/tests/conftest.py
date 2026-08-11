@@ -46,6 +46,7 @@ import app.jobs  # noqa: F401,E402  (registers job_runs table)
 import app.news_service  # noqa: F401,E402  (registers the news_items table)
 import app.boardroom_service  # noqa: F401,E402  (registers the boardroom_* tables)
 import app.boardroom_stance_service  # noqa: F401,E402  (registers boardroom_stances/unresolved)
+import app.trade_desk_service  # noqa: F401,E402  (registers trade_* tables)
 from app.database import Base, engine, get_db, SessionLocal  # noqa: E402
 from app.main import app  # noqa: E402  (imports every router, registering their tables)
 

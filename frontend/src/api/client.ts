@@ -48,6 +48,9 @@ import type {
   BoardroomList,
   BoardroomCreateInput,
   BoardroomStancesPayload,
+  TradeDeskState,
+  TradeDeskTurnResult,
+  HyperliquidMarketsResponse,
 } from './types';
 import type { AiSignalMetrics } from '../utils/aiTechnicalSignal';
 
@@ -615,4 +618,20 @@ export function resumeBoardroomMeeting(id: string): Promise<BoardroomMeeting> {
 
 export function getBoardroomStances(): Promise<BoardroomStancesPayload> {
   return request<BoardroomStancesPayload>('/api/boardroom/stances');
+}
+
+// --- Trade Desk (multi-agent) ---
+export function getTradeDeskState(): Promise<TradeDeskState> {
+  return request<TradeDeskState>('/api/trade-desk/state');
+}
+
+export function triggerTradeDeskTurn(teamCode: string, agenda?: string): Promise<TradeDeskTurnResult> {
+  const params = new URLSearchParams({ team_code: teamCode });
+  if (agenda) params.set('agenda', agenda);
+  return request<TradeDeskTurnResult>(`/api/trade-desk/turn?${params}`, { method: 'POST' });
+}
+
+// --- Hyperliquid markets ---
+export function getHyperliquidMarkets(): Promise<HyperliquidMarketsResponse> {
+  return request<HyperliquidMarketsResponse>('/api/hyperliquid/markets');
 }

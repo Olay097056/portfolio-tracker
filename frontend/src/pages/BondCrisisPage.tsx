@@ -3,6 +3,7 @@ import { BankingDashboard } from '../components/tools/BankingDashboard';
 import { BoardroomDashboard } from '../components/tools/BoardroomDashboard';
 import { BoardroomSignalsDashboard } from '../components/tools/BoardroomSignalsDashboard';
 import { CmeDashboard } from '../components/tools/CmeDashboard';
+import { TradeDeskDashboard } from '../components/tools/TradeDeskDashboard';
 import { SentimentDashboard } from '../components/tools/SentimentDashboard';
 import { LearnDashboard } from '../components/tools/LearnDashboard';
 import { SettingsDashboard } from '../components/tools/SettingsDashboard';
@@ -23,7 +24,7 @@ import { NewsDashboard } from '../components/tools/NewsDashboard';
 // วิกฤตแบงก์รัน (/banking), รายประเทศ (/countries), จำลองสถานการณ์ (/forecast),
 // ห้องประชุม (/boardroom) and ข่าวสาร (/news) pages.
 export function BondCrisisPage() {
-  const [tab, setTab] = useState<'overview' | 'macro' | 'models' | 'signals' | 'sentiment' | 'cme' | 'banking' | 'countries' | 'forecast' | 'boardroom' | 'boardroom-signals' | 'news' | 'learn' | 'settings'>('overview');
+  const [tab, setTab] = useState<'overview' | 'macro' | 'models' | 'signals' | 'sentiment' | 'cme' | 'banking' | 'countries' | 'forecast' | 'boardroom' | 'boardroom-signals' | 'trade-desk' | 'news' | 'learn' | 'settings'>('overview');
   const [signalsFocusMeeting, setSignalsFocusMeeting] = useState<string | null>(null);
 
   const goMeetingFromSignals = (meetingId: string) => {
@@ -43,6 +44,7 @@ export function BondCrisisPage() {
     { id: 'forecast' as const, label: 'จำลองสถานการณ์' },
     { id: 'boardroom' as const, label: 'ห้องประชุม' },
     { id: 'boardroom-signals' as const, label: 'สัญญาณที่ประชุม' },
+    { id: 'trade-desk' as const, label: 'ทีมเทรด' },
     { id: 'news' as const, label: 'ข่าวสาร' },
     { id: 'learn' as const, label: 'บทเรียน' },
     { id: 'settings' as const, label: 'ตั้งค่า' },
@@ -109,6 +111,8 @@ export function BondCrisisPage() {
         <BoardroomDashboard focusMeetingId={signalsFocusMeeting} />
       ) : tab === 'boardroom-signals' ? (
         <BoardroomSignalsDashboard onGoMeeting={goMeetingFromSignals} />
+      ) : tab === 'trade-desk' ? (
+        <TradeDeskDashboard />
       ) : tab === 'learn' ? (
         <LearnDashboard />
       ) : tab === 'settings' ? (

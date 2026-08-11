@@ -1044,3 +1044,59 @@ export interface CmeZone {
 }
 
 
+
+// --- Trade Desk (multi-agent) ---
+export interface TradeDeskTeam {
+  code: string; name_th: string; name_en: string; status: string;
+  capital: number; balance: number; equity: number; pnl_pct: number;
+  margin_used: number; weekly_target_pct: number; weekly_kpi_pct: number;
+  next_turn_at: string | null; turns_today: number;
+  cost_today_usd: number; cost_total_usd: number;
+}
+
+export interface TradeDeskPosition {
+  id: string; symbol: string; side: string; size_pct: number;
+  entry_price: number; mark_price: number | null; sl_pct: number | null;
+  tp_pct: number | null; live_pnl: number; opened_at: string | null;
+}
+
+export interface TradeDeskClosedPosition {
+  id: string; symbol: string; side: string; entry_price: number;
+  close_price: number | null; realized_pnl: number;
+  closed_by: string | null; closed_at: string | null;
+}
+
+export interface TradeDeskTurn {
+  id: string; agenda: string; consensus: string;
+  lead_decision: Record<string, unknown>;
+  tokens_in: number; tokens_out: number; cost_usd: number;
+  trigger: string; started_at: string | null;
+}
+
+export interface TradeDeskState {
+  teams: TradeDeskTeam[];
+  positions: { open: TradeDeskPosition[]; closed: TradeDeskClosedPosition[] };
+  turns: TradeDeskTurn[];
+  updated_at: string | null;
+}
+
+export interface TradeDeskTurnResult {
+  turn_id: string; action: string; market: string; side: string;
+  rationale: string; consensus: string; tokens_in: number;
+  tokens_out: number; cost_usd: number;
+}
+
+// --- Hyperliquid ---
+export interface HyperliquidMarket {
+  symbol: string; category: string; mark_price: number | null;
+  mid_price: number | null; change_24h_pct: number | null;
+  funding_rate: number | null; open_interest: number | null;
+  volume_24h: number | null; max_leverage: number | null;
+}
+
+export interface HyperliquidMarketsResponse {
+  markets: HyperliquidMarket[];
+  total: number;
+  by_category: Record<string, number>;
+  updated_at: string;
+}

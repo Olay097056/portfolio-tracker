@@ -1108,3 +1108,18 @@ export interface CmeZone {
   updated_at: string;
   data_sources: string[];
 }
+
+// --- Job status (office 3D) ---
+export interface JobRunView {
+  id: number;
+  job_name: string;
+  started_at: string | null;
+  finished_at: string | null;
+  status: string;
+  detail: string | null;
+}
+
+export interface JobStatus {
+  recent_runs: JobRunView[];
+  running: boolean;
+}

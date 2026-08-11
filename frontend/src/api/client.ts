@@ -14,6 +14,7 @@ import type {
   OverviewBrief,
   OverviewDashboard,
   CmeZone,
+  JobStatus,
   FearGreed,
   Holding,
   HoldingCreateInput,
@@ -314,6 +315,11 @@ export function refreshOverviewBrief(): Promise<OverviewBrief> {
 // --- CME Zone (bond-crisis /cme) ---
 export function getCmeZone(): Promise<CmeZone> {
   return request<CmeZone>('/api/cme');
+}
+
+// --- Job status (office 3D) ---
+export function getJobStatus(): Promise<JobStatus> {
+  return request<JobStatus>('/api/jobs/status');
 }
 
 // --- Profit Models ---

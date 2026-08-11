@@ -73,12 +73,19 @@ class HistoryPointOut(BaseModel):
 class BankingOut(BaseModel):
     funding: list[FundingCardOut]
     stat_cards: dict[str, StatCardOut | PriceCardOut | None]
+    bank_stocks: list[BankStockOut] = []
     gauge: GaugeOut
     deposit_flow: list[HistoryPointOut]
     sofr_effr_spread: list[HistoryPointOut]
     model: ModelOut
     updated_at: str
     data_sources: list[str]
+
+
+class BankStockOut(BaseModel):
+    symbol: str
+    price: float | None = None
+    change_pct: float | None = None
 
 
 def _get_or_fetch(force: bool = False) -> dict:

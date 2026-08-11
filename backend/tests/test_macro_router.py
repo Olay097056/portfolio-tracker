@@ -35,7 +35,7 @@ FRED_ROWS: dict[str, list[tuple[str, float]]] = {
     "H41RESPPALDKNWW": [("2026-04-29", 0), ("2026-05-06", 0)],
     "STLFSI4": [("2026-07-24", -0.62), ("2026-07-31", -0.51)],
     "WRESBAL": [("2026-07-29", 2984570), ("2026-08-05", 2993349)],
-    "DPSACBW027SBOG": [("2026-07-15", 19466615.8), ("2026-07-22", 19401114.7)],
+    "DPSACBW027SBOG": [("2026-07-15", 19466.8), ("2026-07-22", 19401.1)],
     "DPSSCBW027SBOG": [("2026-07-15", 5644.2), ("2026-07-22", 5635.9)],
     "DFII10": [("2026-08-04", 2.40), ("2026-08-05", 2.42), ("2026-08-06", 2.43)],
     "T10YIE": [("2026-08-05", 2.24), ("2026-08-06", 2.25)],
@@ -81,7 +81,10 @@ def _stub_yfinance(monkeypatch):
 
 def _stub_extras(monkeypatch):
     monkeypatch.setattr(macro_service, "_fetch_tga", lambda: TGA_ROWS)
-    monkeypatch.setattr(macro_service, "_fetch_auction_bid_to_cover", lambda term="10-Year": AUCTION_ROWS)
+    monkeypatch.setattr(macro_service, "_fetch_auction_map", lambda term_key=None: {
+        "2-Year": AUCTION_ROWS, "5-Year": AUCTION_ROWS, "10-Year": AUCTION_ROWS,
+        "30-Year": AUCTION_ROWS,
+    })
     monkeypatch.setattr(macro_service, "_fetch_auction_indirect_share", lambda term="10-Year": [("2026-07-08", 65.2)])
     monkeypatch.setattr(macro_service, "_fetch_cftc", lambda dataset="disagg": COT_DISAGG if dataset == "disagg" else COT_TFF)
     monkeypatch.setattr(macro_service, "_fetch_tic", lambda: TIC_ROWS)
@@ -313,7 +316,7 @@ def test_both_sources_down_returns_200_with_unavailable_sections(monkeypatch):
     monkeypatch.setattr(macro_service, "_fetch_fred_series_map", lambda ids: {})
     monkeypatch.setattr(macro_service, "_yf_history", lambda ticker: [])
     monkeypatch.setattr(macro_service, "_fetch_tga", lambda: None)
-    monkeypatch.setattr(macro_service, "_fetch_auction_bid_to_cover", lambda term="10-Year": None)
+    monkeypatch.setattr(macro_service, "_fetch_auction_map", lambda term_key=None: {})
     monkeypatch.setattr(macro_service, "_fetch_auction_indirect_share", lambda term="10-Year": None)
     monkeypatch.setattr(macro_service, "_fetch_cftc", lambda dataset="disagg": None)
     monkeypatch.setattr(macro_service, "_fetch_tic", lambda: None)

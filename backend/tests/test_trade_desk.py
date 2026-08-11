@@ -101,16 +101,16 @@ def seeded(db_session):
 
 
 # ── tests ───────────────────────────────────────────────────────────────────
-def test_seed_two_teams_with_config(seeded):
+def test_seed_one_team_deepseek(seeded):
     teams = {t.code: t for t in seeded.query(td.TradeTeam).all()}
-    assert set(teams) == {"A", "B"}
-    assert teams["A"].interval_hours == 4 and teams["B"].interval_hours == 12
-    assert teams["A"].capital == 10_000.0
-    assert td.RISK_BAND["A"] == (5.0, 10.0) and td.RISK_BAND["B"] == (2.0, 5.0)
+    assert set(teams) == {"DEEPSEEK"}
+    assert teams["DEEPSEEK"].interval_hours == 4
+    assert teams["DEEPSEEK"].capital == 10_000.0
+    assert td.RISK_BAND["DEEPSEEK"] == (5.0, 10.0)
 
 
 def test_turn_opens_position_and_deducts_margin(seeded):
-    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "A").first()
+    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "DEEPSEEK").first()
     r = td.run_turn(seeded, team, manual=True)
     assert r and "executed" in r and "opened" in r["executed"]
     pos = seeded.query(td.TradePosition).filter(td.TradePosition.team_id == team.id).all()
@@ -125,7 +125,7 @@ def test_turn_opens_position_and_deducts_margin(seeded):
 
 def test_size_clamped_to_team_band(seeded):
     # lead สั่ง size 25% → clamp 10% (ทีม A)
-    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "A").first()
+    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "DEEPSEEK").first()
     order = {"action": "open", "market": "BTC-USD", "side": "long", "size_pct": 25,
              "sl_pct": 3, "tp_pct": 6}
     r = td._execute_order(seeded, team, order, datetime.now(timezone.utc))
@@ -136,7 +136,7 @@ def test_size_clamped_to_team_band(seeded):
 
 
 def test_equity_formula(seeded):
-    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "A").first()
+    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "DEEPSEEK").first()
     td.run_turn(seeded, team, manual=True)
     pos = seeded.query(td.TradePosition).filter(td.TradePosition.team_id == team.id).first()
     # ราคา BTC เท่าเดิม → unrealized 0 → equity = capital
@@ -144,7 +144,7 @@ def test_equity_formula(seeded):
 
 
 def test_sl_hit_closes_position(seeded):
-    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "A").first()
+    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "DEEPSEEK").first()
     td.run_turn(seeded, team, manual=True)
     # BTC ร่วง > SL 3% → ปิด sl
     td.prices = None
@@ -159,7 +159,7 @@ def test_sl_hit_closes_position(seeded):
 
 
 def test_tp_hit_closes_position(seeded):
-    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "A").first()
+    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "DEEPSEEK").first()
     td.run_turn(seeded, team, manual=True)
     import app.trade_desk_service as tdm
     monkey = pytest.MonkeyPatch()
@@ -170,7 +170,7 @@ def test_tp_hit_closes_position(seeded):
 
 
 def test_sl_tp_works_when_master_off(seeded):
-    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "A").first()
+    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "DEEPSEEK").first()
     # เปิดไม้ก่อน (master ยัง on)
     td.run_turn(seeded, team, manual=True)
     # ปิดสวิตช์ → เทิร์นใหม่ถูกบล็อก
@@ -186,23 +186,23 @@ def test_sl_tp_works_when_master_off(seeded):
 
 def test_daily_cap_blocks(seeded):
     td.set_settings(seeded, per_team_daily_cap=1)
-    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "A").first()
+    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "DEEPSEEK").first()
     assert td.run_turn(seeded, team, manual=True).get("executed")
     r = td.run_turn(seeded, team, manual=True)
     assert r["skipped"] == "daily_cap"
 
 
 def test_next_turn_at_scheduling(seeded):
-    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "A").first()
+    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "DEEPSEEK").first()
     before = team.next_turn_at
     td.run_turn(seeded, team, manual=True)
-    after = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "A").first().next_turn_at
+    after = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "DEEPSEEK").first().next_turn_at
     assert after > before
     assert abs((after - before).total_seconds() - 4 * 3600) < 60
 
 
 def test_not_due_skips(seeded):
-    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "A").first()
+    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "DEEPSEEK").first()
     team.next_turn_at = datetime.now(timezone.utc) + timedelta(hours=1)
     seeded.commit()
     r = td.run_turn(seeded, team)   # ไม่ manual
@@ -214,21 +214,18 @@ def test_run_due_turns_checks_master(seeded):
     assert td.run_due_turns(seeded)[0]["skipped"] == "master_off"
 
 
-def test_team_a_uses_technical_b_macro(seeded):
-    team_a = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "A").first()
-    ctx_a = td.build_team_context(seeded, team_a)
-    assert "คะแนนโมเดล" in ctx_a and "ตัวเลขมหภาค" not in ctx_a
-    team_b = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "B").first()
-    ctx_b = td.build_team_context(seeded, team_b)
-    assert "ตัวเลขมหภาค" in ctx_b and "คะแนนโมเดล" not in ctx_b
-    # ไม่เห็นทีมอื่น
-    assert "ทีม B" not in ctx_a
+def test_single_team_deepseek_has_all_seats(seeded):
+    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "DEEPSEEK").first()
+    ctx = td.build_team_context(seeded, team)
+    assert "ตัวเลขมหภาค" in ctx
+    # only one team exists (legacy A/B no longer seeded)
+    assert seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "B").first() is None
 
 
 def test_state_shape(seeded):
     st = td.build_state(seeded)
     assert st["master_on"] is True and st["per_team_daily_cap"] == 4
-    assert {t["code"] for t in st["teams"]} == {"A", "B"}
+    assert {t["code"] for t in st["teams"]} == {"DEEPSEEK"}
     t = st["teams"][0]
     for k in ("equity", "pnl_pct", "margin_used", "next_turn_at", "turns_today",
               "positions", "weekly_target_pct"):
@@ -236,7 +233,7 @@ def test_state_shape(seeded):
 
 
 def test_turn_records_cost_and_ended_at(seeded):
-    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "A").first()
+    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "DEEPSEEK").first()
     td.run_turn(seeded, team, manual=True)
     t = seeded.query(td.TradeTurn).filter(td.TradeTurn.team_id == team.id).first()
     assert t.tokens_in > 0 and t.tokens_out > 0
@@ -248,10 +245,8 @@ def test_turn_records_cost_and_ended_at(seeded):
 
 
 def test_no_write_to_trading_signals(seeded):
-    td.run_turn(seeded, seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "A").first(),
-                manual=True)
-    td.run_turn(seeded, seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "B").first(),
-                manual=True)
+    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "DEEPSEEK").first()
+    td.run_turn(seeded, team, manual=True)
     n = seeded.execute(text("SELECT COUNT(*) FROM trading_signals")).scalar()
     assert n == 0
 
@@ -285,7 +280,7 @@ def test_bp_market_price_reads_the_real_dashboard_contract(monkeypatch):
 
 def test_sl_tp_defaults_applied_when_ai_omits(seeded):
     """AI ไม่ส่ง SL/TP → ใช้ default ของทีม (A: 5/10 · B: 8/15) — ticket 04 ข้อ 3."""
-    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "A").first()
+    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "DEEPSEEK").first()
     now = datetime.now(timezone.utc)
     r = td._execute_order(seeded, team, {"action": "open", "market": "TLT",
                                          "side": "long", "size_pct": 6}, now)
@@ -301,7 +296,7 @@ def test_sl_tp_retroactive_hit_from_candles(seeded):
     เปิด 5 วันที่แล้ว entry 100 SL 5% (95) — candle วันที่ 5 มี low 94 (แตะ SL)
     แล้วราคาปัจจุบันเด้งกลับ 102 → ต้องปิด sl @95 ไม่ใช่รอ 102
     """
-    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "A").first()
+    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "DEEPSEEK").first()
     from datetime import timedelta as dt_td
     opened = datetime.now(timezone.utc) - dt_td(days=5)
     pos = td.TradePosition(team_id=team.id, market="TLT", unit="pct", side="long",
@@ -334,10 +329,10 @@ def test_sl_tp_retroactive_hit_from_candles(seeded):
 
 def test_state_includes_mark_live_pnl_and_snapshots(seeded):
     """state ต้องคืน unit/mark/live_pnl ต่อไม้ + snapshots (equity curve)."""
-    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "A").first()
+    team = seeded.query(td.TradeTeam).filter(td.TradeTeam.code == "DEEPSEEK").first()
     td.run_turn(seeded, team, manual=True)
     state = td.build_state(seeded)
-    t = next(x for x in state["teams"] if x["code"] == "A")
+    t = next(x for x in state["teams"] if x["code"] == "DEEPSEEK")
     assert len(t["positions"]) == 1
     p = t["positions"][0]
     assert p["unit"] == "pct"

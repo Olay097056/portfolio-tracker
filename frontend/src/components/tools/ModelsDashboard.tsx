@@ -269,6 +269,7 @@ function ModelCard({
   expanded,
   onToggle,
   factorLabels,
+  factorCaps,
   statusMeta,
 }: {
   model: ModelResult;
@@ -276,6 +277,7 @@ function ModelCard({
   expanded: boolean;
   onToggle: () => void;
   factorLabels: Record<string, string>;
+  factorCaps: Record<string, number>;
   statusMeta: Record<string, { en: string; th: string }>;
 }) {
   const color = meta.color;
@@ -347,7 +349,7 @@ function ModelCard({
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '8px 24px', borderTop: `1px solid ${INK.panelBorder}`, padding: '12px 20px' }}>
         {FACTOR_ORDER.map((key) => {
           const value = factors[key as keyof ModelFactors];
-          const cap = 25; // factor_caps[key] — kept simple; see data for exact
+          const cap = factorCaps[key] ?? 25; // from /api/models factor_caps — real per-factor max
           const isPenalty = key === 'risk_penalty';
           const abs = Math.abs(value);
           return (
@@ -554,6 +556,7 @@ export function ModelsDashboard() {
             expanded={expandedId === model.model_id}
             onToggle={() => setExpandedId(expandedId === model.model_id ? null : model.model_id)}
             factorLabels={data.factor_labels_th}
+            factorCaps={data.factor_caps}
             statusMeta={data.status_meta}
           />
         );

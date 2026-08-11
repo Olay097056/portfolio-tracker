@@ -189,9 +189,9 @@ _SERIES: dict[str, dict] = {
     # --- banking indicators (category: banking, excluding the SOFR-EFFR spread) ---
     "us_banking_stress_index": {"fred": None, "yf": None, "unit": "index", "kind": "plain",
                                 "name_th": "ดัชนีความเสี่ยงแบงก์รัน (Composite)", "name_en": "Banking Stress Index"},
-    "us_bank_deposits": {"fred": "DPSACBW027SBOG", "yf": None, "unit": "$B", "kind": "plain", "scale": 0.001,
+    "us_bank_deposits": {"fred": "DPSACBW027SBOG", "yf": None, "unit": "$B", "kind": "plain",
                          "name_th": "เงินฝากธนาคารพาณิชย์รวม", "name_en": "Bank Deposits (All Comm. Banks)"},
-    "us_small_bank_deposits": {"fred": "DPSSCBW027SBOG", "yf": None, "unit": "$B", "kind": "plain", "scale": 0.001,
+    "us_small_bank_deposits": {"fred": "DPSSCBW027SBOG", "yf": None, "unit": "$B", "kind": "plain",
                                "name_th": "เงินฝากธนาคารขนาดเล็ก", "name_en": "Small Bank Deposits"},
     "us_discount_window": {"fred": "H41RESPPALDKNWW", "yf": None, "unit": "$B", "kind": "plain", "scale": 0.001,
                            "name_th": "ยอดกู้ Discount Window ของ Fed", "name_en": "Fed Discount Window (Primary Credit)"},
@@ -404,6 +404,43 @@ def _fetch_tga() -> list[tuple[str, float]] | None:
     return rows or None
 
 
+def _fetch_auction_map(term_key: str | None = None) -> dict[str, list[tuple[str, float]]]:
+    """All Treasury auction bid-to-cover ratios from TA_WS, grouped by term.
+
+    One HTTP fetch for every tenor (2Y/5Y/10Y/30Y) — previously each tenor
+    card got the same 10-Year rows (bond-crisis-100 10 bug: every tenor
+    showed 2.59x). 30-Year is a Bond (not a Note) so it needs its own query.
+    Returns {term: [(auction_date, btc)] oldest first}.
+    """
+    by_term: dict[str, list[tuple[str, float]]] = {}
+    for sec_type in ("Note", "Bond"):
+        try:
+            response = httpx.get(
+                TREASURYDIRECT_AUCTION_URL,
+                params={"pagesize": "100", "type": sec_type, "format": "json"},
+                headers=_HEADERS,
+                timeout=_TIMEOUT_SECONDS,
+                follow_redirects=True,
+            )
+            if response.status_code != 200:
+                continue
+            payload = response.json()
+        except Exception:
+            continue
+
+        for item in payload:
+            term = item.get("term")
+            if not term:
+                continue
+            value = _num(item.get("bidToCoverRatio"))
+            if value is None:
+                continue
+            by_term.setdefault(term, []).append((str(item.get("auctionDate", ""))[:10], value))
+    for rows in by_term.values():
+        rows.sort()
+    return by_term
+
+
 def _fetch_auction_bid_to_cover(term: str = "10-Year") -> list[tuple[str, float]] | None:
     """Bid-to-cover ratios of recent Treasury auctions of the given term.
 
@@ -413,30 +450,7 @@ def _fetch_auction_bid_to_cover(term: str = "10-Year") -> list[tuple[str, float]
     reopenings of the same line). Returns [(auction_date, bid_to_cover)]
     oldest first, or None on failure.
     """
-    try:
-        response = httpx.get(
-            TREASURYDIRECT_AUCTION_URL,
-            params={"pagesize": "50", "type": "Note", "format": "json"},
-            headers=_HEADERS,
-            timeout=_TIMEOUT_SECONDS,
-            follow_redirects=True,
-        )
-        if response.status_code != 200:
-            return None
-        payload = response.json()
-    except Exception:
-        return None
-
-    rows: list[tuple[str, float]] = []
-    for item in payload:
-        if item.get("term") != term:
-            continue
-        value = _num(item.get("bidToCoverRatio"))
-        if value is None:
-            continue
-        rows.append((str(item.get("auctionDate", ""))[:10], value))
-    rows.sort()
-    return rows or None
+    return _fetch_auction_map().get(term) or None
 
 
 def _fetch_auction_indirect_share(term: str = "10-Year") -> list[tuple[str, float]] | None:
@@ -725,7 +739,7 @@ def _build_card(
     meta: dict,
     fred_rows: dict[str, list[tuple[str, float]] | None],
     tga_rows: list[tuple[str, float]] | None = None,
-    auction_rows: list[tuple[str, float]] | None = None,
+    auction_map: dict[str, list[tuple[str, float]]] | None = None,
     auction_indirect_rows: list[tuple[str, float]] | None = None,
     cftc_disagg: list[dict] | None = None,
     cftc_tff: list[dict] | None = None,
@@ -756,8 +770,9 @@ def _build_card(
     # TGA: fiscaldata reports millions; the card displays $B, so scale like FRED.
     if meta.get("fd") == "tga" and tga_rows:
         return builder({**meta, "scale": 0.001}, tga_rows)
-    if meta.get("td") and auction_rows:
-        return builder(meta, auction_rows)
+    if meta.get("td") and auction_map:
+        rows = auction_map.get(meta["td"])
+        return builder(meta, rows) if rows else _unavailable_card()
     if meta.get("kind") == "td_indirect" and auction_indirect_rows:
         return builder(meta, auction_indirect_rows)
     # COT positioning: one fetch per CFTC report, sliced per contract code.
@@ -898,7 +913,7 @@ def build_dashboard(force: bool = False) -> dict:
     with ThreadPoolExecutor(max_workers=20) as pool:
         fred_future = pool.submit(_fetch_fred_series_map, sorted(set(fred_ids)))
         tga_future = pool.submit(_fetch_tga)
-        auction_future = pool.submit(_fetch_auction_bid_to_cover)
+        auction_future = pool.submit(_fetch_auction_map)
         auction_indirect_future = pool.submit(_fetch_auction_indirect_share)
         disagg_future = pool.submit(_fetch_cftc, "disagg")
         tff_future = pool.submit(_fetch_cftc, "tff")
@@ -912,7 +927,7 @@ def build_dashboard(force: bool = False) -> dict:
         }
         fred_rows = fred_future.result()
         tga_rows = tga_future.result()
-        auction_rows = auction_future.result()
+        auction_map = auction_future.result()
         auction_indirect_rows = auction_indirect_future.result()
         cftc_disagg = disagg_future.result()
         cftc_tff = tff_future.result()
@@ -923,7 +938,7 @@ def build_dashboard(force: bool = False) -> dict:
     cards: dict[str, dict] = {}
     for sid, meta in _SERIES.items():
         cards[sid] = _build_card(
-            sid, meta, fred_rows, tga_rows, auction_rows, auction_indirect_rows,
+            sid, meta, fred_rows, tga_rows, auction_map, auction_indirect_rows,
             cftc_disagg, cftc_tff, tic_rows, eia_rows,
         )
     yf_rows = _fill_from_yfinance(cards, prefetched=yf_prefetched)

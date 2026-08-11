@@ -26,6 +26,8 @@ const INK = {
   gold: '#f5c542',
 };
 
+const NUM_STYLE: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
+
 const STATUS_META: Record<string, { label: string; bg: string; color: string }> = {
   inactive: { label: 'ไม่ทำงาน', bg: 'rgba(71,85,105,0.5)', color: '#94a3b8' },
   building: { label: 'กำลังก่อตัว', bg: 'rgba(245,158,11,0.15)', color: '#fbbf24' },
@@ -403,6 +405,34 @@ export function BankingDashboard() {
           <AreaChart points={sofr_effr_spread} />
         </div>
       </div>
+
+      {/* Bank stocks table (reference /banking 10-name table) */}
+      {(data.bank_stocks?.length ?? 0) > 0 && (
+        <div style={{ background: INK.panel, border: `1px solid ${INK.panelBorder}`, borderRadius: 12, padding: 20 }}>
+          <h4 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 600, color: INK.inkDim }}>
+            หุ้นธนาคารรายตัว <span style={{ color: INK.inkFaint, fontWeight: 400 }}>· ราคา + 1D</span>
+          </h4>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8 }}>
+            {data.bank_stocks!.map((s) => (
+              <div key={s.symbol} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                background: INK.bg, border: `1px solid ${INK.panelBorder}`, borderRadius: 8, padding: '8px 12px',
+              }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: INK.text }}>{s.symbol}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 12, color: INK.inkDim, ...NUM_STYLE }}>{s.price?.toFixed(2)}</span>
+                  <span style={{
+                    fontSize: 11, fontWeight: 700, ...NUM_STYLE,
+                    color: (s.change_pct ?? 0) >= 0 ? INK.green : INK.red,
+                  }}>
+                    {(s.change_pct ?? 0) >= 0 ? '+' : ''}{s.change_pct?.toFixed(2)}%
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Data sources */}
       <div style={{ fontSize: 11, color: INK.inkFaint, display: 'flex', flexWrap: 'wrap', gap: 6 }}>

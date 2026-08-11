@@ -93,20 +93,22 @@ def _daily_spread_bps(sofr: list[tuple[str, float]] | None, effr: list[tuple[str
 
 
 def _bank_prices() -> dict[str, dict | None]:
-    """KRE + ^BKX: price + 1D change via yfinance (surveyed 2026-08-09).
+    """Bank stocks + ETFs: price + 1D change via yfinance.
 
+    Surveyed 2026-08-09. The reference /banking page shows a 10-name table:
+    ^BKX/KBE/KRE ETFs + FITB/HBAN/KEY/RF/TFC/USB/WAL/ZION individual banks.
     One retry: on a cold dashboard build the macro fetcher pulls ~8 yfinance
     tickers at once, and Yahoo rate-limits the first attempt — a single retry
     after a short pause gets the price without slowing the page.
     """
     out: dict[str, dict | None] = {}
-    for sym in ("KRE", "^BKX"):
+    for sym in ("^BKX", "KBE", "KRE", "FITB", "HBAN", "KEY", "RF", "TFC", "USB", "WAL", "ZION"):
         price = None
-        for attempt in range(2):
+        for attempt in range(3):
             try:
                 h = yf.Ticker(sym).history(period="5d")
                 if len(h) < 2:
-                    time.sleep(1.5)
+                    time.sleep(2.0)
                     continue
                 last = float(h["Close"].iloc[-1])
                 prev = float(h["Close"].iloc[-2])
@@ -115,8 +117,9 @@ def _bank_prices() -> dict[str, dict | None]:
                     "change_pct": round((last - prev) / prev * 100, 2),
                 }
                 break
-            except Exception:
-                time.sleep(1.5)
+            except Exception as exc:
+                print(f"[banking] {sym} attempt {attempt}: {type(exc).__name__}: {str(exc)[:160]}", flush=True)
+                time.sleep(2.0)
         out[sym] = price
     return out
 
@@ -124,9 +127,29 @@ def _bank_prices() -> dict[str, dict | None]:
 # ---------------------------------------------------------------------------
 # Payload assembly
 # ---------------------------------------------------------------------------
+_BANK_STOCKS_CACHE_KEY = "banking:bank_stocks"
+_BANK_STOCKS_CACHE_TTL = 600  # 10 min — yfinance rate-limits Vercel egress hard
+
+
+def _bank_stocks_cached() -> dict[str, dict | None]:
+    """_bank_prices with a 10-min cache so the 11 yfinance tickers are not
+    re-fetched on every /api/banking call (Vercel egress rate-limits Yahoo —
+    measured: 11/11 locally in 3.2s, 0/11 from Vercel when racing the macro
+    dashboard's own yfinance wave). Empty results are NOT cached so a
+    rate-limited first attempt retries on the next call."""
+    from app.cache import cache_get, cache_set
+    cached = cache_get(_BANK_STOCKS_CACHE_KEY)
+    if cached is not None:
+        return cached
+    prices = _bank_prices()
+    if any(v is not None for v in prices.values()):
+        cache_set(_BANK_STOCKS_CACHE_KEY, prices, _BANK_STOCKS_CACHE_TTL)
+    return prices
+
+
 def build_banking() -> dict:
     """Assemble the /api/banking payload. Uses the shared macro dashboard
-    cache + model scores; only KRE/^BKX and the two history fetches are new."""
+    cache + model scores; only bank stocks and the two history fetches are new."""
     dash = macro_service.build_dashboard()
     models = model_service.build_models()
 
@@ -158,12 +181,12 @@ def build_banking() -> dict:
             "available": bool(card and card.get("available")),
         }
 
-    # History fetches run in parallel with the price fetch.
+    # History fetches run in parallel with the cached price fetch.
     with ThreadPoolExecutor(max_workers=3) as pool:
         dep_fut = pool.submit(_fred_rows, "us_bank_deposits")
         sofr_fut = pool.submit(_fred_rows, "us_sofr")
         effr_fut = pool.submit(_fred_rows, "us_effr")
-        prices_fut = pool.submit(_bank_prices)
+        prices_fut = pool.submit(_bank_stocks_cached)
         dep_rows = dep_fut.result()
         sofr_rows = sofr_fut.result()
         effr_rows = effr_fut.result()
@@ -191,6 +214,9 @@ def build_banking() -> dict:
             "kre": prices.get("KRE"),
             "bkx": prices.get("^BKX"),
         },
+        "bank_stocks": [
+            {"symbol": sym, **p} for sym, p in prices.items() if p is not None
+        ],
         "gauge": gauge,
         "deposit_flow": _weekly_wow_pct(dep_rows, deposit_scale),
         "sofr_effr_spread": _daily_spread_bps(sofr_rows, effr_rows),

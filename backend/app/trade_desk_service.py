@@ -28,12 +28,12 @@ from app.boardroom_stance_service import _as_utc, _macro_data, _yf_candles, reso
 from app import price_service
 
 # ── Config ──────────────────────────────────────────────────────────────────
-TURN_INTERVAL_HOURS = {"A": 4, "B": 12}
+TURN_INTERVAL_HOURS = {"DEEPSEEK": 4}
 DAILY_CAP_DEFAULT = 4
 CAPITAL_DEFAULT = 10_000.0
-WEEKLY_TARGET = {"A": 1.5, "B": 1.0}
-RISK_BAND = {"A": (5.0, 10.0), "B": (2.0, 5.0)}
-SL_TP_DEFAULTS = {"A": (5.0, 10.0), "B": (8.0, 15.0)}  # SL/TP บังคับ (ticket 04 ข้อ 3)
+WEEKLY_TARGET = {"DEEPSEEK": 1.5}
+RISK_BAND = {"DEEPSEEK": (5.0, 10.0)}
+SL_TP_DEFAULTS = {"DEEPSEEK": (5.0, 10.0)}  # SL/TP บังคับ (ticket 04 ข้อ 3)
 
 # ── ORM ─────────────────────────────────────────────────────────────────────
 class TradeTeam(Base):
@@ -125,15 +125,22 @@ def set_settings(db: Session, *, master_on: bool | None = None,
 
 
 def seed_teams(db: Session) -> None:
+    # One team only: we have a single real LLM (deepseek-v4-flash via the
+    # opencode-go gateway), so the trade desk mirrors ONE team — the
+    # reference site's 9 teams are each backed by a different provider we
+    # don't have (user decision, bond-crisis-100 04).
     specs = {
-        "A": dict(name_th="ทีม A · สายเทรนด์", name_en="Team Trend Rider",
-                  weekly_target_pct=1.5, interval_hours=4),
-        "B": dict(name_th="ทีม B · สายกลับค่า", name_en="Team Mean Reverter",
-                  weekly_target_pct=1.0, interval_hours=12),
+        "DEEPSEEK": dict(name_th="ทีม DeepSeek · เทรดเดอร์ AI", name_en="Team DeepSeek Trader",
+                         weekly_target_pct=1.5, interval_hours=4),
     }
     for code, sp in specs.items():
         if not db.query(TradeTeam).filter(TradeTeam.code == code).first():
             db.add(TradeTeam(code=code, **sp, status="active"))
+    # retire any legacy multi-team rows (old A/B design) so the desk shows one team
+    for legacy in ("A", "B"):
+        team = db.query(TradeTeam).filter(TradeTeam.code == legacy).first()
+        if team is not None:
+            team.status = "inactive"
     db.commit()
 
 
@@ -353,16 +360,11 @@ def build_team_context(db: Session, team: TradeTeam, scenario: str = "") -> str:
 
 # ── Prompts (จาก prototype 03 — schema ใช้ได้จริง) ───────────────────────────
 def _persona_prompt(team: TradeTeam, seat: str) -> str:
-    if team.code == "A":
-        base = ("คุณเป็นนักวิเคราะห์สายเทรนด์/โมเมนตัมในทีม A (Team Trend Rider) "
-                f"พอร์ต ${team.capital:,.0f} เป้าหมาย MTD +5–20% กรอบเวลา 1–7 วัน "
-                "ความเสี่ยงต่อไม้ 5–10% ของพอร์ต หลักการ: เข้าเมื่อเทรนด์ชัด "
-                "(ราคาเหนือ MA + โมเมนตัม + คะแนนโมเดล ≥60) ตัดขาดทุนไวเมื่อเทรนด์พัง")
-    else:
-        base = ("คุณเป็นนักวิเคราะห์สายกลับค่า/มหภาคในทีม B (Team Mean Reverter) "
-                f"พอร์ต ${team.capital:,.0f} เป้าหมาย MTD +5–20% กรอบเวลา 7–30 วัน "
-                "ความเสี่ยงต่อไม้ 2–5% ของพอร์ต หลักการ: เข้าสวนทางสุดขั้ว "
-                "(ค่าเบี่ยงเบนสูง + มหภาคสนับสนุนการกลับตัว) อดทนรอจังหวะ ไม่ไล่ราคา")
+    base = (f"คุณเป็นนักวิเคราะห์ในทีม DeepSeek (Team DeepSeek Trader) "
+            f"พอร์ต ${team.capital:,.0f} เป้าหมาย MTD +5–20% กรอบเวลา 1–7 วัน "
+            "ความเสี่ยงต่อไม้ 5–10% ของพอร์ต หลักการ: เข้าเมื่อเทรนด์ชัด "
+            "(ราคาเหนือ MA + โมเมนตัม + คะแนนโมเดล ≥60) ตัดขาดทุนไวเมื่อเทรนด์พัง "
+            "และสวนทางสุดขั้วเมื่อค่าเบี่ยงเบนสูง")
     role = {"trend": "นักวิเคราะห์เทรนด์ — ดู MA/โมเมนตัม/แนวโน้ม คะแนนโมเดล",
             "technical": "นักวิเคราะห์เทคนิคอล — ดูแนวรับ/ต้าน รูปแบบแท่ง volume",
             "macro": "นักวิเคราะห์มหภาค — ดู FRED (ยิลด์/เงินเฟ้อ/แรงงาน) จุดเปลี่ยน",
@@ -371,8 +373,7 @@ def _persona_prompt(team: TradeTeam, seat: str) -> str:
 
 
 def _lead_prompt(team: TradeTeam) -> str:
-    desc = ("ทีม A (สายเทรนด์ 1–7 วัน risk 5–10%)" if team.code == "A"
-            else "ทีม B (สายกลับค่า 7–30 วัน risk 2–5%)")
+    desc = "ทีม DeepSeek (เทรดเดอร์ AI 1–7 วัน risk 5–10%)"
     low, high = RISK_BAND[team.code]
     return (f"คุณเป็นหัวหน้าทีมของ{desc} พอร์ต ${team.capital:,.0f} ฟังข้อเสนอลูกทีม 2 คน "
             f"แล้วเคาะออเดอร์ — size_pct ต้องอยู่ในกรอบ {low}–{high}% ของพอร์ต "
@@ -503,7 +504,7 @@ def run_turn(db: Session, team: TradeTeam, *, manual: bool = False,
 
     now = datetime.now(timezone.utc)
     ctx = build_team_context(db, team, scenario)
-    seats = ["trend", "technical"] if team.code == "A" else ["macro", "contrarian"]
+    seats = ["trend", "technical", "macro", "contrarian"]  # one team — all four seats
 
     calls = [_seat_order(team, seat, ctx) for seat in seats]
     offers = "\n".join(f"[{c['seat']}] {json.dumps(c['order'], ensure_ascii=False)}"

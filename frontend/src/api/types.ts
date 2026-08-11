@@ -636,6 +636,7 @@ export interface BankingDashboard {
     kre: BankingPriceCard | null;
     bkx: BankingPriceCard | null;
   };
+  bank_stocks?: { symbol: string; price: number | null; change_pct: number | null }[];
   gauge: BankingGauge;
   deposit_flow: BankingHistoryPoint[];
   sofr_effr_spread: BankingHistoryPoint[];

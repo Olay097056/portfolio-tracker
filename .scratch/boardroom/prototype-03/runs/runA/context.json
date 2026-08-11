@@ -1,0 +1,389 @@
+{
+ "built_at": "2026-08-09T12:05:12Z",
+ "agenda": "ประเมินทิศทางตลาดการเงินหลังเหตุการณ์ล่าสุด: \"การส่งออกน้ำมันของอิหร่านหยุดชะงักและเกาะคาร์กหยุดดำเนินการภายใต้การปิดล้อมของสหรัฐฯ\" — ระบบชี้โมเดลอันดับ 1 คือ โมเดลน้ำมันพุ่ง-เงินเฟ้อ (คะแนน 65.1) — ห้องประชุมต้องลงมติว่าทิศทางบอนด์สหรัฐ / สเปรดเครดิต / สินทรัพย์เสี่ยง ต่อไปอย่างไร",
+ "macro": "- ผลตอบแทนพันธบัตรสหรัฐ 13 สัปดาห์ (us13w): 3.9% (Δ+0.01%) | วันที่ 2026-08-06\n- ผลตอบแทนพันธบัตรสหรัฐ 1 ปี (us1y): 4.06% (Δ+0.03%) | วันที่ 2026-08-06\n- ผลตอบแทนพันธบัตรสหรัฐ 2 ปี (us2y): 4.25% (Δ+0.07%) | วันที่ 2026-08-06\n- ผลตอบแทนพันธบัตรสหรัฐ 5 ปี (us5y): 4.4% (Δ+0.07%) | วันที่ 2026-08-06\n- ผลตอบแทนพันธบัตรสหรัฐ 10 ปี (us10y): 4.69% (Δ+0.06%) | วันที่ 2026-08-06\n- ผลตอบแทนพันธบัตรสหรัฐ 20 ปี (us20y): 5.22% (Δ+0.04%) | วันที่ 2026-08-06\n- ผลตอบแทนพันธบัตรสหรัฐ 30 ปี (us30y): 5.22% (Δ+0.05%) | วันที่ 2026-08-06\n- อัตรา SOFR (Secured Overnight Financing Rate) (us_sofr): 3.65% (Δ+0.01%) | วันที่ 2026-08-06\n- อัตรา EFFR (Effective Fed Funds Rate) (us_effr): 3.63% (Δ+0%) | วันที่ 2026-08-06\n- อัตรา OBFR (Overnight Bank Funding Rate) (us_obfr): 3.63% (Δ+0%) | วันที่ 2026-08-06\n- ยอดคงค้าง Reverse Repo (ON RRP) ของเฟด (us_on_rrp): 1.4$B (Δ+1.47%) | วันที่ 2026-08-07\n- เงินคงคลังกระทรวงการคลังสหรัฐฯ (TGA) (us_tga): 929.3$B (Δ+0.55%) | วันที่ 2026-08-06\n- ส่วนต่าง SOFR-EFFR (ความตึงตลาด repo) (us_sofr_effr_spread): 2bps | วันที่ 2026-08-06\n- ดัชนีดอลลาร์ (dxy): 99.6index (Δ-0.37%) | วันที่ 2026-08-07\n- ดัชนีความผันผวน VIX (vix): 14.9index (Δ-1.65%) | วันที่ 2026-08-07\n- ดัชนี MOVE (ความผันผวนตลาดพันธบัตร) (move): 72.03pts | วันที่ 2026-08-07\n- ทองคำ (xauusd): 4399.7USD (Δ+3.72%) | วันที่ 2026-08-07\n- แร่เงิน (Silver) (xagusd): 63.5USD (Δ+3.35%) | วันที่ 2026-08-07\n- น้ำมันดิบ WTI (usoil): 78.18USD (Δ+1.15%) | วันที่ 2026-08-07\n- น้ำมันดิบ Brent (brent): 83.55USD (Δ+1.29%) | วันที่ 2026-08-07\n- เงินเฟ้อ CPI (YoY) (us_cpi_yoy): 3.23% (Δ-0.44%) | วันที่ 2026-06-01\n- เงินเฟ้อ PCE (YoY) (us_pce_yoy): 3.49% (Δ-0.11%) | วันที่ 2026-06-01\n- เงินเฟ้อพื้นฐาน (YoY) (us_core_cpi): 2.25% (Δ-0.01%) | วันที่ 2026-06-01\n- ผลตอบแทนพันธบัตร 10 ปี (Real, TIPS) (us_10y_real): 2.43% (Δ+0.02%) | วันที่ 2026-08-06\n- อัตราเงินเฟ้อคาดการณ์ 10 ปี (Breakeven) (us_10y_breakeven): 2.25% (Δ-0.01%) | วันที่ 2026-08-07\n- อัตราเงินเฟ้อคาดการณ์ 5 ปี (Breakeven) (us_5y_breakeven): 2.22% (Δ-0.01%) | วันที่ 2026-08-07\n- อัตราการว่างงานสหรัฐ (us_unemployment): 4.1% (Δ-0.1%) | วันที่ 2026-07-01\n- ส่วนต่างพันธบัตร High Yield (us_hy_spread): 271bps (Δ-4bps) | วันที่ 2026-08-06\n- ส่วนต่างพันธบัตร Investment Grade (us_ig_spread): 78bps (Δ+0bps) | วันที่ 2026-08-06\n- หนี้สาธารณะสหรัฐต่อ GDP (us_debt_gdp): 122.59% (Δ+0.03%) | วันที่ 2026-01-01\n- ดุลการคลัง (% GDP) (us_fiscal_deficit): -5.5% | วันที่ 2025-09-30\n- หนี้ครัวเรือน (% GDP) (us_household_debt): 68.55% (Δ+0.6%) | วันที่ 2025-04-01\n- SLOOS ธนาคารเข้มงวดสินเชื่อ (Net %) (us_sloos_tightening): 0% (Δ-8.1%) | วันที่ 2026-07-01\n- ผลประมูลพันธบัตร 10 ปี (Bid-to-Cover) (us_auction_btc): 2.59x (Δ+0.78%) | วันที่ 2026-07-08\n- ผลประมูลพันธบัตร 2 ปี (Bid-to-Cover) (us_auction_btc_2y): 2.59x (Δ+0.78%) | วันที่ 2026-07-08\n- ผลประมูลพันธบัตร 5 ปี (Bid-to-Cover) (us_auction_btc_5y): 2.59x (Δ+0.78%) | วันที่ 2026-07-08\n- ผลประมูลพันธบัตร 30 ปี (Bid-to-Cover) (us_auction_btc_30y): 2.59x (Δ+0.78%) | วันที่ 2026-07-08\n- สัดส่วน Indirect Bidder ประมูล 10 ปี (us_auction_indirect_10y): 2.59% (Δ+0.02%) | วันที่ 2026-07-08\n- COT ทองคำ — Managed Money Net (cot_gold_mm_net): 130766contracts | วันที่ 2026-08-04\n- COT เงิน — Managed Money Net (cot_silver_mm_net): 11974contracts | วันที่ 2026-08-04\n- COT น้ำมัน WTI — Managed Money Net (cot_wti_mm_net): 86958contracts | วันที่ 2026-08-04\n- COT ทองแดง — Managed Money Net (cot_copper_mm_net): 75758contracts | วันที่ 2026-08-04\n- COT ข้าวสาลี — Managed Money Net (cot_wheat_mm_net): -24870contracts | วันที่ 2026-08-04\n- COT ข้าวโพด — Managed Money Net (cot_corn_mm_net): 144821contracts | วันที่ 2026-08-04\n- COT ดอลลาร์ — Leveraged Funds Net (cot_dx_lev_net): 3849contracts | วันที่ 2026-08-04\n- COT เยน — Leveraged Funds Net (cot_jpy_lev_net): -60825contracts | วันที่ 2026-08-04\n- COT พันธบัตร 10 ปี — Leveraged Net (cot_ust10y_lev_net): -2.23167e+06contracts | วันที่ 2026-08-04\n- COT พันธบัตร 10 ปี — Asset Manager Net (cot_ust10y_am_net): 2.59468e+06contracts | วันที่ 2026-08-04\n- COT พันธบัตร 30 ปี — Leveraged Net (cot_ust30y_lev_net): -376226contracts | วันที่ 2026-08-04\n- COT พันธบัตร 30 ปี — Asset Manager Net (cot_ust30y_am_net): 551606contracts | วันที่ 2026-08-04\n- ต่างชาติถือพันธบัตรสหรัฐรวม (foreign_ust_total): 7402.5$B | วันที่ grand_total\n- ต่างชาติถือพันธบัตรสหรัฐ (ทางการ) (foreign_official_ust): 3713.9$B | วันที่ foreign_official\n- ดัชนีความเสี่ยงแบงก์รัน (Composite) (us_banking_stress_index): —\n- เงินฝากธนาคารพาณิชย์รวม (us_bank_deposits): 19.4$B (Δ-0.19%) | วันที่ 2026-07-29\n- เงินฝากธนาคารขนาดเล็ก (us_small_bank_deposits): 5.6$B (Δ-0.07%) | วันที่ 2026-07-29\n- ยอดกู้ Discount Window ของ Fed (us_discount_window): 0$B | วันที่ 2026-05-06\n- ดัชนีความตึงเครียดการเงิน (StL Fed) (us_stlfsi): -0.51index (Δ-38.73%) | วันที่ 2026-07-31\n- เงินสำรองธนาคารที่เฟด (WRESBAL) (us_bank_reserves): 2993.3$B (Δ+0.29%) | วันที่ 2026-08-05\n- Commercial Paper 90 วัน (AA) (us_cp_rate_90d): 3.76% (Δ-0.01%) | วันที่ 2026-08-06\n- ยอดกู้ FIMA Repo Pool (us_fima_repo_pool): 317.7$B (Δ-5.01%) | วันที่ 2026-08-05\n- ยอดใช้ FIMA Repo (รายสัปดาห์) (us_fima_repo_used): 0$B | วันที่ 2026-08-05\n- สต็อกน้ำมันดิบสหรัฐ (EIA) (us_crude_inventory): —\n- สต็อกน้ำมันดิบ (เปลี่ยนแปลง WoW) (us_crude_inventory_chg): —\n- สต็อกน้ำมันเบนซิน (EIA) (us_gasoline_inventory): —\n- สต็อกน้ำมันดีเซล (EIA) (us_distillate_inventory): —\n- สต็อกดีเซล (เปลี่ยนแปลง WoW) (us_distillate_inventory_chg): —",
+ "models": "- #1 โมเดลน้ำมันพุ่ง-เงินเฟ้อ: คะแนน 65.1 (active)\n- #2 โมเดลฟื้นตัว / รีเฟลชัน: คะแนน 63.6 (active)\n- #3 โมเดล Fed เปลี่ยนท่าที / Duration Rally: คะแนน 61.0 (active)\n- #4 โมเดล Yield ช็อก: คะแนน 29.9 (inactive)\n- #5 โมเดลวิกฤตสินเชื่อ / ความเสี่ยงเชิงระบบ: คะแนน 17.3 (inactive)\n- #6 โมเดลแบงก์รัน / วิกฤตธนาคาร: คะแนน 11.6 (inactive)",
+ "news": "- [impact 90] การส่งออกน้ำมันของอิหร่านหยุดชะงักและเกาะคาร์กหยุดดำเนินการภายใต้การปิดล้อมของสหรัฐฯ (Financial Times, 2026-08-07 21:12)\n- [impact 85] สหรัฐฯ สูญเสียตำแหน่งงานโดยไม่คาดคิดในเดือนกรกฎาคม ตลาดลดความคาดหวังการขึ้นดอกเบี้ย (Reuters, 2026-08-07 22:24)\n- [impact 85] วอลล์สตรีทสัปดาห์หน้า: ข้อมูลเงินเฟ้อจะทดสอบหุ้นสหรัฐฯ ที่ทำสถิติสูงสุด และมุมมองอัตราดอกเบี้ยของเฟด - รอยเตอร์ (Reuters, 2026-08-07 10:02)\n- [impact 80] สหรัฐอาหรับเอมิเรตส์ระบุอิหร่านโจมตีเรือของ ADNOC ด้วยขีปนาวุธในช่องแคบฮอร์มุซ - รอยเตอร์ (Reuters, 2026-08-08 11:46)\n- [impact 80] ดอลลาร์อ่อนค่าจากข้อมูลแรงงานสหรัฐฯ ที่อ่อนแอ ทำให้เลื่อนความคาดหวังการขึ้นดอกเบี้ยของเฟด (Reuters, 2026-08-07 22:02)\n- [impact 80] ตลาดหุ้นทำสถิติสูงสุดเป็นประวัติการณ์ ขณะที่ Fed ถอดตาข่ายนิรภัยสำคัญ (Google News, 2026-08-07 19:33)\n- [impact 80] S&P ปิดทำสถิติสูงสุด หลังรายงานตลาดแรงงานที่อ่อนแอคลายความกังวลเรื่องการขึ้นดอกเบี้ย - รอยเตอร์ (Reuters, 2026-08-07 09:54)\n- [impact 75] อิหร่านกำหนดเงื่อนไขเปิดช่องแคบฮอร์มุซ หลังยูเออีระบุเรือลำหนึ่งถูกโจมตีทางอากาศ (CNBC, 2026-08-08 17:41)\n- [impact 75] เศรษฐกิจสหรัฐฯ สูญเสียตำแหน่งงาน 23,000 ตำแหน่งโดยไม่คาดคิดในเดือนกรกฎาคม (CNBC, 2026-08-07 19:14)\n- [impact 75] หุ้นและพันธบัตรสหรัฐปรับตัวขึ้นหลังรายงานการจ้างงานอ่อนแอ เยนดีดกลับ - รอยเตอร์ (Reuters, 2026-08-07 02:16)",
+ "reference_prices": {
+  "us10y": 4.69,
+  "us2y": 4.25,
+  "us30y": 5.22,
+  "us_hy_spread": 271.0,
+  "us_ig_spread": 78.0,
+  "vix": 14.9,
+  "xauusd": 4399.7,
+  "dxy": 99.6,
+  "move": 72.03,
+  "usoil": 78.18
+ },
+ "data_sources": [
+  "FRED (fredgraph.csv)",
+  "Yahoo Finance (yfinance)",
+  "US Treasury Fiscal Data (fiscaldata.treasury.gov)",
+  "TreasuryDirect (TA_WS)",
+  "CFTC Commitments of Traders (publicreporting.cftc.gov)",
+  "Treasury International Capital (ticdata.treasury.gov)"
+ ],
+ "_raw_models": [
+  {
+   "model_id": "inflation-oil",
+   "rank": 1,
+   "score": 65.1,
+   "confidence": 100,
+   "status": "active",
+   "factors": {
+    "market_structure": 24.5,
+    "macro": 20.6,
+    "news": 6.4,
+    "confirmation": 19.6,
+    "risk_penalty": -6.0
+   },
+   "conditions": [
+    {
+     "name": "USOIL Price",
+     "logic": "Oil > $85 และขึ้นต่อ → inflation pressure",
+     "weight": 25,
+     "score": 72.7
+    },
+    {
+     "name": "Core PCE",
+     "logic": "PCE สูงกว่า target 2% → Fed hawkish",
+     "weight": 20,
+     "score": 100.0
+    },
+    {
+     "name": "CPI YoY",
+     "logic": "CPI เพิ่ม → ยืนยัน inflation",
+     "weight": 20,
+     "score": 69.2
+    },
+    {
+     "name": "DXY",
+     "logic": "USD แข็ง → กดดัน EM + commodity importers",
+     "weight": 10,
+     "score": 80.0
+    },
+    {
+     "name": "US10Y",
+     "logic": "Yield ขึ้น → ตลาด price-in inflation",
+     "weight": 10,
+     "score": 7.9
+    },
+    {
+     "name": "COT Gold Positioning (risk)",
+     "logic": "Managed money ทองคำ crowded (>200k สัญญา) → เสี่ยง squeeze ขาทอง (หักคะแนน)",
+     "weight": 5,
+     "score": 20.5
+    }
+   ],
+   "available": true
+  },
+  {
+   "model_id": "recovery-reflation",
+   "rank": 2,
+   "score": 63.6,
+   "confidence": 100,
+   "status": "active",
+   "factors": {
+    "market_structure": 24.5,
+    "macro": 20.4,
+    "news": 5.0,
+    "confirmation": 19.6,
+    "risk_penalty": -6.0
+   },
+   "conditions": [
+    {
+     "name": "Credit Spread Narrowing (HY)",
+     "logic": "HY Spread แคบลง → ตลาดฟื้นตัว",
+     "weight": 20,
+     "score": 51.6
+    },
+    {
+     "name": "VIX Falling",
+     "logic": "VIX ลดลง < 18 → risk-on",
+     "weight": 15,
+     "score": 100.0
+    },
+    {
+     "name": "DXY",
+     "logic": "USD อ่อนค่า → เงินไหลเข้า risk assets",
+     "weight": 15,
+     "score": 80.0
+    },
+    {
+     "name": "US10Y",
+     "logic": "Yield ทรงตัว/ลดลง → ดีต่อ growth stocks",
+     "weight": 15,
+     "score": 7.9
+    },
+    {
+     "name": "Yield Curve (2Y-10Y)",
+     "logic": "Curve เริ่ม un-invert → สัญญาณ recovery",
+     "weight": 15,
+     "score": 94.0
+    },
+    {
+     "name": "MOVE Index",
+     "logic": "ความผันผวนตลาดบอนด์สงบ (<100) → หนุน risk-on",
+     "weight": 6,
+     "score": 100.0
+    }
+   ],
+   "available": true
+  },
+  {
+   "model_id": "fed-pivot",
+   "rank": 3,
+   "score": 61.0,
+   "confidence": 100,
+   "status": "active",
+   "factors": {
+    "market_structure": 24.5,
+    "macro": 15.6,
+    "news": 7.2,
+    "confirmation": 19.6,
+    "risk_penalty": -6.0
+   },
+   "conditions": [
+    {
+     "name": "US10Y/US2Y Yield",
+     "logic": "Yield ลดลง → ตลาดคาด Fed ลด",
+     "weight": 20,
+     "score": 7.9
+    },
+    {
+     "name": "DXY",
+     "logic": "USD อ่อน → dovish signal",
+     "weight": 15,
+     "score": 80.0
+    },
+    {
+     "name": "CPI/PCE",
+     "logic": "เงินเฟ้อชะลอ → เปิดทางให้ Fed ลด",
+     "weight": 15,
+     "score": 30.8
+    },
+    {
+     "name": "XAUUSD",
+     "logic": "ทองขึ้น → ตลาดคาด real yield ลง",
+     "weight": 15,
+     "score": 100.0
+    },
+    {
+     "name": "NAS100",
+     "logic": "Tech rally → ยืนยัน duration play",
+     "weight": 10,
+     "score": 89.6
+    },
+    {
+     "name": "Bank Reserves Drain",
+     "logic": "เงินสำรองธนาคารระบายเร็ว (>$150B/60วัน) → บีบ Fed หยุด QT/กลับทิศ",
+     "weight": 6,
+     "score": 0.0
+    }
+   ],
+   "available": true
+  },
+  {
+   "model_id": "yield-shock",
+   "rank": 4,
+   "score": 29.9,
+   "confidence": 100,
+   "status": "inactive",
+   "factors": {
+    "market_structure": 4.8,
+    "macro": 18.9,
+    "news": 6.8,
+    "confirmation": 5.4,
+    "risk_penalty": -6.0
+   },
+   "conditions": [
+    {
+     "name": "US10Y Yield",
+     "logic": "10Y > 4.5% และขึ้นต่อ → shock zone",
+     "weight": 25,
+     "score": 100.0
+    },
+    {
+     "name": "DXY",
+     "logic": "USD แข็งเร็ว → กดดัน risk assets",
+     "weight": 20,
+     "score": 20.0
+    },
+    {
+     "name": "Real Yield (10Y-CPI)",
+     "logic": "Real Yield สูง → ทองถูกกด, หุ้นถูกกด",
+     "weight": 15,
+     "score": 96.5
+    },
+    {
+     "name": "US30Y Yield",
+     "logic": "30Y พุ่ง → term premium / fiscal risk",
+     "weight": 15,
+     "score": 85.0
+    },
+    {
+     "name": "NAS100",
+     "logic": "Tech ตก → ยืนยัน yield shock",
+     "weight": 15,
+     "score": 10.4
+    },
+    {
+     "name": "USDJPY",
+     "logic": "JPY อ่อน → carry trade unwind",
+     "weight": 10,
+     "score": 88.7
+    },
+    {
+     "name": "MOVE Index",
+     "logic": "ความผันผวนบอนด์สูง+พุ่ง (>90) → ยืนยัน rates-vol regime",
+     "weight": 8,
+     "score": 30.1
+    },
+    {
+     "name": "10Y Auction Bid-to-Cover",
+     "logic": "อุปสงค์ประมูลอ่อน (<2.4x) → ผู้ซื้อหลักถอย → yield ขึ้นต่อ",
+     "weight": 7,
+     "score": 68.3
+    },
+    {
+     "name": "US2Y Level",
+     "logic": "2Y สูง (front-end rates stress) → 10Y พุ่งตาม",
+     "weight": 5,
+     "score": 37.5
+    }
+   ],
+   "available": true
+  },
+  {
+   "model_id": "credit-panic",
+   "rank": 5,
+   "score": 17.3,
+   "confidence": 100,
+   "status": "inactive",
+   "factors": {
+    "market_structure": 4.8,
+    "macro": 7.8,
+    "news": 5.2,
+    "confirmation": 5.4,
+    "risk_penalty": -6.0
+   },
+   "conditions": [
+    {
+     "name": "HY Spread",
+     "logic": "HY > 400bps → credit stress",
+     "weight": 20,
+     "score": 8.4
+    },
+    {
+     "name": "VIX",
+     "logic": "VIX > 25 และขึ้น → panic",
+     "weight": 20,
+     "score": 22.3
+    },
+    {
+     "name": "IG Spread",
+     "logic": "IG กว้าง → systemic (ไม่ใช่แค่ junk)",
+     "weight": 20,
+     "score": 0.0
+    },
+    {
+     "name": "US10Y",
+     "logic": "Yield พุ่งเร็ว → trigger credit stress",
+     "weight": 10,
+     "score": 100.0
+    },
+    {
+     "name": "DXY",
+     "logic": "Dollar squeeze → กดดัน debtors",
+     "weight": 10,
+     "score": 20.0
+    },
+    {
+     "name": "MOVE Index",
+     "logic": "ความผันผวนบอนด์ stress (>100) → เครดิตระเบิดมักมากับ rates vol",
+     "weight": 7,
+     "score": 30.1
+    },
+    {
+     "name": "US Debt-to-GDP",
+     "logic": "หนี้สหรัฐ/GDP สูงขึ้น → fiscal fragility → credit stress",
+     "weight": 8,
+     "score": 56.5
+    }
+   ],
+   "available": true
+  },
+  {
+   "model_id": "bank-run",
+   "rank": 6,
+   "score": 11.6,
+   "confidence": 100,
+   "status": "inactive",
+   "factors": {
+    "market_structure": 4.8,
+    "macro": 7.4,
+    "news": 0.0,
+    "confirmation": 5.4,
+    "risk_penalty": -6.0
+   },
+   "conditions": [
+    {
+     "name": "Bank Deposits WoW",
+     "logic": "เงินฝากหด WoW → deposit flight",
+     "weight": 20,
+     "score": 46.0
+    },
+    {
+     "name": "Fed Discount Window",
+     "logic": "แบงก์กู้ฉุกเฉินพุ่ง → ขาดสภาพคล่อง",
+     "weight": 20,
+     "score": 0.0
+    },
+    {
+     "name": "Bank Basket Momentum",
+     "logic": "ตะกร้าหุ้นแบงก์ดิ่ง (KRE/BKX/KBE + regional รายตัว) → ตลาดได้กลิ่นวิกฤต",
+     "weight": 20,
+     "score": 12.2
+    },
+    {
+     "name": "US2Y Collapse",
+     "logic": "2Y ดิ่งเร็ว → flight to safety + คาด Fed ลดดอกเบี้ยอุ้ม",
+     "weight": 15,
+     "score": 0.0
+    },
+    {
+     "name": "HY Spread",
+     "logic": "Spread บาน → เครดิตตึง",
+     "weight": 15,
+     "score": 8.4
+    },
+    {
+     "name": "VIX",
+     "logic": "ความกลัวเร่งตัว",
+     "weight": 10,
+     "score": 22.3
+    },
+    {
+     "name": "Bank Reserves (WRESBAL)",
+     "logic": "เงินสำรองเข้าเขตขาดแคลน (<$3,000B) → ระบบเปราะต่อ funding shock",
+     "weight": 8,
+     "score": 100.0
+    },
+    {
+     "name": "SOFR-EFFR Spread",
+     "logic": "repo ตึง (spread > 10bps) → funding stress เฉียบพลัน",
+     "weight": 7,
+     "score": 20.0
+    },
+    {
+     "name": "ON RRP Buffer × Funding",
+     "logic": "RRP buffer แห้ง (<$300B) + SOFR-EFFR ตึง → ไม่มีเบาะรองรับ repo stress",
+     "weight": 5,
+     "score": 100.0
+    }
+   ],
+   "available": true
+  }
+ ]
+}

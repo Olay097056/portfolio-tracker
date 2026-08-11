@@ -1,0 +1,79 @@
+{
+ "status": "completed",
+ "mode": "full",
+ "calls": 20,
+ "usage": {
+  "prompt_tokens": 133225,
+  "completion_tokens": 26332,
+  "cache_hit": 42112,
+  "cache_miss": 91113
+ },
+ "cost_usd": 0.020247,
+ "duration_s": 288.5,
+ "phase_times": [
+  {
+   "phase": "opening",
+   "at_s": 0.0
+  },
+  {
+   "phase": "research",
+   "at_s": 7.4
+  },
+  {
+   "phase": "briefing",
+   "at_s": 18.9
+  },
+  {
+   "phase": "debate_r1",
+   "at_s": 59.0
+  },
+  {
+   "phase": "debate_r2",
+   "at_s": 134.4
+  },
+  {
+   "phase": "verification",
+   "at_s": 241.9
+  },
+  {
+   "phase": "resolution",
+   "at_s": 263.5
+  },
+  {
+   "phase": "done",
+   "at_s": 288.5
+  }
+ ],
+ "skip_reasons": [
+  "evidence/external_data: ไม่มีคำขอข้อมูล → ข้ามรอบ"
+ ],
+ "consensus": "contested",
+ "stances": {
+  "macro": {
+   "asset": "US10Y",
+   "dir": "long",
+   "conf": 65.0
+  },
+  "credit": {
+   "asset": null,
+   "dir": null,
+   "conf": null
+  },
+  "technical": {
+   "asset": null,
+   "dir": null,
+   "conf": null
+  },
+  "challenger_a": {
+   "asset": "US10",
+   "dir": "Y",
+   "conf": 55.0
+  },
+  "challenger_b": {
+   "asset": "US10",
+   "dir": "Y",
+   "conf": 55.0
+  }
+ },
+ "data_requests": []
+}

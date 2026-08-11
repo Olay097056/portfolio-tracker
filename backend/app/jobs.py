@@ -110,7 +110,7 @@ def run_due_turns(db: Session) -> dict:
     if run is None:
         return {"skipped": "job_already_running"}
 
-    detail: dict = {"prewarm": None, "boardroom": None, "trade_desk": None, "news": None}
+    detail: dict = {"prewarm": None, "boardroom": None, "news": None}
     try:
         # 1. Pre-warm macro/market caches (Postgres cache_entries, ticket 06) so
         #    the dashboard is warm even on a cold function. Cheap when fresh.
@@ -140,18 +140,7 @@ def run_due_turns(db: Session) -> dict:
         except Exception as exc:
             detail["boardroom"] = {"error": str(exc)[:200]}
 
-        # 3. Trade-desk: run due turns (own due-checks inside).
-        from app import trade_desk_service as td
-
-        try:
-            td.seed_teams(db)
-            due = td.run_due_turns(db)
-            detail["trade_desk"] = [r.get("skipped") or r.get("team")
-                                    for r in due if isinstance(r, dict)]
-        except Exception as exc:
-            detail["trade_desk"] = {"error": str(exc)[:200]}
-
-        # 4. News: enrich pending (<=40) — refresh happens on-demand via the
+        # 3. News: enrich pending (<=40) — refresh happens on-demand via the
         #    news endpoint (fast fetch), enrichment is the slow LLM part.
         from app import news_service
 

@@ -16,15 +16,12 @@ def _stub_subsystems(monkeypatch):
     import app.boardroom_service as br
     import app.macro_service as ms
     import app.news_service as ns
-    import app.trade_desk_service as td
 
     monkeypatch.setattr(ms, "build_dashboard", lambda force=False: {"ok": True})
     monkeypatch.setattr(ms, "fred_history_map", lambda ids: {i: [] for i in ids})
     monkeypatch.setattr(br, "check_triggers", lambda db: {
         "checked_at": "x", "triggered": False, "skipped": True, "skip_reason": "no_candidate"})
     monkeypatch.setattr(br, "advance_running_meetings", lambda db, max_llm_turns: 0)
-    monkeypatch.setattr(td, "seed_teams", lambda db: None)
-    monkeypatch.setattr(td, "run_due_turns", lambda db, scenario="": [{"skipped": "not_due"}])
     monkeypatch.setattr(ns, "enrich_pending", lambda db, limit: 0)
 
 
@@ -36,7 +33,6 @@ def test_tick_runs_all_subsystems_and_finishes(db_session, monkeypatch):
     import app.boardroom_service as br
     import app.macro_service as ms
     import app.news_service as ns
-    import app.trade_desk_service as td
 
     calls: dict[str, int] = {}
 
@@ -54,17 +50,15 @@ def test_tick_runs_all_subsystems_and_finishes(db_session, monkeypatch):
     monkeypatch.setattr(br, "check_triggers", counting("trigger")(br.check_triggers))
     monkeypatch.setattr(br, "advance_running_meetings",
                         counting("advance")(br.advance_running_meetings))
-    monkeypatch.setattr(td, "run_due_turns", counting("trade")(td.run_due_turns))
     monkeypatch.setattr(ns, "enrich_pending", counting("news")(ns.enrich_pending))
 
     out = jobs.run_due_turns(db_session)
     assert out.get("prewarm") is not None
     assert out.get("boardroom") is not None
-    assert out.get("trade_desk") is not None
     assert out.get("news") is not None
     # every subsystem was called exactly once
     assert calls["prewarm"] == 1 and calls["trigger"] == 1 and calls["advance"] == 1
-    assert calls["trade"] == 1 and calls["news"] == 1
+    assert calls["news"] == 1
     # the run row is finished, not left running
     assert _running_count(db_session) == 0
     last = db_session.query(JobRun).order_by(JobRun.id.desc()).first()
@@ -126,6 +120,6 @@ def test_subsystem_failure_does_not_kill_tick(db_session, monkeypatch):
     out = jobs.run_due_turns(db_session)
     # boardroom reports the error, other subsystems still ran
     assert "error" in out["boardroom"]
-    assert out["news"] is not None and out["trade_desk"] is not None
+    assert out["news"] is not None
     last = db_session.query(JobRun).order_by(JobRun.id.desc()).first()
     assert last.status == "finished"  # tick survives; only the subsystem failed

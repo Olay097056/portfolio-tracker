@@ -1,0 +1,5 @@
+fastapi
+numpy
+scikit-learn
+yfinance
+httpx

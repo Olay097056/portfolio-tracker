@@ -1,0 +1,226 @@
+{
+ "scenarios": [
+  {
+   "scenario": "น้ำมันช็อก: อิหร่านปิดช่องแคบฮอร์มุซ — น้ำมันดิบพุ่ง 8% ข้ามคืน เงินเฟ้อกดดัน",
+   "teams": {
+    "A": {
+     "calls": [
+      {
+       "seat": "trend",
+       "order": {
+        "action": "open",
+        "market": "BTC-USD",
+        "side": "long",
+        "size_pct": 8,
+        "sl_pct": 4,
+        "tp_pct": 8,
+        "horizon_days": 5,
+        "reason": "Oil shock + inflation signal (63.4) supports crypto as inflation hedge; BTC holds above key MA with momentum, model score 61.8 recovery-reflation active. Trend intact, enter on strength with tight stop."
+       },
+       "sec": 1.885526418685913,
+       "content": "{\"action\": \"open\", \"market\": \"BTC-USD\", \"side\": \"long\", \"size_pct\": 8, \"sl_pct\": 4, \"tp_pct\": 8, \"horizon_days\": 5, \"reason\": \"Oil shock + inflation signal (63.4) supports crypto as inflation hedge; BTC holds above key MA with momentum, model score 61.8 recovery-reflation active. Trend intact, enter on strength with tight stop.\"}"
+      },
+      {
+       "seat": "technical",
+       "order": {
+        "action": "open",
+        "market": "BTC-USD",
+        "side": "long",
+        "size_pct": 7,
+        "sl_pct": 4,
+        "tp_pct": 9,
+        "horizon_days": 5,
+        "reason": "โมเดล inflation-oil 63.4 และ recovery-reflation 61.8 ผ่านเกณฑ์ ขณะที่ yield-shock/credit-panic ต่ำมาก (30/18) บ่งชี้ตลาดยังไม่ panic น้ำมันช็อกอาจกดหุ้นระยะสั้นแต่ BTC มีแนวโน้มเป็น hedge เงินเฟ้อ ราคา 64902 อยู่เหนือ MA20/50 (แนวรับ 63500) volume ขาขึ้นหนุน โมเมนตัมรายวัน bullish divergence จาก RSI 14 ที่ 58 เป้าหมาย 70700 (แนวต้านรอบก่อน) SL 62300 ใต้ MA50"
+       },
+       "sec": 3.374657154083252,
+       "content": "```json\n{\n  \"action\": \"open\",\n  \"market\": \"BTC-USD\",\n  \"side\": \"long\",\n  \"size_pct\": 7,\n  \"sl_pct\": 4,\n  \"tp_pct\": 9,\n  \"horizon_days\": 5,\n  \"reason\": \"โมเดล inflation-oil 63.4 และ recovery-reflation 61.8 ผ่านเกณฑ์ ขณะที่ yield-shock/credit-panic ต่ำมาก (30/18) บ่งชี้ตลาดยังไม่ panic น้ำมันช็อกอาจกดหุ้นระยะสั้นแต่ BTC มีแนวโน้มเป็น hedge เงินเฟ้อ ราคา 64902 อยู่เหนือ MA20/50 (แนวรับ 63500) volume ขาขึ้นหนุน โมเมนตัมรายวัน bullish divergence จาก RSI 14 ที่ 58 เป้าหมาย 70700 (แนวต้านรอบก่อน) SL 62300 ใต้ MA50\"\n}\n```"
+      },
+      {
+       "seat": "lead",
+       "order": {
+        "action": "open",
+        "market": "BTC-USD",
+        "side": "long",
+        "size_pct": 5,
+        "sl_pct": 3,
+        "tp_pct": 6,
+        "horizon_days": 5,
+        "reason": "Oil shock supports inflation hedge narrative; both models active (63.4/61.8) but risk from oil-driven equity volatility and Fed uncertainty caps size at 5% within team risk framework. BTC above key MAs with momentum, but use tighter stop to manage overnight gap risk."
+       },
+       "sec": 1.5194215774536133,
+       "content": "{\"action\": \"open\", \"market\": \"BTC-USD\", \"side\": \"long\", \"size_pct\": 5, \"sl_pct\": 3, \"tp_pct\": 6, \"horizon_days\": 5, \"reason\": \"Oil shock supports inflation hedge narrative; both models active (63.4/61.8) but risk from oil-driven equity volatility and Fed uncertainty caps size at 5% within team risk framework. BTC above key MAs with momentum, but use tighter stop to manage overnight gap risk.\"}"
+      }
+     ],
+     "cost_usd": 0.000437,
+     "tokens_in": 2249,
+     "tokens_out": 436,
+     "seconds": 6.8
+    },
+    "B": {
+     "calls": [
+      {
+       "seat": "macro",
+       "order": {
+        "action": "open",
+        "market": "CL",
+        "side": "short",
+        "size_pct": 4,
+        "sl_pct": 6,
+        "tp_pct": 12,
+        "horizon_days": 14,
+        "reason": "Oil spike +8% overnight on Hormuz disruption is an extreme geopolitical shock. However, US jobs miss (July) reduces Fed hike expectations, and the yield curve (2y-10y inversion at -44bp) signals growth slowdown ahead. Iran closure is likely temporary/negotiable; oil at these levels will trigger demand destruction and potential SPR releases. FRED data shows real rates still restrictive (5y at 4.4% vs inflation expectations ~2.3%), pressuring commodity demand. Short oil from overbought extreme with tight risk, targeting mean reversion as geopolitical premium fades within 2 weeks."
+       },
+       "sec": 3.8563644886016846,
+       "content": "{\"action\": \"open\", \"market\": \"CL\", \"side\": \"short\", \"size_pct\": 4, \"sl_pct\": 6, \"tp_pct\": 12, \"horizon_days\": 14, \"reason\": \"Oil spike +8% overnight on Hormuz disruption is an extreme geopolitical shock. However, US jobs miss (July) reduces Fed hike expectations, and the yield curve (2y-10y inversion at -44bp) signals growth slowdown ahead. Iran closure is likely temporary/negotiable; oil at these levels will trigger demand destruction and potential SPR releases. FRED data shows real rates still restrictive (5y at 4.4% vs inflation expectations ~2.3%), pressuring commodity demand. Short oil from overbought extreme with tight risk, targeting mean reversion as geopolitical premium fades within 2 weeks.\"}"
+      },
+      {
+       "seat": "contrarian",
+       "order": {
+        "action": "open",
+        "market": "CL",
+        "side": "short",
+        "size_pct": 3,
+        "sl_pct": 5,
+        "tp_pct": 8,
+        "horizon_days": 10,
+        "reason": "Oil spike 8% on Hormuz closure is extreme geopolitical shock, but US jobs miss + falling rate hike expectations cap inflation fears. Yield curve steepening (2s10s at 44bp) suggests market pricing slower growth, not stagflation. Iran/ADNOC headlines likely peak fear; UAE statement may be posturing. Short oil against 5-day high deviation, targeting mean reversion as supply fears fade without actual full blockade confirmation."
+       },
+       "sec": 2.7468676567077637,
+       "content": "{\"action\": \"open\", \"market\": \"CL\", \"side\": \"short\", \"size_pct\": 3, \"sl_pct\": 5, \"tp_pct\": 8, \"horizon_days\": 10, \"reason\": \"Oil spike 8% on Hormuz closure is extreme geopolitical shock, but US jobs miss + falling rate hike expectations cap inflation fears. Yield curve steepening (2s10s at 44bp) suggests market pricing slower growth, not stagflation. Iran/ADNOC headlines likely peak fear; UAE statement may be posturing. Short oil against 5-day high deviation, targeting mean reversion as supply fears fade without actual full blockade confirmation.\"}"
+      },
+      {
+       "seat": "lead",
+       "order": {
+        "action": "open",
+        "market": "CL",
+        "side": "short",
+        "size_pct": 4,
+        "sl_pct": 5,
+        "tp_pct": 10,
+        "horizon_days": 10,
+        "reason": "Oil spike on Hormuz disruption is extreme geopolitical shock, but US jobs miss and inverted yield curve signal growth slowdown, capping inflation. Both analysts propose shorting from overbought levels; I size at 4% within team risk, using tighter SL 5% (below 2-5% risk band) and TP 10% (4-5% reward/risk) to capture mean reversion as geopolitical premium fades. Conflicting signals from inflation-oil (63.4) and recovery-reflation (61.8) vs yield-shock (30.4) support tactical short."
+       },
+       "sec": 2.761779308319092,
+       "content": "{\"action\": \"open\", \"market\": \"CL\", \"side\": \"short\", \"size_pct\": 4, \"sl_pct\": 5, \"tp_pct\": 10, \"horizon_days\": 10, \"reason\": \"Oil spike on Hormuz disruption is extreme geopolitical shock, but US jobs miss and inverted yield curve signal growth slowdown, capping inflation. Both analysts propose shorting from overbought levels; I size at 4% within team risk, using tighter SL 5% (below 2-5% risk band) and TP 10% (4-5% reward/risk) to capture mean reversion as geopolitical premium fades. Conflicting signals from inflation-oil (63.4) and recovery-reflation (61.8) vs yield-shock (30.4) support tactical short.\"}"
+      }
+     ],
+     "cost_usd": 0.00048,
+     "tokens_in": 2414,
+     "tokens_out": 509,
+     "seconds": 9.4
+    }
+   }
+  },
+  {
+   "scenario": "สหรัฐอ่อน: CPI ออกสูงกว่าคาด + ตลาดแรงงานอ่อนลง — เฟดอาจลดดอกเบี้ยเร็วขึ้น",
+   "teams": {
+    "A": {
+     "calls": [
+      {
+       "seat": "trend",
+       "order": {
+        "action": "open",
+        "market": "BTC-USD",
+        "side": "long",
+        "size_pct": 8,
+        "sl_pct": 4,
+        "tp_pct": 12,
+        "horizon_days": 5,
+        "reason": "Trend momentum intact (price above MA) with inflation-oil (63.4) and recovery-reflation (61.8) active. Weak US jobs + potential Fed pivot supports risk assets. BTC at 64.9k holding key support. Stop below recent swing low, target prior range high."
+       },
+       "sec": 1.916567087173462,
+       "content": "```json\n{\n  \"action\": \"open\",\n  \"market\": \"BTC-USD\",\n  \"side\": \"long\",\n  \"size_pct\": 8,\n  \"sl_pct\": 4,\n  \"tp_pct\": 12,\n  \"horizon_days\": 5,\n  \"reason\": \"Trend momentum intact (price above MA) with inflation-oil (63.4) and recovery-reflation (61.8) active. Weak US jobs + potential Fed pivot supports risk assets. BTC at 64.9k holding key support. Stop below recent swing low, target prior range high.\"\n}\n```"
+      },
+      {
+       "seat": "technical",
+       "order": {
+        "action": "open",
+        "market": "TLT",
+        "side": "long",
+        "size_pct": 8,
+        "sl_pct": 2.5,
+        "tp_pct": 5.0,
+        "horizon_days": 5,
+        "reason": "CPI สูงกว่าคาด + ตลาดแรงงานอ่อนแรง → เฟดมีแนวโน้มลดดอกเบี้ยเร็วขึ้น หนุนบอนด์ระยะยาว (TLT) โมเดล fed-pivot 56.6 ยังไม่ถึง 60 แต่ momentum จากข่าวแรงงานอ่อนแรง + yield-shock ต่ำ (30.4) บ่งชี้ว่าไม่มีแรงขายบอนด์รุนแรง ราคา TLT 82.76 อยู่เหนือ MA20 แนวโน้มขาขึ้นระยะสั้น เข้าเมื่อเทรนด์เริ่มชัดเจน ตั้ง SL ใต้แนวรับ 2.5% และ TP ที่แนวต้านถัดไป 5% ภายใน 5 วัน"
+       },
+       "sec": 3.240330457687378,
+       "content": "```json\n{\n  \"action\": \"open\",\n  \"market\": \"TLT\",\n  \"side\": \"long\",\n  \"size_pct\": 8,\n  \"sl_pct\": 2.5,\n  \"tp_pct\": 5.0,\n  \"horizon_days\": 5,\n  \"reason\": \"CPI สูงกว่าคาด + ตลาดแรงงานอ่อนแรง → เฟดมีแนวโน้มลดดอกเบี้ยเร็วขึ้น หนุนบอนด์ระยะยาว (TLT) โมเดล fed-pivot 56.6 ยังไม่ถึง 60 แต่ momentum จากข่าวแรงงานอ่อนแรง + yield-shock ต่ำ (30.4) บ่งชี้ว่าไม่มีแรงขายบอนด์รุนแรง ราคา TLT 82.76 อยู่เหนือ MA20 แนวโน้มขาขึ้นระยะสั้น เข้าเมื่อเทรนด์เริ่มชัดเจน ตั้ง SL ใต้แนวรับ 2.5% และ TP ที่แนวต้านถัดไป 5% ภายใน 5 วัน\"\n}\n```"
+      },
+      {
+       "seat": "lead",
+       "order": {
+        "action": "hold",
+        "market": "XAUUSD",
+        "side": "long",
+        "size_pct": 0,
+        "sl_pct": 0,
+        "tp_pct": 0,
+        "horizon_days": 0,
+        "reason": "พอร์ตใหม่ยังไม่มีไม้เดิม และข้อเสนอทั้งสองเกินกรอบความเสี่ยงทีม (size 8% > สูงสุด 10% แต่รวมสองไม้ 16% เกินความเสี่ยงรวมที่ควรเปิด 1-2 ไม้) และสัญญาณ fed-pivot ยังไม่ active (56.6 < 60) ขณะที่ BTC มีความผันผวนสูงจากข่าวภูมิรัฐศาสตร์ TLT แม้มีโมเมนตัมแต่ยังไม่ถึงเกณฑ์ active รอความชัดเจนของ CPI และการตอบสนองของเฟดก่อน"
+       },
+       "sec": 3.0901925563812256,
+       "content": "{\"action\": \"hold\", \"market\": \"XAUUSD\", \"side\": \"long\", \"size_pct\": 0, \"sl_pct\": 0, \"tp_pct\": 0, \"horizon_days\": 0, \"reason\": \"พอร์ตใหม่ยังไม่มีไม้เดิม และข้อเสนอทั้งสองเกินกรอบความเสี่ยงทีม (size 8% > สูงสุด 10% แต่รวมสองไม้ 16% เกินความเสี่ยงรวมที่ควรเปิด 1-2 ไม้) และสัญญาณ fed-pivot ยังไม่ active (56.6 < 60) ขณะที่ BTC มีความผันผวนสูงจากข่าวภูมิรัฐศาสตร์ TLT แม้มีโมเมนตัมแต่ยังไม่ถึงเกณฑ์ active รอความชัดเจนของ CPI และการตอบสนองของเฟดก่อน\"}"
+      }
+     ],
+     "cost_usd": 0.00047,
+     "tokens_in": 2244,
+     "tokens_out": 555,
+     "seconds": 8.2
+    },
+    "B": {
+     "calls": [
+      {
+       "seat": "macro",
+       "order": {
+        "action": "open",
+        "market": "US10Y",
+        "side": "long",
+        "size_pct": 3,
+        "sl_pct": 1.2,
+        "tp_pct": 3.5,
+        "horizon_days": 15,
+        "reason": "CPI สูงกว่าคาด + ตลาดแรงงานอ่อนแรง = เฟดอาจชะลอการขึ้นดอกเบี้ย แต่ yield 10y ที่ 4.69% สูงเกินจริงเมื่อเทียบกับ effr 3.63% และ SOFR 3.65% (ส่วนต่าง ~100bps) ขณะที่ on_rrp 1.4% บ่งชี้สภาพคล่องล้น — โอกาสกลับตัวลงของ yield สูง มหภาคสนับสนุนการกลับตัว (stagflation risk) เข้าสวนทางสุดขั้ว"
+       },
+       "sec": 2.782777786254883,
+       "content": "{\"action\": \"open\", \"market\": \"US10Y\", \"side\": \"long\", \"size_pct\": 3, \"sl_pct\": 1.2, \"tp_pct\": 3.5, \"horizon_days\": 15, \"reason\": \"CPI สูงกว่าคาด + ตลาดแรงงานอ่อนแรง = เฟดอาจชะลอการขึ้นดอกเบี้ย แต่ yield 10y ที่ 4.69% สูงเกินจริงเมื่อเทียบกับ effr 3.63% และ SOFR 3.65% (ส่วนต่าง ~100bps) ขณะที่ on_rrp 1.4% บ่งชี้สภาพคล่องล้น — โอกาสกลับตัวลงของ yield สูง มหภาคสนับสนุนการกลับตัว (stagflation risk) เข้าสวนทางสุดขั้ว\"}"
+      },
+      {
+       "seat": "contrarian",
+       "order": {
+        "action": "open",
+        "market": "US10Y",
+        "side": "long",
+        "size_pct": 3,
+        "sl_pct": 1.2,
+        "tp_pct": 3.5,
+        "horizon_days": 15,
+        "reason": "CPI สูงกว่าคาด + ตลาดแรงงานอ่อนลง → เฟดอาจลดดอกเบี้ยเร็วขึ้น แต่ curve ล่าสุด steep มาก (10Y-2Y = 44bp, 30Y-2Y = 97bp) และ 10Y ที่ 4.69% สูงเกินจริง vs SOFR 3.65% — โอกาสกลับตัวลง yield สูง (ราคา bond ขึ้น) จาก positioning แนว contrarian ข่าวภูมิรัฐศาสตร์น้ำมันกดดัน inflation แต่ Fed จะต้องตอบสนองต่อ growth มากกว่า — เข้า long 10Y bond ที่ extreme deviation"
+       },
+       "sec": 3.4203240871429443,
+       "content": "{\"action\": \"open\", \"market\": \"US10Y\", \"side\": \"long\", \"size_pct\": 3, \"sl_pct\": 1.2, \"tp_pct\": 3.5, \"horizon_days\": 15, \"reason\": \"CPI สูงกว่าคาด + ตลาดแรงงานอ่อนลง → เฟดอาจลดดอกเบี้ยเร็วขึ้น แต่ curve ล่าสุด steep มาก (10Y-2Y = 44bp, 30Y-2Y = 97bp) และ 10Y ที่ 4.69% สูงเกินจริง vs SOFR 3.65% — โอกาสกลับตัวลง yield สูง (ราคา bond ขึ้น) จาก positioning แนว contrarian ข่าวภูมิรัฐศาสตร์น้ำมันกดดัน inflation แต่ Fed จะต้องตอบสนองต่อ growth มากกว่า — เข้า long 10Y bond ที่ extreme deviation\"}"
+      },
+      {
+       "seat": "lead",
+       "order": {
+        "action": "open",
+        "market": "US10Y",
+        "side": "long",
+        "size_pct": 3,
+        "sl_pct": 1.2,
+        "tp_pct": 3.5,
+        "horizon_days": 15,
+        "reason": "CPI สูงกว่าคาด + ตลาดแรงงานอ่อนลง → เฟดอาจลดดอกเบี้ยเร็วขึ้น แต่ yield 10Y ที่ 4.69% สูงเกินจริง vs effr 3.63% และ SOFR 3.65% (ส่วนต่าง ~100bps) ขณะที่ on_rrp 1.4% บ่งชี้สภาพคล่องล้น — โอกาสกลับตัวลงของ yield สูง มหภาคสนับสนุนการกลับตัว (stagflation risk) เข้าสวนทางสุดขั้ว"
+       },
+       "sec": 2.033778667449951,
+       "content": "{\"action\": \"open\", \"market\": \"US10Y\", \"side\": \"long\", \"size_pct\": 3, \"sl_pct\": 1.2, \"tp_pct\": 3.5, \"horizon_days\": 15, \"reason\": \"CPI สูงกว่าคาด + ตลาดแรงงานอ่อนลง → เฟดอาจลดดอกเบี้ยเร็วขึ้น แต่ yield 10Y ที่ 4.69% สูงเกินจริง vs effr 3.63% และ SOFR 3.65% (ส่วนต่าง ~100bps) ขณะที่ on_rrp 1.4% บ่งชี้สภาพคล่องล้น — โอกาสกลับตัวลงของ yield สูง มหภาคสนับสนุนการกลับตัว (stagflation risk) เข้าสวนทางสุดขั้ว\"}"
+      }
+     ],
+     "cost_usd": 0.000501,
+     "tokens_in": 2433,
+     "tokens_out": 572,
+     "seconds": 8.2
+    }
+   }
+  }
+ ]
+}

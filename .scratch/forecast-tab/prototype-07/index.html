@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>จำลองสถานการณ์ — Prototype 07</title>
+<style>
+  :root {
+    --bg: #0a0e14; --panel: #111722; --panel2: #0d1320; --border: #1f2937;
+    --ink: #e2e8f0; --faint: #64748b; --accent: #38bdf8; --accent2: #f59e0b;
+    --emerald: #34d399; --red: #f87171; --orange: #fb923c; --amber: #fbbf24;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: 'Segoe UI', system-ui, sans-serif; padding: 20px; }
+  .wrap { max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 20px; font-weight: 600; }
+  .sub { color: var(--faint); font-size: 13px; margin-top: 4px; }
+  .sim-banner { margin-top: 14px; background: rgba(56,189,248,.08); border: 1px solid rgba(56,189,248,.25); border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #bae6fd; }
+  .grid { display: grid; grid-template-columns: 380px 1fr; gap: 16px; margin-top: 16px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .panel h2 { font-size: 14px; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .grp { margin-bottom: 14px; }
+  .grp-t { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); margin: 12px 0 6px; }
+  .row { margin-bottom: 10px; }
+  .row .lab { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 3px; }
+  .row .lab .cur { color: var(--faint); font-size: 12px; }
+  .row .lab .val { color: var(--accent); font-weight: 600; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; }
+  .preset { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: rgba(56,189,248,.12); border: 1px solid rgba(56,189,248,.35); color: #bae6fd; cursor: pointer; }
+  .preset:hover { background: rgba(56,189,248,.22); }
+  .reset { margin-top: 8px; font-size: 13px; color: var(--faint); cursor: pointer; text-decoration: underline; }
+  .disclaimer { margin-top: 12px; font-size: 11.5px; color: var(--faint); border-top: 1px solid var(--border); padding-top: 10px; }
+  /* model cards */
+  .mc { background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+  .mc-top { display: flex; align-items: center; gap: 10px; }
+  .rank { font-size: 12px; color: var(--faint); width: 26px; text-align: right; }
+  .mname { font-size: 14px; font-weight: 600; flex: 1; }
+  .scores { display: flex; align-items: baseline; gap: 8px; font-size: 13px; }
+  .scores .before { color: var(--faint); }
+  .scores .arrow { color: var(--faint); }
+  .scores .after { font-size: 18px; font-weight: 700; }
+  .delta { font-size: 13px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
+  .delta.up { color: var(--emerald); background: rgba(52,211,153,.12); }
+  .delta.down { color: var(--red); background: rgba(248,113,113,.12); }
+  .delta.flat { color: var(--faint); background: rgba(100,116,139,.12); }
+  .barwrap { margin-top: 8px; height: 12px; background: var(--panel); border-radius: 999px; position: relative; overflow: hidden; }
+  .bar-base { position: absolute; inset: 0; background: rgba(100,116,139,.35); border-radius: 999px; }
+  .bar-sim { position: absolute; inset: 0 0 0 0; border-radius: 999px; opacity: .85; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 600; }
+  .badge.building { background: rgba(251,191,36,.15); color: var(--amber); }
+  .badge.active { background: rgba(52,211,153,.15); color: var(--emerald); }
+  .badge.inactive { background: rgba(100,116,139,.15); color: var(--faint); }
+  .badge.danger { background: rgba(248,113,113,.15); color: var(--red); }
+  .expand { margin-top: 8px; font-size: 12px; color: var(--faint); cursor: pointer; }
+  .detail { display: none; margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px; font-size: 12.5px; }
+  .detail.open { display: block; }
+  .detail .fact { color: var(--faint); }
+  .detail table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  .detail th, .detail td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .detail th { color: var(--faint); font-weight: 500; }
+  .sect { margin-top: 20px; }
+  .sect h3 { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 8px; }
+  .sigtag { font-size: 12px; padding: 3px 9px; border-radius: 6px; margin-right: 6px; display: inline-block; margin-bottom: 4px; }
+  .sigtag.new { background: rgba(52,211,153,.12); color: var(--emerald); border: 1px solid rgba(52,211,153,.3); }
+  .sigtag.fade { background: rgba(248,113,113,.12); color: var(--red); border: 1px solid rgba(248,113,113,.3); }
+  .calc { display: none; position: fixed; top: 14px; right: 20px; background: var(--panel); border: 1px solid var(--accent); color: var(--accent); font-size: 13px; padding: 8px 14px; border-radius: 999px; z-index: 9; }
+  .calc.show { display: block; }
+  .simulated-flag { border: 1px dashed rgba(251,191,36,.5); }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>จำลองสถานการณ์</h1>
+  <div class="sub">ปรับสถานการณ์สมมติ — จำลองผลกระทบต่อคะแนนโมเดลเมื่อตัวแปรสำคัญเปลี่ยน</div>
+  <div class="sim-banner">⚠️ ตัวเลขทั้งหมดในหน้านี้เป็นสถานการณ์สมมติ (what-if) ที่ผู้ใช้ตั้งค่าเอง — คะแนน สัญญาณ และผลกระทบไม่ใช่ข้อมูลจริงและไม่ใช่คำแนะนำการลงทุน</div>
+
+  <div class="grid">
+    <!-- left: controls -->
+    <div class="panel" style="align-self:start;">
+      <h2>⚙️ ปรับสถานการณ์สมมติ</h2>
+      <div class="presets">
+        <span class="preset" onclick="applyPreset('oil')">🛢️ น้ำมันช็อก</span>
+        <span class="preset" onclick="applyPreset('fed')">🏦 เฟดช็อก</span>
+        <span class="preset" onclick="applyPreset('credit')">💳 วิกฤตเครดิต</span>
+        <span class="preset" onclick="applyPreset('bank')">🏃 เงินฝากไหลออก</span>
+        <span class="preset" onclick="applyPreset('reflate')">📈 รีเฟลชัน</span>
+      </div>
+
+      <div class="grp-t">อัตราดอกเบี้ย</div>
+      <div class="row"><div class="lab"><span>Fed ขึ้น/ลดดอกเบี้ย</span><span class="val" id="v-fedBps">0 bps</span></div><input type="range" id="fedBps" min="-200" max="200" step="25" value="0" oninput="slide('fedBps')"></div>
+      <div class="row"><div class="lab"><span>SOFR-EFFR spread (repo ตึง)</span><span class="val" id="v-sofrSpreadBps">0 bps</span></div><input type="range" id="sofrSpreadBps" min="0" max="100" step="5" value="0" oninput="slide('sofrSpreadBps')"></div>
+      <div class="row"><div class="lab"><span>หนี้สหรัฐต่อ GDP เพิ่ม</span><span class="val" id="v-debtPts">0 pt</span></div><input type="range" id="debtPts" min="0" max="20" step="1" value="0" oninput="slide('debtPts')"></div>
+      <div class="row"><div class="lab"><span>ประมูล 10Y Bid-to-Cover</span><span class="val" id="v-auctionBtc">2.5 x</span></div><input type="range" id="auctionBtc" min="1.8" max="3.2" step="0.1" value="2.5" oninput="slide('auctionBtc')"></div>
+
+      <div class="grp-t">ความผันผวน / สินค้าโภคภัณฑ์</div>
+      <div class="row"><div class="lab"><span>VIX เปลี่ยน</span><span class="val" id="v-vixPts">0 pts</span></div><input type="range" id="vixPts" min="-10" max="30" step="1" value="0" oninput="slide('vixPts')"></div>
+      <div class="row"><div class="lab"><span>ราคาน้ำมันเปลี่ยน</span><span class="val" id="v-oilPct">0%</span></div><input type="range" id="oilPct" min="-40" max="60" step="5" value="0" oninput="slide('oilPct')"></div>
+      <div class="row"><div class="lab"><span>ราคาทองคำเปลี่ยน</span><span class="val" id="v-goldPct">0%</span></div><input type="range" id="goldPct" min="-20" max="40" step="5" value="0" oninput="slide('goldPct')"></div>
+
+      <div class="grp-t">เครดิต / เงินเฟ้อ</div>
+      <div class="row"><div class="lab"><span>HY Spread เปลี่ยน</span><span class="val" id="v-hyBps">0 bps</span></div><input type="range" id="hyBps" min="-100" max="400" step="25" value="0" oninput="slide('hyBps')"></div>
+      <div class="row"><div class="lab"><span>เงินเฟ้อ CPI เปลี่ยน</span><span class="val" id="v-cpiPts">0 pt</span></div><input type="range" id="cpiPts" min="-2" max="3" step="0.25" value="0" oninput="slide('cpiPts')"></div>
+
+      <div class="grp-t">สภาพคล่องธนาคาร</div>
+      <div class="row"><div class="lab"><span>เงินฝากแบงก์ (2 สัปดาห์)</span><span class="val" id="v-depositPct">0%</span></div><input type="range" id="depositPct" min="-3" max="1" step="0.25" value="0" oninput="slide('depositPct')"></div>
+      <div class="row"><div class="lab"><span>Fed Discount Window พุ่ง</span><span class="val" id="v-dwBillion">0 $B</span></div><input type="range" id="dwBillion" min="0" max="100" step="5" value="0" oninput="slide('dwBillion')"></div>
+
+      <div class="grp-t">ข่าว (ของเราเพิ่มจากต้นฉบับ)</div>
+      <div class="row"><div class="lab"><span>ระดับข่าวแรง — bank-run</span><span class="val" id="v-news-bank-run">0</span></div><input type="range" id="news-bank-run" min="0" max="100" step="5" value="0" oninput="slide('news-bank-run')"></div>
+      <div class="row"><div class="lab"><span>ระดับข่าวแรง — yield-shock</span><span class="val" id="v-news-yield-shock">0</span></div><input type="range" id="news-yield-shock" min="0" max="100" step="5" value="0" oninput="slide('news-yield-shock')"></div>
+      <div class="row"><div class="lab"><span>ระดับข่าวแรง — credit-panic</span><span class="val" id="v-news-credit-panic">0</span></div><input type="range" id="news-credit-panic" min="0" max="100" step="5" value="0" oninput="slide('news-credit-panic')"></div>
+      <div class="row"><div class="lab"><span>ระดับข่าวแรง — inflation-oil</span><span class="val" id="v-news-inflation-oil">0</span></div><input type="range" id="news-inflation-oil" min="0" max="100" step="5" value="0" oninput="slide('news-inflation-oil')"></div>
+      <div class="row"><div class="lab"><span>ระดับข่าวแรง — fed-pivot</span><span class="val" id="v-news-fed-pivot">0</span></div><input type="range" id="news-fed-pivot" min="0" max="100" step="5" value="0" oninput="slide('news-fed-pivot')"></div>
+      <div class="row"><div class="lab"><span>ระดับข่าวแรง — recovery-reflation</span><span class="val" id="v-news-recovery-reflation">0</span></div><input type="range" id="news-recovery-reflation" min="0" max="100" step="5" value="0" oninput="slide('news-recovery-reflation')"></div>
+
+      <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+        <span class="reset" onclick="resetAll()">↺ รีเซ็ตค่าทั้งหมด</span>
+        <span style="color:var(--faint);font-size:11.5px;">ค่าจริง: US10Y 4.47% · VIX 14.2 · WTI 74.3 · HY 296 bps</span>
+      </div>
+      <div class="disclaimer">การจำลองเป็นค่าประมาณทิศทางจากตรรกะเดียวกับ scoring engine (แบบย่อ) — ไม่ใช่ผลการคำนวณเต็มรูปแบบ · ไม่ใช่คำแนะนำการลงทุน และไม่ใช่สัญญาณจริง</div>
+    </div>
+
+    <!-- right: results -->
+    <div>
+      <div class="panel">
+        <h2>🎯 ผลกระทบต่อคะแนนโมเดล</h2>
+        <div id="models"></div>
+
+        <div class="sect" id="sig-sect" style="display:none;">
+          <h3>📡 ผลต่อสัญญาณเทรด (มีสิทธิ์เกิด — ยังต้องรอ TA ยืนยัน)</h3>
+          <div id="signals"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="calc" id="calc">⏳ กำลังคำนวณ...</div>
+
+<script>
+// Baseline (ค่าจริงปัจจุบันจาก live dashboard)
+const BASE = [
+  { id: 'recovery-reflation', name: 'โมเดลฟื้นตัว / รีเฟลชัน', score: 41.2, status: 'building' },
+  { id: 'inflation-oil',      name: 'โมเดลเงินเฟ้อ / น้ำมัน',    score: 33.7, status: 'inactive' },
+  { id: 'fed-pivot',          name: 'โมเดลเฟดเปลี่ยนทิศ',        score: 16.3, status: 'inactive' },
+  { id: 'yield-shock',        name: 'โมเดลช็อกอัตราผลตอบแทน',   score: 56.9, status: 'active' },
+  { id: 'credit-panic',       name: 'โมเดลตื่นตระหนกสินเชื่อ',   score: 5.6,  status: 'inactive' },
+  { id: 'bank-run',           name: 'โมเดลวิกฤตแบงก์รัน',        score: 11.7, status: 'inactive' },
+];
+const SIGNAL_MAP = {
+  'yield-shock': ['TLT (Short)', 'US10Y (Short)', 'DXY (Long)', 'GLD (Long)'],
+  'bank-run':    ['KRE (Short)', 'XLF (Short)', 'TLT (Long)', 'GLD (Long)'],
+  'inflation-oil': ['USO (Long)', 'XLE (Long)', 'TLT (Short)'],
+  'recovery-reflation': ['SPY (Long)', 'XLI (Long)', 'TLT (Short)'],
+  'fed-pivot': ['TLT (Long)', 'QQQ (Long)', 'DXY (Short)'],
+  'credit-panic': ['HYG (Short)', 'SPY (Short)', 'TLT (Long)'],
+};
+// weight per model per variable (mock — แสดงทิศทาง/ความไวคร่าวๆ ตาม sensitivity audit)
+const W = {
+  'recovery-reflation': { fedBps:-.18, oilPct:.10, vixPts:-.08, hyBps:-.06, cpiPts:.04, goldPct:.02, auctionBtc:-.04 },
+  'inflation-oil':      { fedBps:.05, oilPct:.22, vixPts:.04, hyBps:.05, cpiPts:.16, goldPct:.06, auctionBtc:.02 },
+  'fed-pivot':          { fedBps:-.30, oilPct:.03, vixPts:-.05, hyBps:-.04, cpiPts:-.07, goldPct:.04 },
+  'yield-shock':        { fedBps:.24, oilPct:.06, vixPts:.12, hyBps:.10, cpiPts:.08, goldPct:.04, auctionBtc:-.28 },
+  'credit-panic':       { fedBps:.08, oilPct:.04, vixPts:.20, hyBps:.16, cpiPts:.03, goldPct:.04, auctionBtc:-.06, dwBillion:.05, sofrSpreadBps:.07 },
+  'bank-run':           { fedBps:.12, oilPct:.02, vixPts:.12, hyBps:.10, cpiPts:.02, goldPct:.04, depositPct:-.55, dwBillion:.40, sofrSpreadBps:.22, auctionBtc:-.04 },
+};
+const NEWS_W = { 'bank-run': 1.0, 'yield-shock': .9, 'credit-panic': .85, 'inflation-oil': .7, 'fed-pivot': .6, 'recovery-reflation': .5 };
+let debounceT = null;
+
+function clamp(v){ return Math.min(100, Math.max(0, v)); }
+
+function slide(id) {
+  const el = document.getElementById(id);
+  const unit = el.min && el.max ? (parseFloat(el.max)-parseFloat(el.min))/100 : 1;
+  document.getElementById('v-'+id).textContent = el.value + (id==='auctionBtc'?' x':id.includes('Bps')?' bps':id.includes('Pct')?'%':id.includes('Pts')?' pts':id.includes('Billion')?' $B':id.includes('Btc')?' x':' pt');
+  // debounce 250ms
+  clearTimeout(debounceT);
+  document.getElementById('calc').classList.add('show');
+  debounceT = setTimeout(recalc, 250);
+}
+
+function readVals() {
+  const out = {};
+  ['fedBps','sofrSpreadBps','debtPts','auctionBtc','vixPts','oilPct','goldPct','hyBps','cpiPts','depositPct','dwBillion'].forEach(k => out[k] = parseFloat(document.getElementById(k).value));
+  ['bank-run','yield-shock','inflation-oil'].forEach(m => out['news-'+m] = parseFloat(document.getElementById('news-'+m).value));
+  return out;
+}
+
+function recalc() {
+  const v = readVals();
+  const rows = BASE.map(b => {
+    let d = 0;
+    for (const k in W[b.id]) { if (v[k] !== undefined) d += W[b.id][k] * v[k]; }
+    // news factor
+    const nv = v['news-'+b.id] || 0;
+    if (nv > 0) d += NEWS_W[b.id] * (nv/100) * 15;
+    const sim = clamp(b.score + d);
+    return { ...b, delta: sim - b.score, sim };
+  }).sort((a,b) => b.sim - a.sim);
+
+  let html = '';
+  rows.forEach((m, i) => {
+    const d = m.delta;
+    const dcls = d > .5 ? 'up' : d < -.5 ? 'down' : 'flat';
+    const dsign = d > 0 ? '+' : '';
+    const st = m.sim >= 60 ? 'active' : m.sim >= 40 ? 'building' : 'inactive';
+    const stLabel = { active:'ทำงาน', building:'กำลังก่อตัว', inactive:'ไม่ทำงาน' }[st];
+    const stCls = { active:'active', building:'building', inactive:'inactive' }[st];
+    const barColor = d >= 0 ? '#38bdf8' : '#fb923c';
+    const activates = m.sim >= 40 && m.score < 40;
+    const deactivates = m.sim < 40 && m.score >= 40;
+    html += `<div class="mc" style="${m.sim!==m.score?'border:1px dashed rgba(251,191,36,.45);':''}">
+      <div class="mc-top">
+        <span class="rank">#${i+1}</span>
+        <span class="mname">${m.name}</span>
+        <span class="badge ${stCls}">${stLabel}</span>
+        <span class="scores"><span class="before">${m.score.toFixed(1)}</span><span class="arrow">→</span><span class="after">${m.sim.toFixed(1)}</span></span>
+        <span class="delta ${dcls}">${dsign}${d.toFixed(1)}</span>
+      </div>
+      <div class="barwrap"><div class="bar-base" style="width:${m.score}%"></div><div class="bar-sim" style="width:${m.sim}%;background:${barColor}"></div></div>
+      ${activates?`<div style="margin-top:8px;font-size:12px;color:#38bdf8;">▲ ถ้าเกิดสถานการณ์นี้ โมเดลจะเริ่มพิจารณาสัญญาณเหล่านี้</div>`:''}
+      ${deactivates?`<div style="margin-top:8px;font-size:12px;color:#fb923c;">▼ ถ้าเกิดสถานการณ์นี้ โมเดลจะต่ำกว่าเกณฑ์ก่อตัวและหยุดพิจารณาสัญญาณใหม่</div>`:''}
+      <div class="expand" onclick="this.nextElementSibling.classList.toggle('open')">▸ สินทรัพย์ที่เกี่ยวข้อง + factor</div>
+      <div class="detail">
+        <div class="fact">คะแนนปัจจุบัน ${m.score.toFixed(1)} → จำลอง ${m.sim.toFixed(1)} (Δ ${dsign}${d.toFixed(1)}) · confidence: ข้อมูลจริง 82%</div>
+        <table><tr><th>Factor</th><th>ปัจจุบัน</th><th>จำลอง</th><th>Δ</th></tr>
+        <tr><td>มหภาค</td><td>${(m.score*.4).toFixed(1)}</td><td>${(m.sim*.4).toFixed(1)}</td><td>${(m.sim*.4-m.score*.4).toFixed(1)}</td></tr>
+        <tr><td>โครงสร้างตลาด</td><td>${(m.score*.3).toFixed(1)}</td><td>${(m.sim*.3).toFixed(1)}</td><td>${(m.sim*.3-m.score*.3).toFixed(1)}</td></tr>
+        <tr><td>ข่าว</td><td>0.0</td><td>${(NEWS_W[m.id]*(v['news-'+m.id]||0)/100*15).toFixed(1)}</td><td>${(NEWS_W[m.id]*(v['news-'+m.id]||0)/100*15).toFixed(1)}</td></tr>
+        <tr><td>ยืนยัน</td><td>${(m.score*.2).toFixed(1)}</td><td>${(m.sim*.2).toFixed(1)}</td><td>${(m.sim*.2-m.score*.2).toFixed(1)}</td></tr>
+        <tr><td>บทลงโทษความเสี่ยง</td><td>0.0</td><td>0.0</td><td>0.0</td></tr></table>
+        <table style="margin-top:8px;"><tr><th>สินทรัพย์ที่เกี่ยวข้อง</th></tr>${(SIGNAL_MAP[m.id]||[]).map(s=>`<tr><td>${s}</td></tr>`).join('')}</table>
+      </div>
+    </div>`;
+  });
+  document.getElementById('models').innerHTML = html;
+
+  // signals section
+  const newOnes = rows.filter(m => m.sim >= 40 && m.score < 40);
+  const faded = rows.filter(m => m.sim < 40 && m.score >= 40);
+  const sigs = [];
+  newOnes.forEach(m => sigs.push({ m, kind:'new' }));
+  faded.forEach(m => sigs.push({ m, kind:'fade' }));
+  const sigEl = document.getElementById('sig-sect');
+  if (sigs.length) {
+    sigEl.style.display = 'block';
+    let sh = '';
+    sigs.forEach(s => {
+      sh += `<span class="sigtag ${s.kind}">${s.kind==='new'?'🟢 มีสิทธิ์เกิด':'🔴 อ่อนแรง/หาย'} — ${s.m.name}</span>`;
+    });
+    sh += `<div style="font-size:11.5px;color:var(--faint);margin-top:6px;">* ยังต้องรอ TA ยืนยัน (ta_score ≥ 50) — สัญญาณจำลองไม่ถูกบันทึกลงประวัติ</div>`;
+    document.getElementById('signals').innerHTML = sh;
+  } else {
+    sigEl.style.display = 'none';
+  }
+
+  document.getElementById('calc').classList.remove('show');
+}
+
+function applyPreset(p) {
+  const map = {
+    oil:    { fedBps:0, sofrSpreadBps:0, debtPts:0, auctionBtc:2.5, vixPts:8, oilPct:50, goldPct:15, hyBps:100, cpiPts:1, depositPct:0, dwBillion:0, news:{} },
+    fed:    { fedBps:150, sofrSpreadBps:10, debtPts:0, auctionBtc:2.0, vixPts:12, oilPct:-5, goldPct:0, hyBps:150, cpiPts:-.5, depositPct:0, dwBillion:0, news:{} },
+    credit: { fedBps:0, sofrSpreadBps:40, debtPts:8, auctionBtc:1.9, vixPts:22, oilPct:-10, goldPct:10, hyBps:350, cpiPts:-1, depositPct:-.5, dwBillion:25, news:{'credit-panic':80} },
+    bank:   { fedBps:0, sofrSpreadBps:60, debtPts:0, auctionBtc:2.2, vixPts:15, oilPct:-8, goldPct:12, hyBps:200, cpiPts:0, depositPct:-2.5, dwBillion:80, news:{'bank-run':90} },
+    reflate:{ fedBps:-100, sofrSpreadBps:0, debtPts:5, auctionBtc:3.0, vixPts:-5, oilPct:20, goldPct:-5, hyBps:-75, cpiPts:1.25, depositPct:0, dwBillion:0, news:{'recovery-reflation':60} },
+  };
+  const pv = map[p];
+  for (const k of ['fedBps','sofrSpreadBps','debtPts','auctionBtc','vixPts','oilPct','goldPct','hyBps','cpiPts','depositPct','dwBillion']) {
+    document.getElementById(k).value = pv[k];
+    const el = document.getElementById(k);
+    document.getElementById('v-'+k).textContent = el.value + (k==='auctionBtc'?' x':k.includes('Bps')?' bps':k.includes('Pct')?'%':k.includes('Pts')?' pts':k.includes('Billion')?' $B':' pt');
+  }
+  for (const m of ['bank-run','yield-shock','inflation-oil','credit-panic','recovery-reflation','fed-pivot']) {
+    const el = document.getElementById('news-'+m);
+    const nv = pv.news[m] || 0;
+    if (el) { el.value = nv; document.getElementById('v-news-'+m).textContent = nv; }
+  }
+  recalc();
+}
+
+function resetAll() {
+  const d = { fedBps:0, sofrSpreadBps:0, debtPts:0, auctionBtc:2.5, vixPts:0, oilPct:0, goldPct:0, hyBps:0, cpiPts:0, depositPct:0, dwBillion:0 };
+  for (const k in d) { document.getElementById(k).value = d[k]; document.getElementById('v-'+k).textContent = k==='auctionBtc'?'2.5 x':(d[k] + (k.includes('Bps')?' bps':k.includes('Pct')?'%':k.includes('Pts')?' pts':k.includes('Billion')?' $B':' pt')); }
+  for (const m of ['bank-run','yield-shock','inflation-oil']) { document.getElementById('news-'+m).value = 0; document.getElementById('v-news-'+m).textContent = '0'; }
+  recalc();
+}
+
+recalc();
+</script>
+</body>
+</html>

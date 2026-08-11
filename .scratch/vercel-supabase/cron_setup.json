@@ -1,0 +1,3 @@
+{
+  "query": "select cron.schedule('portfolio-tracker-due-turns', '*/10 * * * *', $cron$select net.http_post(url := 'https://portfolio-tracker-taupe-two.vercel.app/api/jobs/run-due-turns'::text, headers := '{\"Content-Type\": \"application/json\"}'::jsonb)$cron$);"
+}

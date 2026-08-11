@@ -911,73 +911,6 @@ export interface BoardroomStancesPayload {
   stats: BoardroomStanceStats;
 }
 
-// ── Trade Desk (ทีมเทรด) ──────────────────────────────────────────────────
-export interface TradePositionView {
-  market: string;
-  side: 'long' | 'short';
-  unit: string;   // pct | bp — กลุ่มราคา vs ยีลด์/สเปรด (ป้ายความสด)
-  size: number;
-  entry_px: number;
-  sl_pct: number;
-  tp_pct: number;
-  status: string;
-  realized_pnl: number;
-  mark: number | null;      // ราคาปัจจุบัน (P&L สด)
-  live_pnl: number | null;  // dir × size × (mark − entry)
-}
-
-export interface TradeClosedPosition {
-  market: string;
-  side: 'long' | 'short';
-  entry_px: number;
-  close_px: number | null;
-  status: string;
-  realized_pnl: number;
-  closed_at: string | null;
-}
-
-export interface TradeTurnView {
-  id: string;
-  tokens_in: number;
-  tokens_out: number;
-  cost_usd: number;
-  started_at: string | null;
-  lead_decision: Record<string, unknown>;
-}
-
-export interface TradeTeamView {
-  id: string;
-  code: 'A' | 'B';
-  name_th: string;
-  name_en: string;
-  status: string;
-  capital: number;
-  balance: number;
-  equity: number;
-  pnl_pct: number;
-  margin_used: number;
-  mtd_pct: number;
-  weekly_target_pct: number;
-  monthly_floor_pct: number;
-  monthly_stretch_pct: number;
-  interval_hours: number;
-  next_turn_at: string | null;
-  directive_md: string;
-  turns_today: number;
-  cost_today_usd: number;
-  cost_total_usd: number;
-  positions: TradePositionView[];
-  snapshots: { equity: number; snapped_at: string | null }[];
-  closed_positions: TradeClosedPosition[];
-  turns: TradeTurnView[];
-}
-
-export interface TradeDeskState {
-  master_on: boolean;
-  per_team_daily_cap: number;
-  teams: TradeTeamView[];
-  updated_at: string;
-}
 
 // --- Overview Dashboard (bond-crisis ภาพรวม) ---
 export interface OverviewTrigger {
@@ -1110,17 +1043,4 @@ export interface CmeZone {
   data_sources: string[];
 }
 
-// --- Job status (office 3D) ---
-export interface JobRunView {
-  id: number;
-  job_name: string;
-  started_at: string | null;
-  finished_at: string | null;
-  status: string;
-  detail: string | null;
-}
 
-export interface JobStatus {
-  recent_runs: JobRunView[];
-  running: boolean;
-}

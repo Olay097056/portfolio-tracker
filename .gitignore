@@ -17,3 +17,4 @@ frontend/vite.config.js
 frontend/vite.config.d.ts
 API openrouter.txt
 backend/data/
+scratch/vercel-supabase/secrets*

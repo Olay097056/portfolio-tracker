@@ -20,9 +20,9 @@ from datetime import datetime, timezone
 
 import httpx
 from sqlalchemy import Column, DateTime, Integer, String, Text
-from sqlalchemy.orm import declarative_base
 
 from app import countries_service
+from app.database import Base  # single app metadata (vercel-supabase plan ticket 05)
 from app.news_service import DEEPSEEK_MODEL, DEEPSEEK_URL, _deepseek_key
 
 try:
@@ -31,8 +31,6 @@ try:
     load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 except ImportError:
     pass
-
-Base = declarative_base()
 
 AI_MODEL = DEEPSEEK_MODEL  # deepseek-v4-flash
 
@@ -164,16 +162,13 @@ def generate_report(code: str) -> dict | None:
         return None
 
 
-# --- SQLite persistence ----------------------------------------------------
+# --- Persistence -----------------------------------------------------------
 def _session():
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
+    # Tables merged into the main database (vercel-supabase plan ticket 05) — the
+    # separate data/bondcrisis.db engine is gone; use the app's single engine.
+    from app.database import SessionLocal
 
-    data_dir = os.environ.get("PORTFOLIO_DATA_DIR", os.path.join(os.path.dirname(__file__), "..", "data"))
-    os.makedirs(data_dir, exist_ok=True)
-    engine = create_engine(f"sqlite:///{os.path.join(data_dir, 'bondcrisis.db')}")
-    Base.metadata.create_all(engine)
-    return sessionmaker(bind=engine)()
+    return SessionLocal()
 
 
 def get_brief(code: str) -> dict | None:

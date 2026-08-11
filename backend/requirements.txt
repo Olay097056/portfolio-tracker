@@ -11,3 +11,6 @@ python-dotenv==1.2.2
 # the backend deliberately stays pure-Python (see app/signals.py); not a live-API dependency.
 numpy==2.4.6
 scikit-learn==1.9.0
+# Postgres + migrations (Vercel+Supabase plan — ticket 05)
+alembic==1.19.1
+psycopg[binary]==3.3.4

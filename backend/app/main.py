@@ -2,27 +2,18 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
 
 from app.database import Base, engine
 from app.routers import ai_narrative, banking, boardroom, boardroom_signals, compare, countries, dca, fear_greed, fx, holdings, investors, macro, market, market_data, models, news, portfolios, prices, screener, signals, trade_desk, watchlist
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    # `unique=True` on WatchlistItem.ticker (models.py) only reaches databases created fresh
-    # by create_all above. Existing on-disk databases already have the watchlist_items table
-    # without that constraint, and create_all never alters existing tables — so backfill it
-    # explicitly here for upgrades from before this constraint existed.
-    with engine.connect() as conn:
-        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ux_watchlist_items_ticker ON watchlist_items (ticker)"))
-        # trading_signals gained a sparkline column after the first deployment;
-        # SQLite ALTER TABLE ADD COLUMN is idempotent only if the column is
-        # missing, so check the pragma first (create_all never alters existing tables).
-        cols = [r[1] for r in conn.execute(text("PRAGMA table_info(trading_signals)")).fetchall()]
-        if "sparkline" not in cols:
-            conn.execute(text("ALTER TABLE trading_signals ADD COLUMN sparkline TEXT"))
-        conn.commit()
+    # Schema management moved to Alembic migrations (see migrations/ — vercel-supabase plan
+    # ticket 05). Deploys run `alembic upgrade head`; for local SQLite dev we keep create_all
+    # so a fresh file still boots without a manual migration step. Postgres (prod) schema is
+    # created/upgraded exclusively by Alembic.
+    if engine.url.get_backend_name() == "sqlite":
+        Base.metadata.create_all(bind=engine)
     yield
 
 

@@ -34,6 +34,13 @@ class FearGreedIndicator(BaseModel):
     series: list[FearGreedPoint] = []
 
 
+class CryptoFearGreedOut(BaseModel):
+    score: float | None = None
+    rating: str | None = None
+    updated_at: str = ""
+    previous: float | None = None
+
+
 class FearGreedOut(BaseModel):
     score: float
     rating: str | None = None
@@ -44,6 +51,9 @@ class FearGreedOut(BaseModel):
     previous_1_year: float | None = None
     history: list[FearGreedPoint] = []
     indicators: list[FearGreedIndicator] = []
+    # Crypto Fear & Greed (alternative.me) — the reference /sentiment page
+    # shows both the CNN index and the crypto index side by side.
+    crypto_fear_greed: CryptoFearGreedOut | None = None
     # Which source produced this reading. The UI shows it: a "computed" score is this
     # app's own four-input composite, not CNN's seven-input index, and the two are not
     # interchangeable numbers.

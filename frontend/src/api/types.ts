@@ -35,6 +35,7 @@ export interface FearGreed {
   previous_1_year: number | null;
   history: FearGreedPoint[];
   indicators: FearGreedIndicator[];
+  crypto_fear_greed?: { score: number | null; rating: string | null; updated_at: string; previous: number | null } | null;
   // "cnn" is CNN's own seven-input index. "computed" is this app's own four-input
   // composite, used only when CNN is unreachable -- a different number, not a stand-in.
   source: 'cnn' | 'computed';
@@ -1059,6 +1060,51 @@ export interface OverviewDashboard {
   country_risk: { top: OverviewCountryRisk[]; total: number };
   warnings: unknown[];
   brief: OverviewBrief | null;
+  updated_at: string;
+  data_sources: string[];
+}
+
+// --- CME Zone (bond-crisis /cme) ---
+export interface CmeFedWatch {
+  zq_price: number;
+  implied_rate: number;
+  effr: number;
+  diff_bp: number;
+  prob_hike_pct: number;
+  prob_hold_pct: number;
+  prob_cut_pct: number;
+  outcome: string;
+  size: string;
+  source: string;
+}
+
+export interface CmeGoldFlow {
+  trade_date: string | null;
+  future_volume: number | null;
+  option_volume: number | null;
+  future_oi: number | null;
+  option_oi: number | null;
+  future_oi_change?: number | null;
+  source?: string;
+}
+
+export interface CmeCryptoIv {
+  instrument: string;
+  iv: number | null;
+  oi: number | null;
+}
+
+export interface CmeCotRow {
+  series_id: string;
+  name_th?: string;
+  value?: number | null;
+}
+
+export interface CmeZone {
+  fedwatch: CmeFedWatch | null;
+  gold_flow: CmeGoldFlow | null;
+  crypto_iv: Record<string, CmeCryptoIv | null>;
+  cot: CmeCotRow[];
   updated_at: string;
   data_sources: string[];
 }

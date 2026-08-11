@@ -13,6 +13,7 @@ import type {
   DividendSignalRow,
   OverviewBrief,
   OverviewDashboard,
+  CmeZone,
   FearGreed,
   Holding,
   HoldingCreateInput,
@@ -308,6 +309,11 @@ export function getOverviewDashboard(): Promise<OverviewDashboard> {
 
 export function refreshOverviewBrief(): Promise<OverviewBrief> {
   return request<OverviewBrief>('/api/overview/brief', { method: 'POST' });
+}
+
+// --- CME Zone (bond-crisis /cme) ---
+export function getCmeZone(): Promise<CmeZone> {
+  return request<CmeZone>('/api/cme');
 }
 
 // --- Profit Models ---

@@ -151,8 +151,36 @@ def fetch_cnn() -> dict | None:
         "previous_1_year": _num(current.get("previous_1_year")),
         "history": history,
         "indicators": indicators,
+        "crypto_fear_greed": _fetch_crypto_fg(),
         "source": "cnn",
     }
+
+
+# --- Crypto Fear & Greed (alternative.me — free, no key) ------------------------------
+# The reference /sentiment page shows both the CNN index and the crypto index.
+
+CRYPTO_FG_URL = "https://api.alternative.me/fng/"
+
+
+def _fetch_crypto_fg() -> dict | None:
+    """Crypto Fear & Greed index from alternative.me (free public API)."""
+    try:
+        response = httpx.get(CRYPTO_FG_URL, params={"limit": 2}, timeout=15)
+        if response.status_code != 200:
+            return None
+        rows = (response.json().get("data") or []) if isinstance(response.json(), dict) else []
+        if not rows:
+            return None
+        latest = rows[0]
+        score = _num(latest.get("value"))
+        return {
+            "score": score,
+            "rating": latest.get("value_classification") or rating_for_score(score),
+            "updated_at": str(latest.get("timestamp") or ""),
+            "previous": _num(rows[1].get("value")) if len(rows) > 1 else None,
+        }
+    except Exception:
+        return None
 
 
 # --- Fallback: a smaller index computed from real market data ------------------------

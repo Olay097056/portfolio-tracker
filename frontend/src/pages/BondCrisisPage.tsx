@@ -3,6 +3,8 @@ import { BankingDashboard } from '../components/tools/BankingDashboard';
 import { BoardroomDashboard } from '../components/tools/BoardroomDashboard';
 import { BoardroomSignalsDashboard } from '../components/tools/BoardroomSignalsDashboard';
 import { TradeDeskDashboard } from '../components/tools/TradeDeskDashboard';
+import { CmeDashboard } from '../components/tools/CmeDashboard';
+import { SentimentDashboard } from '../components/tools/SentimentDashboard';
 import { CountriesDashboard } from '../components/tools/CountriesDashboard';
 import { ForecastDashboard } from '../components/tools/ForecastDashboard';
 import { MacroDashboard } from '../components/tools/MacroDashboard';
@@ -20,7 +22,7 @@ import { NewsDashboard } from '../components/tools/NewsDashboard';
 // วิกฤตแบงก์รัน (/banking), รายประเทศ (/countries), จำลองสถานการณ์ (/forecast),
 // ห้องประชุม (/boardroom) and ข่าวสาร (/news) pages.
 export function BondCrisisPage() {
-  const [tab, setTab] = useState<'overview' | 'macro' | 'models' | 'signals' | 'banking' | 'countries' | 'forecast' | 'boardroom' | 'boardroom-signals' | 'trade-desk' | 'news'>('overview');
+  const [tab, setTab] = useState<'overview' | 'macro' | 'models' | 'signals' | 'sentiment' | 'cme' | 'banking' | 'countries' | 'forecast' | 'boardroom' | 'boardroom-signals' | 'trade-desk' | 'news'>('overview');
   const [signalsFocusMeeting, setSignalsFocusMeeting] = useState<string | null>(null);
 
   const goMeetingFromSignals = (meetingId: string) => {
@@ -33,6 +35,8 @@ export function BondCrisisPage() {
     { id: 'macro' as const, label: 'ข้อมูลมหภาค' },
     { id: 'models' as const, label: 'โมเดลทำกำไร' },
     { id: 'signals' as const, label: 'สัญญาณเทรด' },
+    { id: 'sentiment' as const, label: 'อารมณ์ตลาด' },
+    { id: 'cme' as const, label: 'โซน CME' },
     { id: 'banking' as const, label: 'วิกฤตแบงก์รัน' },
     { id: 'countries' as const, label: 'รายประเทศ' },
     { id: 'forecast' as const, label: 'จำลองสถานการณ์' },
@@ -89,6 +93,10 @@ export function BondCrisisPage() {
         <ModelsDashboard />
       ) : tab === 'signals' ? (
         <SignalsDashboard />
+      ) : tab === 'sentiment' ? (
+        <SentimentDashboard />
+      ) : tab === 'cme' ? (
+        <CmeDashboard />
       ) : tab === 'banking' ? (
         <BankingDashboard />
       ) : tab === 'countries' ? (

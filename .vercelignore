@@ -1,0 +1,13 @@
+# Vercel deploy exclusions (vercel-supabase 08)
+.venv
+backend/.venv
+backend/portfolio.db
+backend/data
+backend/tests
+backend/.pytest_cache
+node_modules
+frontend/node_modules
+.scratch
+.git
+*.pyc
+__pycache__

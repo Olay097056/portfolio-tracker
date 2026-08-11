@@ -47,7 +47,15 @@ def _now_utc_naive():
 
 
 def _try_acquire_lock(db: Session) -> JobRun | None:
-    """Insert a running job_runs row; None if one is already running (overlap)."""
+    """Insert a running job_runs row; None if one is already running (overlap).
+
+    A running row older than WEDGED_LOCK_TTL_SECONDS is treated as wedged: the
+    serverless function that owned it was killed (Vercel maxDuration) before it
+    could mark the run finished. Without this the lock would be held forever —
+    every later tick returns skipped and the worker dies silently. The old row
+    is marked failed (with a note) and the new tick takes over.
+    """
+    now = _now_utc_naive()
     running = (
         db.query(JobRun)
         .filter(JobRun.status == "running")
@@ -55,8 +63,15 @@ def _try_acquire_lock(db: Session) -> JobRun | None:
         .first()
     )
     if running is not None:
-        return None
-    run = JobRun(job_name="run-due-turns", started_at=_now_utc_naive(), status="running")
+        age = (now - running.started_at).total_seconds()
+        if age < WEDGED_LOCK_TTL_SECONDS:
+            return None
+        running.status = "failed"
+        running.finished_at = now
+        running.detail = json.dumps(
+            {"error": f"wedged lock taken over after {int(age)}s"}, ensure_ascii=False)
+        db.commit()
+    run = JobRun(job_name="run-due-turns", started_at=now, status="running")
     db.add(run)
     db.commit()
     db.refresh(run)
@@ -72,7 +87,15 @@ def _finish(db: Session, run: JobRun, status: str, detail: dict) -> None:
 
 # ── per-tick caps (grilling 03) ──────────────────────────────────────────────
 MAX_LLM_TURNS_PER_TICK = 3
-NEWS_ENRICH_LIMIT_PER_TICK = 40
+# News enrich is one DeepSeek call per item (~5-8s on OpenRouter): 40 items
+# would blow past Vercel's 300s maxDuration (measured 2026-08-11: a 40-item
+# tick was killed at ~250s). 15 items + prewarm + the rest of the tick stays
+# inside the budget; the queue drains over consecutive ticks.
+NEWS_ENRICH_LIMIT_PER_TICK = 15
+# A running row older than this is considered wedged (the Vercel function was
+# killed mid-tick — serverless maxDuration) and the lock is taken over. Must be
+# > the cron cadence (10 min) so a legitimately slow tick isn't stolen.
+WEDGED_LOCK_TTL_SECONDS = 20 * 60
 
 
 def run_due_turns(db: Session) -> dict:
@@ -95,9 +118,12 @@ def run_due_turns(db: Session) -> dict:
 
         try:
             dash = macro_service.build_dashboard(force=False)
+            # FRED series ids only (the _SERIES meta maps internal keys like
+            # "us10y" -> FRED id "DGS10"; hitting FRED with internal keys 404s)
+            fred_ids = [m.get("fred") for m in macro_service._SERIES.values()
+                        if m.get("fred")]
             detail["prewarm"] = {"dashboard": "ok" if dash else "empty",
-                                 "fred": len(macro_service.fred_history_map(
-                                     list(macro_service._SERIES.keys())))}
+                                 "fred": len(macro_service.fred_history_map(fred_ids))}
         except Exception as exc:  # never let prewarm fail the whole tick
             detail["prewarm"] = {"error": str(exc)[:200]}
 

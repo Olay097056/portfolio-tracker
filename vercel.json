@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "builds": [
+    { "src": "api/index.py", "use": "@vercel/python", "config": { "maxDuration": 300 } },
+    { "src": "frontend/dist/**", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "api/index.py" },
+    { "src": "/(ai-narrative|fx|market-data|market|portfolios|prices|watchlist)(/.*)?", "dest": "api/index.py" },
+    { "src": "/(.*)", "dest": "frontend/dist/$1" }
+  ]
+}

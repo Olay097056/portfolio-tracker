@@ -12,6 +12,7 @@ from app import model_service, signals_service
 from app.database import SessionLocal, engine
 from app.main import app
 from app.routers import signals as signals_router
+from app.cache import cache_clear
 from app.routers.signals import TradingSignal
 from sqlalchemy import delete, select
 
@@ -20,14 +21,14 @@ from sqlalchemy import delete, select
 # ---------------------------------------------------------------------------
 @pytest.fixture(autouse=True)
 def _clear_state():
-    signals_router._cache.clear()
+    
     signals_service._clear_candle_cache()
     db = SessionLocal()
     db.execute(delete(TradingSignal))
     db.commit()
     db.close()
     yield
-    signals_router._cache.clear()
+    
     signals_service._clear_candle_cache()
     db = SessionLocal()
     db.execute(delete(TradingSignal))
@@ -160,7 +161,8 @@ def test_expire_stale_signal_p54(monkeypatch):
     db.close()
 
     # Next fetch expires it.
-    signals_router._cache.clear()
+    cache_clear(signals_router._CACHE_PREFIX)
+
     body2 = c.get("/api/signals").json()
     statuses = {s["status"] for s in body2["signals"]}
     assert "expired" in statuses

@@ -41,6 +41,7 @@ from alembic import command
 from alembic.config import Config
 
 import app.models  # noqa: F401,E402  (registers ORM classes with Base.metadata)
+import app.cache  # noqa: F401,E402  (registers cache_entries table)
 import app.news_service  # noqa: F401,E402  (registers the news_items table)
 import app.boardroom_service  # noqa: F401,E402  (registers the boardroom_* tables)
 import app.boardroom_stance_service  # noqa: F401,E402  (registers boardroom_stances/unresolved)
@@ -111,13 +112,16 @@ def _clean_postgres_after():
 
 
 @pytest.fixture(autouse=True)
-def _fresh_postgres_db_per_test():
-    """Give each Postgres test the same fresh-DB isolation SQLite's in-memory
-    engine provides for free: truncate every user table (with identity reset)
-    before the test runs. No-op for SQLite."""
-    if _IS_POSTGRES:
-        from sqlalchemy import text as _text
+def _fresh_cache_per_test():
+    """Give each test the same fresh-cache isolation SQLite's in-memory engine
+    used to provide for the old in-process `_cache` dicts. On Postgres we also
+    truncate every user table (with identity reset); on SQLite the data tables
+    are already isolated via per-test in-memory engines, so we only clear the
+    DB-backed cache_entries (which live on the shared temp-file engine via
+    SessionLocal) so no test sees a stale persisted cache hit."""
+    from sqlalchemy import text as _text
 
+    if _IS_POSTGRES:
         with engine.begin() as conn:
             rows = conn.execute(_text(
                 "SELECT tablename FROM pg_tables WHERE schemaname='public' "
@@ -126,6 +130,12 @@ def _fresh_postgres_db_per_test():
             names = ", ".join('"%s"' % r[0] for r in rows)
             if names:
                 conn.execute(_text(f"TRUNCATE {names} RESTART IDENTITY CASCADE"))
+    else:
+        from app.cache import CacheEntry
+
+        with SessionLocal() as db:
+            db.query(CacheEntry).delete()
+            db.commit()
     yield
 
 

@@ -60,14 +60,15 @@ def test_get_price_caches_and_does_not_refetch_within_ttl(monkeypatch):
 
 
 def test_get_price_refetches_after_ttl_expires(monkeypatch):
-    monkeypatch.setattr(price_service, "_fetch_from_yfinance", lambda ticker: 100.0)
+    import time
 
-    fake_time = {"t": 1000.0}
-    monkeypatch.setattr(price_service.time, "monotonic", lambda: fake_time["t"])
+    monkeypatch.setattr(price_service, "_fetch_from_yfinance", lambda ticker: 100.0)
+    # Tiny real TTL so the DB-backed wall-clock cache actually expires.
+    monkeypatch.setattr(price_service, "CACHE_TTL_SECONDS", 0.2)
 
     price_service.get_price("AAPL")
 
-    fake_time["t"] += price_service.CACHE_TTL_SECONDS + 1
+    time.sleep(0.35)
 
     call_count = {"n": 0}
 

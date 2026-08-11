@@ -12,11 +12,13 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app import banking_service
+from app.cache import cache_clear, cache_get, cache_set
 
 router = APIRouter(prefix="/api/banking", tags=["banking"])
 
 _CACHE_TTL_SECONDS = 600
-_cache: dict[str, tuple[float, dict]] = {}
+_CACHE_PREFIX = "banking:"
+_CACHE_KEY = _CACHE_PREFIX + "dashboard"
 
 
 class FundingCardOut(BaseModel):
@@ -80,11 +82,12 @@ class BankingOut(BaseModel):
 
 
 def _get_or_fetch(force: bool = False) -> dict:
-    cached = _cache.get("banking")
-    if not force and cached and (time.time() - cached[0] < _CACHE_TTL_SECONDS):
-        return cached[1]
+    if not force:
+        cached = cache_get(_CACHE_KEY)
+        if cached is not None:
+            return cached
     payload = banking_service.build_banking()
-    _cache["banking"] = (time.time(), payload)
+    cache_set(_CACHE_KEY, payload, _CACHE_TTL_SECONDS)
     return payload
 
 
@@ -100,7 +103,7 @@ def get_banking() -> BankingOut:
 @router.post("/refresh", response_model=BankingOut)
 def refresh_banking() -> BankingOut:
     """Invalidate the cache and rebuild now."""
-    _cache.clear()
+    cache_clear(_CACHE_PREFIX)
     macro_service_clear()
     try:
         payload = _get_or_fetch(force=True)

@@ -362,12 +362,3 @@ def enrich_pending(db: Session, limit: int = 40) -> int:
 
 def existing_total(db: Session) -> int:
     return db.query(NewsItem).count()
-
-
-# Module-level cache mirroring the macro/models router pattern (the service
-# itself stays stateless apart from this).
-_cache: dict[str, tuple[float, dict]] = {}
-
-
-def _clear_cache() -> None:
-    _cache.clear()

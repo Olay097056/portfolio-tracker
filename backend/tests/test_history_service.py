@@ -51,14 +51,14 @@ def test_get_history_caches_and_does_not_refetch_within_ttl(monkeypatch):
 
 
 def test_get_history_refetches_after_ttl_expires(monkeypatch):
-    monkeypatch.setattr(history_service, "_fetch_history", lambda ticker: SAMPLE_BARS)
+    import time
 
-    fake_time = {"t": 1000.0}
-    monkeypatch.setattr(history_service.time, "monotonic", lambda: fake_time["t"])
+    monkeypatch.setattr(history_service, "_fetch_history", lambda ticker: SAMPLE_BARS)
+    monkeypatch.setattr(history_service, "CACHE_TTL_SECONDS", 0.2)
 
     history_service.get_history("VTI")
 
-    fake_time["t"] += history_service.CACHE_TTL_SECONDS + 1
+    time.sleep(0.35)
 
     call_count = {"n": 0}
 

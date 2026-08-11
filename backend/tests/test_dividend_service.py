@@ -56,14 +56,14 @@ def test_get_dividend_payments_caches_and_does_not_refetch_within_ttl(monkeypatc
 
 
 def test_get_dividend_payments_refetches_after_ttl_expires(monkeypatch):
-    monkeypatch.setattr(dividend_service, "_fetch_dividend_payments", lambda ticker: SAMPLE_PAYMENTS)
+    import time
 
-    fake_time = {"t": 1000.0}
-    monkeypatch.setattr(dividend_service.time, "monotonic", lambda: fake_time["t"])
+    monkeypatch.setattr(dividend_service, "_fetch_dividend_payments", lambda ticker: SAMPLE_PAYMENTS)
+    monkeypatch.setattr(dividend_service, "CACHE_TTL_SECONDS", 0.2)
 
     dividend_service.get_dividend_payments("JEPQ")
 
-    fake_time["t"] += dividend_service.CACHE_TTL_SECONDS + 1
+    time.sleep(0.35)
 
     call_count = {"n": 0}
 

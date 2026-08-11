@@ -52,14 +52,14 @@ def test_get_chart_data_caches_and_does_not_refetch_within_ttl(monkeypatch):
 
 
 def test_get_chart_data_refetches_after_ttl_expires(monkeypatch):
-    monkeypatch.setattr(chart_service, "_fetch_from_provider", lambda ticker, range_: SAMPLE_RESULT)
+    import time
 
-    fake_time = {"t": 1000.0}
-    monkeypatch.setattr(chart_service.time, "monotonic", lambda: fake_time["t"])
+    monkeypatch.setattr(chart_service, "_fetch_from_provider", lambda ticker, range_: SAMPLE_RESULT)
+    monkeypatch.setattr(chart_service, "CACHE_TTL_SECONDS", 0.2)
 
     chart_service.get_chart_data("VTI", "1Y")
 
-    fake_time["t"] += chart_service.CACHE_TTL_SECONDS + 1
+    time.sleep(0.35)
 
     call_count = {"n": 0}
 

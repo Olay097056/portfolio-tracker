@@ -1,7 +1,7 @@
 # backend/app/chart_service.py
-import time
 from typing import Literal, TypedDict
 
+from app.cache import cache_clear, cache_get, cache_set
 from app.support_resistance import Zone, find_support_resistance_zones
 
 # Matches history_service.py's TTL. This is a separate, independent cache from
@@ -41,25 +41,19 @@ class ChartFetchResult(TypedDict):
     zones: list[Zone]
 
 
-_cache: dict[tuple[str, str], tuple[ChartFetchResult, float]] = {}
+_CACHE_PREFIX = "chart:"
 
 
 def clear_cache() -> None:
-    _cache.clear()
+    cache_clear(_CACHE_PREFIX)
 
 
 def _get_cached(ticker: str, range_: str) -> ChartFetchResult | None:
-    entry = _cache.get((ticker, range_))
-    if entry is None:
-        return None
-    result, fetched_at = entry
-    if time.monotonic() - fetched_at > CACHE_TTL_SECONDS:
-        return None
-    return result
+    return cache_get(f"{_CACHE_PREFIX}{ticker}:{range_}")
 
 
 def _set_cached(ticker: str, range_: str, result: ChartFetchResult) -> None:
-    _cache[(ticker, range_)] = (result, time.monotonic())
+    cache_set(f"{_CACHE_PREFIX}{ticker}:{range_}", result, CACHE_TTL_SECONDS)
 
 
 def _fetch_from_provider(ticker: str, range_: str) -> ChartFetchResult | None:

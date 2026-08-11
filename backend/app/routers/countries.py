@@ -10,11 +10,13 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app import countries_service
+from app.cache import cache_clear, cache_get, cache_set
 
 router = APIRouter(prefix="/api/countries", tags=["countries"])
 
 _CACHE_TTL_SECONDS = 600
-_cache: dict[str, tuple[float, dict]] = {}
+_CACHE_PREFIX = "countries:"
+_CACHE_KEY = _CACHE_PREFIX + "dashboard"
 
 
 class TrendPointOut(BaseModel):
@@ -56,11 +58,12 @@ class CountriesOut(BaseModel):
 
 
 def _get_or_fetch(force: bool = False) -> dict:
-    cached = _cache.get("countries")
-    if not force and cached and (time.time() - cached[0] < _CACHE_TTL_SECONDS):
-        return cached[1]
+    if not force:
+        cached = cache_get(_CACHE_KEY)
+        if cached is not None:
+            return cached
     payload = countries_service.build_countries()
-    _cache["countries"] = (time.time(), payload)
+    cache_set(_CACHE_KEY, payload, _CACHE_TTL_SECONDS)
     return payload
 
 
@@ -158,7 +161,7 @@ def generate_country_report(code: str) -> ReportOut:
 @router.post("/refresh", response_model=CountriesOut)
 def refresh_countries() -> CountriesOut:
     """Invalidate the cache and rebuild now."""
-    _cache.clear()
+    cache_clear(_CACHE_PREFIX)
     try:
         payload = _get_or_fetch(force=True)
     except Exception:

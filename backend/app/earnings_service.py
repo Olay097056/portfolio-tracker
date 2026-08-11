@@ -6,32 +6,32 @@ since an earnings date essentially never changes day-to-day (unlike a live price
 
 from __future__ import annotations
 
-import time
 from datetime import date
 from typing import Literal
 
+from app.cache import cache_clear, cache_get, cache_set
+
 CACHE_TTL_SECONDS = 24 * 60 * 60.0  # 24h -- earnings dates don't move minute-to-minute like price
 
-_cache: dict[str, tuple[date | None, float]] = {}
+_CACHE_PREFIX = "earn:"
 _MISS: Literal["MISS"] = "MISS"
 
 
 def clear_cache() -> None:
-    _cache.clear()
+    cache_clear(_CACHE_PREFIX)
 
 
 def _get_cached(ticker: str) -> date | None | Literal["MISS"]:
-    entry = _cache.get(ticker)
-    if entry is None:
+    raw = cache_get(_CACHE_PREFIX + ticker, default=_MISS)
+    if raw is _MISS:
         return _MISS
-    value, fetched_at = entry
-    if time.monotonic() - fetched_at > CACHE_TTL_SECONDS:
-        return _MISS
-    return value
+    if raw is None:
+        return None
+    return date.fromisoformat(raw)
 
 
 def _set_cached(ticker: str, value: date | None) -> None:
-    _cache[ticker] = (value, time.monotonic())
+    cache_set(_CACHE_PREFIX + ticker, value, CACHE_TTL_SECONDS)
 
 
 def _fetch_next_earnings_date(ticker: str) -> date | None:

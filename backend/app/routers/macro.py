@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
 from app import macro_service
+from app.cache import cache_clear, cache_get, cache_set
 
 router = APIRouter(prefix="/api/macro", tags=["macro"])
 
@@ -13,7 +14,8 @@ router = APIRouter(prefix="/api/macro", tags=["macro"])
 # per minute at most, so a 10-minute cache keeps the page snappy without
 # hammering either source on every load.
 _CACHE_TTL_SECONDS = 600
-_cache: dict[str, tuple[float, "MacroDashboardOut"]] = {}
+_CACHE_PREFIX = "macro:"
+_CACHE_KEY = _CACHE_PREFIX + "dashboard"
 
 
 class YieldCurvePoint(BaseModel):
@@ -73,12 +75,13 @@ class MacroDashboardOut(BaseModel):
 
 
 def _get_or_fetch(force: bool = False) -> "MacroDashboardOut":
-    cached = _cache.get("dashboard")
-    if not force and cached and (time.time() - cached[0] < _CACHE_TTL_SECONDS):
-        return cached[1]
+    if not force:
+        cached = cache_get(_CACHE_KEY)
+        if cached is not None:
+            return cached
     payload = macro_service.build_dashboard(force=force)
     result = MacroDashboardOut(**payload)
-    _cache["dashboard"] = (time.time(), result)
+    cache_set(_CACHE_KEY, result, _CACHE_TTL_SECONDS)
     return result
 
 
@@ -90,7 +93,7 @@ def get_macro_dashboard() -> MacroDashboardOut:
 @router.post("/refresh", response_model=MacroDashboardOut)
 def refresh_macro_dashboard() -> MacroDashboardOut:
     """Invalidate both cache layers and re-fetch everything now."""
-    _cache.clear()
+    cache_clear(_CACHE_PREFIX)
     macro_service._clear_dashboard_cache()
     try:
         return _get_or_fetch(force=True)

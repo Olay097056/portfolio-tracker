@@ -15,11 +15,9 @@ from app.routers import news as news_router
 
 @pytest.fixture(autouse=True)
 def _clean_state():
-    news_router._cache.clear()
-    news_service._clear_cache()
+    # Cache is cleared per-test by conftest's _fresh_cache_per_test; the old
+    # per-module _cache/_clear_cache are gone (ticket 06).
     yield
-    news_router._cache.clear()
-    news_service._clear_cache()
 
 
 # --- fixtures ---------------------------------------------------------------

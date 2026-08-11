@@ -704,13 +704,19 @@ def _build_context_from(dash: dict) -> dict:
 _NEWS_WINDOW_DAYS = 7
 _NEWS_MIN_IMPACT = 20  # ignore noise headlines (matches the news tab default)
 _NEWS_FRESH_WEIGHTS = ((2, 1.0), (5, 0.5), (7, 0.25))  # (age_days_le, weight)
-_news_cache: dict[str, tuple[float, dict[str, float]]] = {}  # ts -> {model_id: score}
+from app.cache import cache_clear, cache_get, cache_set  # noqa: E402
+
+_NEWS_CACHE_PREFIX = "modelnews:"
+_NEWS_SCORES_KEY = _NEWS_CACHE_PREFIX + "scores"
+_NEWS_TS_KEY = _NEWS_CACHE_PREFIX + "ts"
+
 
 def _news_factor_cache_ts() -> float:
-    return _news_cache.get("_ts", 0.0)
+    return cache_get(_NEWS_TS_KEY, default=0.0)
+
 
 def _clear_news_cache() -> None:
-    _news_cache.clear()
+    cache_clear(_NEWS_CACHE_PREFIX)
 
 def _compute_news_scores() -> dict[str, float]:
     """impact-weighted news score (0-100) per model from news_items, 7-day
@@ -772,11 +778,11 @@ def _compute_news_scores() -> dict[str, float]:
 def news_scores() -> dict[str, float]:
     """Cached per-model news scores (10 min), shared with the simulate
     endpoint so the baseline freeze and the live dashboard agree."""
-    ts, scores = _news_cache.get("_ts", 0.0), _news_cache.get("_scores")
-    if scores is None or (time.time() - ts) > 600:
+    scores = cache_get(_NEWS_SCORES_KEY)
+    if scores is None:
         scores = _compute_news_scores()
-        _news_cache["_ts"] = time.time()
-        _news_cache["_scores"] = scores
+        cache_set(_NEWS_SCORES_KEY, scores, 600)
+        cache_set(_NEWS_TS_KEY, time.time(), 600)
     return scores
 
 

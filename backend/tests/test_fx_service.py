@@ -44,14 +44,14 @@ def test_get_usd_to_thb_rate_caches_and_does_not_refetch_within_ttl(monkeypatch)
 
 
 def test_get_usd_to_thb_rate_refetches_after_ttl_expires(monkeypatch):
-    monkeypatch.setattr(fx_service, "_fetch_from_frankfurter", lambda: 36.5)
+    import time
 
-    fake_time = {"t": 1000.0}
-    monkeypatch.setattr(fx_service.time, "monotonic", lambda: fake_time["t"])
+    monkeypatch.setattr(fx_service, "_fetch_from_frankfurter", lambda: 36.5)
+    monkeypatch.setattr(fx_service, "CACHE_TTL_SECONDS", 0.2)
 
     fx_service.get_usd_to_thb_rate()
 
-    fake_time["t"] += fx_service.CACHE_TTL_SECONDS + 1
+    time.sleep(0.35)
 
     call_count = {"n": 0}
 

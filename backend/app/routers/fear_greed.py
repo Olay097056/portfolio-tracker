@@ -6,13 +6,15 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app import fear_greed_service
+from app.cache import cache_get, cache_set
 
 router = APIRouter(prefix="/api/fear-greed", tags=["fear-greed"])
 
 # CNN recomputes the index a few times an hour at most, and the fallback hits yfinance for
 # six symbols, so a short cache keeps both the page snappy and the outbound traffic sane.
 _CACHE_TTL_SECONDS = 1800
-_cache: dict[str, tuple[float, "FearGreedOut"]] = {}
+_CACHE_PREFIX = "feargreed:"
+_CACHE_KEY = _CACHE_PREFIX + "current"
 
 
 class FearGreedPoint(BaseModel):
@@ -50,14 +52,14 @@ class FearGreedOut(BaseModel):
 
 @router.get("", response_model=FearGreedOut)
 def get_fear_greed():
-    cached = _cache.get("current")
-    if cached and (time.time() - cached[0] < _CACHE_TTL_SECONDS):
-        return cached[1]
+    cached = cache_get(_CACHE_KEY)
+    if cached is not None:
+        return cached
 
     payload = fear_greed_service.fetch_cnn() or fear_greed_service.compute_fallback()
     if payload is None:
         raise HTTPException(status_code=503, detail="Fear & Greed data is unavailable right now")
 
     result = FearGreedOut(**payload)
-    _cache["current"] = (time.time(), result)
+    cache_set(_CACHE_KEY, result, _CACHE_TTL_SECONDS)
     return result

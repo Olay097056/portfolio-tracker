@@ -19,15 +19,15 @@ def _isolate(monkeypatch):
     """Caches cleared and the standard sources stubbed to "know nothing" by default, so a
     test exercising the konbalongtun fallback reaches it, and no test silently makes a
     real Finnhub/yfinance call."""
-    compare_module._autocomplete_cache.clear()
-    compare_module._stock_cache.clear()
+    
+    
     monkeypatch.setattr(compare_service, "fetch_finnhub_metrics", lambda *a, **k: {})
     monkeypatch.setattr(compare_service, "fetch_finnhub_profile", lambda *a, **k: {})
     monkeypatch.setattr(compare_service, "fetch_yfinance_bundle", lambda *a, **k: dict(EMPTY_YF_BUNDLE))
     monkeypatch.setattr(compare_service, "search_finnhub_symbols", lambda *a, **k: [])
     yield
-    compare_module._autocomplete_cache.clear()
-    compare_module._stock_cache.clear()
+    
+    
 
 
 def _fake_post(payload):

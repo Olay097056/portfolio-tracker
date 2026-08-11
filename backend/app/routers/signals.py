@@ -19,12 +19,14 @@ from sqlalchemy import Column, DateTime, Float, Integer, String, Text, delete, s
 from sqlalchemy.orm import Session
 
 from app import signals_service
+from app.cache import cache_clear, cache_get, cache_set
 from app.database import Base, get_db
 
 router = APIRouter(prefix="/api/signals", tags=["signals"])
 
 _CACHE_TTL_SECONDS = 600
-_cache: dict[str, tuple[float, dict]] = {}
+_CACHE_PREFIX = "signals:"
+_CACHE_KEY = _CACHE_PREFIX + "list"
 
 
 # ---------------------------------------------------------------------------
@@ -283,9 +285,10 @@ def _refresh_current_prices(db: Session, skip_assets: set[str] | None = None) ->
 # Endpoints
 # ---------------------------------------------------------------------------
 def _get_or_fetch(db: Session, force: bool = False) -> SignalsOut:
-    cached = _cache.get("signals")
-    if not force and cached and (time.time() - cached[0] < _CACHE_TTL_SECONDS):
-        return cached[1]
+    if not force:
+        cached = cache_get(_CACHE_KEY)
+        if cached is not None:
+            return cached
 
     try:
         # Generate fresh candidates from the models + TA (no-op if cache warm).
@@ -315,7 +318,7 @@ def _get_or_fetch(db: Session, force: bool = False) -> SignalsOut:
             "notes": notes,
         }
         result = SignalsOut(**payload)
-        _cache["signals"] = (time.time(), result)
+        cache_set(_CACHE_KEY, result, _CACHE_TTL_SECONDS)
         return result
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Signal data is unavailable right now: {type(e).__name__}")
@@ -328,7 +331,7 @@ def get_signals(db: Session = Depends(get_db)) -> SignalsOut:
 
 @router.post("/refresh", response_model=SignalsOut)
 def refresh_signals(db: Session = Depends(get_db)) -> SignalsOut:
-    _cache.clear()
+    cache_clear(_CACHE_PREFIX)
     return _get_or_fetch(db, force=True)
 
 
@@ -363,5 +366,5 @@ def close_signal(req: CloseRequest, db: Session = Depends(get_db)) -> SignalOut:
     row.status = "tp_hit" if (row.pnl_pct or 0) > 0 else "sl_hit"
     row.closed_at = datetime.now(timezone.utc)
     db.commit()
-    _cache.clear()
+    cache_clear(_CACHE_PREFIX)
     return SignalOut(**_row_to_dict(row))

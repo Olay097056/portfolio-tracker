@@ -31,7 +31,9 @@ TIMEOUT_SECONDS = 300  # DeepSeek long-form Thai narrative; generous but OpenRou
 # shared/persistent store. clear_cache() run from a separate script/process (e.g. a one-off
 # `python -c` check) does NOT touch the running server's actual cache; only the server process
 # reloading (a code change under --reload, or a real restart) resets it.
-_cache: dict[tuple[str, date], AiNarrativeOut] = {}
+from app.cache import cache_clear, cache_get, cache_set  # noqa: E402
+_CACHE_PREFIX = "ainarr:"
+_CACHE_TTL_SECONDS = 24 * 60 * 60  # date-scoped keys; a day entry lives its day
 
 
 class AiNarrativeError(Exception):
@@ -40,7 +42,7 @@ class AiNarrativeError(Exception):
 
 
 def clear_cache() -> None:
-    _cache.clear()
+    cache_clear(_CACHE_PREFIX)
 
 
 def _format_zone(label: str, zone) -> str:
@@ -433,15 +435,15 @@ def get_ai_narrative(ticker: str, metrics: AiSignalMetricsIn) -> AiNarrativeOut:
     """On-demand only — callers (the /ai-narrative/analyze route) decide when this runs; this
     function never runs on a timer or auto-refresh. Raises AiNarrativeError on any failure; the
     router turns that into the HTTP error the frontend renders as 'AI วิเคราะห์ไม่สำเร็จ' + retry."""
-    cache_key = (ticker, date.today())
-    cached = _cache.get(cache_key)
+    cache_key = f"{_CACHE_PREFIX}{ticker}:{date.today()}"
+    cached = cache_get(cache_key)
     if cached is not None:
         return cached
 
     # Bails out before ever calling Ollama -- see _has_insufficient_data's comment.
     if _has_insufficient_data(metrics):
         result = _insufficient_data_response(ticker)
-        _cache[cache_key] = result
+        cache_set(cache_key, result, _CACHE_TTL_SECONDS)
         return result
 
     conflicts = _detect_conflicts(metrics)
@@ -465,5 +467,5 @@ def get_ai_narrative(ticker: str, metrics: AiSignalMetricsIn) -> AiNarrativeOut:
     if fact_check_warnings:
         result = result.model_copy(update={"caveats": result.caveats + fact_check_warnings})
 
-    _cache[cache_key] = result
+    cache_set(cache_key, result, _CACHE_TTL_SECONDS)
     return result

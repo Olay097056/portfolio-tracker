@@ -219,15 +219,14 @@ def _post_konbalongtun(path: str, payload: dict) -> Any:
         return json.loads(response.read().decode("utf-8"))
 
 
-_autocomplete_cache: dict[str, tuple[float, list[CompareSuggestion]]] = {}
-_stock_cache: dict[str, tuple[float, ComparableStock]] = {}
+from app.cache import cache_get, cache_set  # noqa: E402
+
+_CACHE_PREFIX_AC = "compare:ac:"
+_CACHE_PREFIX_ST = "compare:st:"
 
 
-def _cached(store: dict, key: str):
-    entry = store.get(key)
-    if entry and (time.time() - entry[0] < _CACHE_TTL_SECONDS):
-        return entry[1]
-    return None
+def _cached(prefix: str, key: str):
+    return cache_get(prefix + key)
 
 
 @router.get("/autocomplete", response_model=list[CompareSuggestion])
@@ -253,7 +252,7 @@ def compare_autocomplete(
         return []
 
     cache_key = f"{query.lower()}|{limit}"
-    hit = _cached(_autocomplete_cache, cache_key)
+    hit = _cached(_CACHE_PREFIX_AC, cache_key)
     if hit is not None:
         return hit
 
@@ -296,7 +295,7 @@ def compare_autocomplete(
                     )
 
     if results:
-        _autocomplete_cache[cache_key] = (time.time(), results)
+        cache_set(_CACHE_PREFIX_AC + cache_key, results, _CACHE_TTL_SECONDS)
     return results
 
 
@@ -324,13 +323,13 @@ def get_compare_stock(symbol: str):
     if not key:
         raise HTTPException(status_code=400, detail="symbol is required")
 
-    hit = _cached(_stock_cache, key)
+    hit = _cached(_CACHE_PREFIX_ST, key)
     if hit is not None:
         return CompareStockOut(stock=hit)
 
     standard = _build_from_standard_sources(key)
     if standard is not None:
-        _stock_cache[key] = (time.time(), standard)
+        cache_set(_CACHE_PREFIX_ST + key, standard, _CACHE_TTL_SECONDS)
         return CompareStockOut(stock=standard)
 
     try:
@@ -366,5 +365,5 @@ def get_compare_stock(symbol: str):
         },
     )
 
-    _stock_cache[key] = (time.time(), stock)
+    cache_set(_CACHE_PREFIX_ST + key, stock, _CACHE_TTL_SECONDS)
     return CompareStockOut(stock=stock)

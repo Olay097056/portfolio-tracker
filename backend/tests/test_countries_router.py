@@ -13,9 +13,9 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture(autouse=True)
 def _clear_cache():
-    countries_router._cache.clear()
+    
     yield
-    countries_router._cache.clear()
+    
 
 
 def _stub_yields(monkeypatch):

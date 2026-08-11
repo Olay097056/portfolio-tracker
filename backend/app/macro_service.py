@@ -340,8 +340,10 @@ def _fetch_fred_series_map(series_ids: list[str]) -> dict[str, list[tuple[str, f
 
 # ── FRED history cache (dead-read fix 2026-08-10 — boardroom-signals 07) ───
 # FRED เป็นข้อมูลรายวัน → TTL 6 ชม. เพียงพอ; 31 ซีรีส์ขนาน ≈ 5–6s ครั้งแรก
+from app.cache import cache_clear, cache_get, cache_set  # noqa: E402
+
 _FRED_HISTORY_TTL_SECONDS = 6 * 3600
-_fred_history_cache: dict[str, tuple[float, list]] = {}
+_FRED_CACHE_PREFIX = "macrofred:"
 
 
 def fred_history_map(series_ids: list[str]) -> dict[str, list]:
@@ -350,17 +352,21 @@ def fred_history_map(series_ids: list[str]) -> dict[str, list]:
     ใช้โดย boardroom_stance_service._macro_data() และ boardroom_service.build_snapshot()
     (สองจุดนี้เคยอ่าน items.rows/history ที่ไม่มีอยู่จริง → history ว่างถาวร)
     """
-    now = _time.time()
-    missing = [sid for sid in series_ids
-               if sid not in _fred_history_cache
-               or now - _fred_history_cache[sid][0] > _FRED_HISTORY_TTL_SECONDS]
+    result: dict[str, list] = {}
+    missing: list[str] = []
+    for sid in series_ids:
+        rows = cache_get(_FRED_CACHE_PREFIX + sid)
+        if rows is None:
+            missing.append(sid)
+        else:
+            result[sid] = rows
     if missing:
         fetched = _fetch_fred_series_map(missing)
         for sid, rows in fetched.items():
             if rows:
-                _fred_history_cache[sid] = (now, rows)
-    return {sid: _fred_history_cache[sid][1] for sid in series_ids
-            if sid in _fred_history_cache}
+                cache_set(_FRED_CACHE_PREFIX + sid, rows, _FRED_HISTORY_TTL_SECONDS)
+                result[sid] = rows
+    return result
 
 
 def _fetch_tga() -> list[tuple[str, float]] | None:
@@ -857,22 +863,24 @@ def _fill_from_yfinance(
 import time as _time
 
 _DASHBOARD_CACHE_TTL_SECONDS = 600
-_dashboard_cache: dict[str, tuple[float, dict]] = {}
+_DASHBOARD_CACHE_PREFIX = "macrodash:"
+_DASHBOARD_CACHE_KEY = _DASHBOARD_CACHE_PREFIX + "dashboard"
 
 
 def _clear_dashboard_cache() -> None:
-    _dashboard_cache.clear()
+    cache_clear(_DASHBOARD_CACHE_PREFIX)
 
 
 def build_dashboard(force: bool = False) -> dict:
     """Assemble the full dashboard payload.
 
-    Cached here (10 min) so the macro router AND the models router share one
+    cached here (10 min) so the macro router AND the models router share one
     fetch of the external sources instead of each pulling the whole set.
     """
-    cached = _dashboard_cache.get("dashboard")
-    if not force and cached and (_time.time() - cached[0] < _DASHBOARD_CACHE_TTL_SECONDS):
-        return cached[1]
+    if not force:
+        cached = cache_get(_DASHBOARD_CACHE_KEY)
+        if cached is not None:
+            return cached
 
     fred_ids: list[str] = []
     for meta in _SERIES.values():
@@ -990,5 +998,5 @@ def build_dashboard(force: bool = False) -> dict:
         "updated_at": datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M:%S UTC"),
         "data_sources": sources,
     }
-    _dashboard_cache["dashboard"] = (_time.time(), result)
+    cache_set(_DASHBOARD_CACHE_KEY, result, _DASHBOARD_CACHE_TTL_SECONDS)
     return result

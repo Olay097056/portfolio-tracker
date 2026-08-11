@@ -10,10 +10,10 @@ import app.routers.macro as macro_router
 
 @pytest.fixture(autouse=True)
 def _clear_cache():
-    macro_router._cache.clear()
+    
     macro_service._clear_dashboard_cache()
     yield
-    macro_router._cache.clear()
+    
     macro_service._clear_dashboard_cache()
 
 

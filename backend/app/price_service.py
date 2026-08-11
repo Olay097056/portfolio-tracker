@@ -1,28 +1,24 @@
 import os
-import time
 from typing import TypedDict
+
+from app.cache import cache_clear, cache_get, cache_set
 
 CACHE_TTL_SECONDS = 60.0
 
-_cache: dict[str, tuple[float, float]] = {}
+_PRICE_PREFIX = "price:"
+_MD_PREFIX = "price:md:"
 
 
 def clear_cache() -> None:
-    _cache.clear()
+    cache_clear(_PRICE_PREFIX)
 
 
 def _get_cached(ticker: str) -> float | None:
-    entry = _cache.get(ticker)
-    if entry is None:
-        return None
-    price, fetched_at = entry
-    if time.monotonic() - fetched_at > CACHE_TTL_SECONDS:
-        return None
-    return price
+    return cache_get(_PRICE_PREFIX + ticker)
 
 
 def _set_cached(ticker: str, price: float) -> None:
-    _cache[ticker] = (price, time.monotonic())
+    cache_set(_PRICE_PREFIX + ticker, price, CACHE_TTL_SECONDS)
 
 
 def _fetch_from_yfinance(ticker: str) -> float | None:
@@ -92,25 +88,16 @@ class MarketData(TypedDict):
     growth_rate_years_used: float | None
 
 
-_market_data_cache: dict[str, tuple[MarketData, float]] = {}
-
-
 def clear_market_data_cache() -> None:
-    _market_data_cache.clear()
+    cache_clear(_MD_PREFIX)
 
 
 def _get_cached_market_data(ticker: str) -> MarketData | None:
-    entry = _market_data_cache.get(ticker)
-    if entry is None:
-        return None
-    data, fetched_at = entry
-    if time.monotonic() - fetched_at > CACHE_TTL_SECONDS:
-        return None
-    return data
+    return cache_get(_MD_PREFIX + ticker)
 
 
 def _set_cached_market_data(ticker: str, data: MarketData) -> None:
-    _market_data_cache[ticker] = (data, time.monotonic())
+    cache_set(_MD_PREFIX + ticker, data, CACHE_TTL_SECONDS)
 
 
 def _fetch_dividend_yield_pct(ticker: str) -> float | None:

@@ -78,14 +78,14 @@ def test_fetch_list_caches_and_does_not_refetch_within_ttl(monkeypatch):
 
 
 def test_fetch_list_refetches_after_ttl_expires(monkeypatch):
-    monkeypatch.setattr(trending_service, "_fetch_from_provider", lambda endpoint: SAMPLE_ROWS)
+    import time
 
-    fake_time = {"t": 1000.0}
-    monkeypatch.setattr(trending_service.time, "monotonic", lambda: fake_time["t"])
+    monkeypatch.setattr(trending_service, "_fetch_from_provider", lambda endpoint: SAMPLE_ROWS)
+    monkeypatch.setattr(trending_service, "CACHE_TTL_SECONDS", 0.2)
 
     trending_service._fetch_list("gainers")
 
-    fake_time["t"] += trending_service.CACHE_TTL_SECONDS + 1
+    time.sleep(0.35)
 
     call_count = {"n": 0}
 

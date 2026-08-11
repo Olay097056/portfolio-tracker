@@ -14,10 +14,10 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture(autouse=True)
 def _clear_cache():
-    banking_router._cache.clear()
+    
     banking_service.macro_service._clear_dashboard_cache()
     yield
-    banking_router._cache.clear()
+    
     banking_service.macro_service._clear_dashboard_cache()
 
 

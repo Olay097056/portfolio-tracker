@@ -1,14 +1,15 @@
 # backend/app/trending_service.py
 import os
-import time
 from typing import TypedDict
+
+from app.cache import cache_clear, cache_get, cache_set
 
 # Matches history_service.py's TTL. FMP's free tier caps at 250 requests/day and each
 # refresh costs 3 requests (gainers, losers, actives), so an uncached tab could burn through
 # it in well under 100 clicks.
 CACHE_TTL_SECONDS = 900.0
 
-_cache: dict[str, tuple[list["TrendingRow"], float]] = {}
+_CACHE_PREFIX = "trend:"
 
 
 class TrendingRow(TypedDict):
@@ -19,21 +20,15 @@ class TrendingRow(TypedDict):
 
 
 def clear_cache() -> None:
-    _cache.clear()
+    cache_clear(_CACHE_PREFIX)
 
 
 def _get_cached(endpoint: str) -> list["TrendingRow"] | None:
-    entry = _cache.get(endpoint)
-    if entry is None:
-        return None
-    rows, fetched_at = entry
-    if time.monotonic() - fetched_at > CACHE_TTL_SECONDS:
-        return None
-    return rows
+    return cache_get(_CACHE_PREFIX + endpoint)
 
 
 def _set_cached(endpoint: str, rows: list["TrendingRow"]) -> None:
-    _cache[endpoint] = (rows, time.monotonic())
+    cache_set(_CACHE_PREFIX + endpoint, rows, CACHE_TTL_SECONDS)
 
 
 def _as_float(value: object) -> float | None:

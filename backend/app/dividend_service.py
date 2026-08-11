@@ -1,28 +1,27 @@
 # backend/app/dividend_service.py
-import time
 from datetime import date
+
+from app.cache import cache_clear, cache_get, cache_set
 
 CACHE_TTL_SECONDS = 86400.0
 
-_cache: dict[str, tuple[list[tuple[date, float]], float]] = {}
+_CACHE_PREFIX = "div:"
 
 
 def clear_cache() -> None:
-    _cache.clear()
+    cache_clear(_CACHE_PREFIX)
 
 
 def _get_cached(ticker: str) -> list[tuple[date, float]] | None:
-    entry = _cache.get(ticker)
-    if entry is None:
+    raw = cache_get(_CACHE_PREFIX + ticker)
+    if raw is None:
         return None
-    payments, fetched_at = entry
-    if time.monotonic() - fetched_at > CACHE_TTL_SECONDS:
-        return None
-    return payments
+    # dates round-trip through JSON as ISO strings — restore the date objects.
+    return [(date.fromisoformat(d), float(a)) for d, a in raw]
 
 
 def _set_cached(ticker: str, payments: list[tuple[date, float]]) -> None:
-    _cache[ticker] = (payments, time.monotonic())
+    cache_set(_CACHE_PREFIX + ticker, payments, CACHE_TTL_SECONDS)
 
 
 def _fetch_dividend_payments(ticker: str) -> list[tuple[date, float]] | None:

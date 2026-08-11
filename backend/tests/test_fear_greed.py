@@ -10,9 +10,9 @@ import app.routers.fear_greed as fg_router
 
 @pytest.fixture(autouse=True)
 def _clear_cache():
-    fg_router._cache.clear()
+    
     yield
-    fg_router._cache.clear()
+    
 
 
 # Shape captured from CNN's live response on 2026-08-08.

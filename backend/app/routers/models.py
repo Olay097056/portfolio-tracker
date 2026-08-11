@@ -12,12 +12,14 @@ from sqlalchemy import Column, DateTime, Float, String, delete, select
 from sqlalchemy.orm import Session
 
 from app import model_service
+from app.cache import cache_clear, cache_get, cache_set
 from app.database import Base, get_db
 
 router = APIRouter(prefix="/api/models", tags=["models"])
 
 _CACHE_TTL_SECONDS = 600
-_cache: dict[str, tuple[float, "ModelsOut"]] = {}
+_CACHE_PREFIX = "models:"
+_CACHE_KEY = _CACHE_PREFIX + "dashboard"
 
 
 class ModelCondition(BaseModel):
@@ -134,9 +136,9 @@ def _load_history(db: Session) -> list[HistoryPoint]:
 
 
 def _get_or_fetch(db: Session) -> "ModelsOut":
-    cached = _cache.get("models")
-    if cached and (time.time() - cached[0] < _CACHE_TTL_SECONDS):
-        return cached[1]
+    cached = cache_get(_CACHE_KEY)
+    if cached is not None:
+        return cached
     try:
         payload = model_service.build_models()
     except Exception:
@@ -152,7 +154,7 @@ def _get_or_fetch(db: Session) -> "ModelsOut":
         sources.add(section)
     payload["data_sources"] = sorted(sources)
     result = ModelsOut(**payload)
-    _cache["models"] = (time.time(), result)
+    cache_set(_CACHE_KEY, result, _CACHE_TTL_SECONDS)
     return result
 
 
@@ -163,7 +165,7 @@ def get_models(db: Session = Depends(get_db)) -> ModelsOut:
 
 @router.post("/refresh", response_model=ModelsOut)
 def refresh_models(db: Session = Depends(get_db)) -> ModelsOut:
-    _cache.clear()
+    cache_clear(_CACHE_PREFIX)
     out = _get_or_fetch(db)
     try:
         from app import boardroom_service

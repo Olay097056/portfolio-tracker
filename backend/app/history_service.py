@@ -1,10 +1,11 @@
 # backend/app/history_service.py
-import time
 from typing import TypedDict
+
+from app.cache import cache_clear, cache_get, cache_set
 
 CACHE_TTL_SECONDS = 900.0
 
-_cache: dict[str, tuple[list["Bar"], float]] = {}
+_CACHE_PREFIX = "hist:"
 
 
 class Bar(TypedDict):
@@ -15,21 +16,15 @@ class Bar(TypedDict):
 
 
 def clear_cache() -> None:
-    _cache.clear()
+    cache_clear(_CACHE_PREFIX)
 
 
-def _get_cached(ticker: str) -> list[Bar] | None:
-    entry = _cache.get(ticker)
-    if entry is None:
-        return None
-    bars, fetched_at = entry
-    if time.monotonic() - fetched_at > CACHE_TTL_SECONDS:
-        return None
-    return bars
+def _get_cached(ticker: str) -> list["Bar"] | None:
+    return cache_get(_CACHE_PREFIX + ticker)
 
 
-def _set_cached(ticker: str, bars: list[Bar]) -> None:
-    _cache[ticker] = (bars, time.monotonic())
+def _set_cached(ticker: str, bars: list["Bar"]) -> None:
+    cache_set(_CACHE_PREFIX + ticker, bars, CACHE_TTL_SECONDS)
 
 
 def _fetch_history(ticker: str) -> list[Bar] | None:

@@ -1,27 +1,20 @@
-import time
+from app.cache import cache_clear, cache_get, cache_set
 
 CACHE_TTL_SECONDS = 86400.0
 
-_cached_rate: tuple[float, float] | None = None
+_CACHE_KEY = "fx:usdthb"
 
 
 def clear_cache() -> None:
-    global _cached_rate
-    _cached_rate = None
+    cache_clear("fx:")
 
 
 def _get_cached_rate() -> float | None:
-    if _cached_rate is None:
-        return None
-    rate, fetched_at = _cached_rate
-    if time.monotonic() - fetched_at > CACHE_TTL_SECONDS:
-        return None
-    return rate
+    return cache_get(_CACHE_KEY)
 
 
 def _set_cached_rate(rate: float) -> None:
-    global _cached_rate
-    _cached_rate = (rate, time.monotonic())
+    cache_set(_CACHE_KEY, rate, CACHE_TTL_SECONDS)
 
 
 def _fetch_from_frankfurter() -> float | None:

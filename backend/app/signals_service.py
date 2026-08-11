@@ -29,6 +29,7 @@ import time as _time
 import yfinance as yf
 
 from app import model_service
+from app.cache import cache_clear, cache_get, cache_set
 
 # ---------------------------------------------------------------------------
 # Constants (from the reference /signals page)
@@ -42,11 +43,11 @@ MAX_SIGNALS_PER_MODEL = 4    # cap so one hot model doesn't flood the desk
 # the slowest source; without this every cache expiry re-downloaded ~20
 # tickers and a cold page load took ~40s.
 _CANDLE_CACHE_TTL = 600
-_CANDLE_CACHE: dict[str, tuple[float, list[dict]]] = {}
+_CANDLE_CACHE_PREFIX = "signalcandle:"
 
 
 def _clear_candle_cache() -> None:
-    _CANDLE_CACHE.clear()
+    cache_clear(_CANDLE_CACHE_PREFIX)
 
 # yfinance tickers for the reference asset names.
 _ASSET_TICKERS = {
@@ -376,12 +377,12 @@ def generate_signals(now: datetime | None = None) -> list[dict]:
                 candidates.append((model, sm, asset, direction))
 
     def _cached_candles(asset: str) -> list[dict] | None:
-        cached = _CANDLE_CACHE.get(asset)
-        if cached and _time.time() - cached[0] < _CANDLE_CACHE_TTL:
-            return cached[1]
+        cached = cache_get(_CANDLE_CACHE_PREFIX + asset)
+        if cached is not None:
+            return cached
         rows = _yf_candles(_ASSET_TICKERS[asset])
         if rows:
-            _CANDLE_CACHE[asset] = (_time.time(), rows)
+            cache_set(_CANDLE_CACHE_PREFIX + asset, rows, _CANDLE_CACHE_TTL)
         return rows
 
     candle_results: dict[str, list[dict] | None] = {}

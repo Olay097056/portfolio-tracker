@@ -17,12 +17,14 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app import news_service
+from app.cache import cache_clear, cache_get, cache_set
 from app.database import SessionLocal, get_db
 
 router = APIRouter(prefix="/api/news", tags=["news"])
 
 _CACHE_TTL_SECONDS = news_service.REFRESH_TTL_SECONDS
-_cache: dict[str, tuple[float, dict]] = {}
+_CACHE_PREFIX = "news:"
+_CACHE_KEY = _CACHE_PREFIX + "list"
 
 
 class NewsItemOut(BaseModel):
@@ -100,9 +102,10 @@ def _kick_off_enrichment() -> None:
 
 
 def _get_or_refresh(db: Session, force: bool = False) -> dict:
-    cached = _cache.get("news")
-    if not force and cached and (time.time() - cached[0] < _CACHE_TTL_SECONDS):
-        return cached[1]
+    if not force:
+        cached = cache_get(_CACHE_KEY)
+        if cached is not None:
+            return cached
     try:
         news_service.refresh_news(db)
     except Exception:
@@ -116,7 +119,7 @@ def _get_or_refresh(db: Session, force: bool = False) -> dict:
         "updated_at": datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M:%S UTC"),
         "cached": not force,
     }
-    _cache["news"] = (time.time(), payload)
+    cache_set(_CACHE_KEY, payload, _CACHE_TTL_SECONDS)
     return payload
 
 
@@ -161,7 +164,7 @@ def get_news(
             news_service.NewsItem.id.desc(),
         )
     rows = query.offset((page - 1) * news_service.PAGE_SIZE).limit(news_service.PAGE_SIZE).all()
-    meta = _cache.get("news", (0, {}))[1]
+    meta = cache_get(_CACHE_KEY, default={}) or {}
     return NewsListOut(
         items=[_to_out(r) for r in rows],
         count=count,
@@ -176,12 +179,12 @@ def get_news(
 @router.post("/refresh", response_model=NewsListOut)
 def refresh_news(db: Session = Depends(get_db)) -> NewsListOut:
     """Invalidate the cache and sweep all feeds now."""
-    _cache.clear()
+    cache_clear(_CACHE_PREFIX)
     try:
         news_service.refresh_news(db)
     except Exception:
         pass
-    _cache.clear()  # force a fresh payload build (sources may have changed)
+    cache_clear(_CACHE_PREFIX)  # force a fresh payload build (sources may have changed)
     try:
         from app import boardroom_service
         boardroom_service.check_triggers(db)  # piggyback (ticket 10)
@@ -195,5 +198,5 @@ def delete_all_news(db: Session = Depends(get_db)) -> Response:
     """Test/debug helper: wipe the news table. 204 — no response body."""
     db.query(news_service.NewsItem).delete()
     db.commit()
-    _cache.clear()
+    cache_clear(_CACHE_PREFIX)
     return Response(status_code=204)

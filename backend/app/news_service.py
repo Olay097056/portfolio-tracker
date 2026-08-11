@@ -58,8 +58,11 @@ REFRESH_TTL_SECONDS = 300  # reference refreshMs 300000
 _HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0"}
 _TIMEOUT = 20.0
 
-DEEPSEEK_URL = "https://openrouter.ai/api/v1/chat/completions"
-DEEPSEEK_MODEL = "deepseek/deepseek-v4-flash-0731"
+# LLM gateway (switched 2026-08-11): OpenRouter -> opencode-go (opencode.ai/zen/go/v1),
+# key locked to deepseek-v4-flash. Same chat-completions shape; reasoning.enabled
+# is accepted (ignored) by the gateway.
+DEEPSEEK_URL = "https://opencode.ai/zen/go/v1/chat/completions"
+DEEPSEEK_MODEL = "deepseek-v4-flash"
 
 
 def _deepseek_key() -> str | None:
@@ -223,7 +226,7 @@ def _enrich_batch(items: list[dict]) -> list[dict]:
                 "temperature": 0.2,
                 "max_tokens": 8000,
                 "response_format": {"type": "json_object"},
-                "reasoning": {"enabled": False},  # OpenRouter — ปิด reasoning
+                "reasoning": {"enabled": False},  # gateway — ปิด reasoning
             },
             timeout=180,
         )

@@ -440,11 +440,11 @@ def test_fact_check_does_not_flag_ma_no_data_claim_when_all_ma_fields_really_are
     assert not any("Moving Average" in c and "SMA20" in c for c in result.caveats)
 
 
-def test_get_ai_narrative_raises_on_openrouter_unreachable():
+def test_get_ai_narrative_raises_on_gateway_unreachable():
     import httpx
 
     with patch("app.ai_narrative_service.httpx.post", side_effect=httpx.ConnectError("connection refused")):
-        with pytest.raises(AiNarrativeError, match="Could not reach OpenRouter"):
+        with pytest.raises(AiNarrativeError, match="Could not reach LLM gateway"):
             get_ai_narrative("NVDA", _sample_metrics())
 
 

@@ -1,6 +1,7 @@
 # backend/app/ai_narrative_service.py
-"""DeepSeek-via-OpenRouter backed AI narrative for the AI Technical Signal feature (wayfinder
-tickets 09/04; LLM switched from Ollama to OpenRouter 2026-08-10). Cloud LLM, on-demand (never
+"""DeepSeek-backed AI narrative for the AI Technical Signal feature (wayfinder
+tickets 09/04; LLM switched from Ollama to a cloud gateway 2026-08-10, gateway
+= opencode-go 2026-08-11). Cloud LLM, on-demand (never
 auto-triggered), cached per (ticker, date) so a same-day re-request for the same ticker doesn't
 re-run inference.
 
@@ -22,10 +23,11 @@ from app.schemas import AiNarrativeOut, AiSignalMetricsIn
 # Conflicts are computed deterministically in Python and handed to the model as a fact to
 # explain, not a thing to spot (see _detect_conflicts) — survives the model swap below.
 # 2026-08-10: switched the LLM from Ollama local (typhoon2-3b, ~39-70s CPU) to DeepSeek via
-# OpenRouter (deepseek/deepseek-v4-flash-0731, reasoning disabled) — measured 11.2s / $0.00027
-# per call on the real prompt (ai-analyst-openrouter ticket 01). Same config as the rest of the
-# app (news_service.DEEPSEEK_*), so no separate Ollama process/container to run.
-TIMEOUT_SECONDS = 300  # DeepSeek long-form Thai narrative; generous but OpenRouter is cloud
+# OpenRouter; 2026-08-11: gateway -> opencode-go (deepseek-v4-flash, reasoning disabled) —
+# measured 11.2s / $0.00027 per call on the real prompt (ai-analyst-openrouter ticket 01).
+# Same config as the rest of the app (news_service.DEEPSEEK_*), so no separate Ollama
+# process/container to run.
+TIMEOUT_SECONDS = 300  # DeepSeek long-form Thai narrative; generous but the gateway is cloud
 
 # In-process memory only -- lives inside whichever uvicorn worker handles the request, not a
 # shared/persistent store. clear_cache() run from a separate script/process (e.g. a one-off
@@ -352,15 +354,15 @@ def _fact_check_narrative(narrative: str, m: AiSignalMetricsIn) -> list[str]:
 
 
 def _call_llm(prompt: str) -> str:
-    """DeepSeek via OpenRouter (same config as the rest of the app — news_service.DEEPSEEK_*).
+    """DeepSeek via opencode-go gateway (same config as the rest of the app — news_service.DEEPSEEK_*).
 
-    reasoning disabled (OpenRouter-native; `thinking` didn't stick) + json_object so the model
+    reasoning disabled (gateway-native; `thinking` didn't stick) + json_object so the model
     returns the AiNarrativeOut JSON directly, as the prompt already asks. Returns the raw
     content string; the caller's _parse_model_output handles anything non-JSON.
     """
     key = _deepseek_key()
     if not key:
-        raise AiNarrativeError("DEEPSEEK_API_KEY not set (OpenRouter)")
+        raise AiNarrativeError("DEEPSEEK_API_KEY not set (opencode-go)")
     try:
         r = httpx.post(
             DEEPSEEK_URL,
@@ -379,19 +381,19 @@ def _call_llm(prompt: str) -> str:
             timeout=TIMEOUT_SECONDS,
         )
     except httpx.TimeoutException as e:
-        raise AiNarrativeError(f"OpenRouter call timed out after {TIMEOUT_SECONDS}s") from e
+        raise AiNarrativeError(f"LLM call timed out after {TIMEOUT_SECONDS}s") from e
     except httpx.HTTPError as e:
-        raise AiNarrativeError(f"Could not reach OpenRouter: {type(e).__name__}") from e
+        raise AiNarrativeError(f"Could not reach LLM gateway: {type(e).__name__}") from e
 
     if r.status_code != 200:
-        raise AiNarrativeError(f"OpenRouter returned HTTP {r.status_code}: {r.text[:200]}")
+        raise AiNarrativeError(f"LLM gateway returned HTTP {r.status_code}: {r.text[:200]}")
 
     try:
         content = r.json()["choices"][0]["message"]["content"]
     except (KeyError, IndexError, ValueError) as e:
-        raise AiNarrativeError("OpenRouter response had no content to parse") from e
+        raise AiNarrativeError("LLM response had no content to parse") from e
     if not content:
-        raise AiNarrativeError("OpenRouter returned empty content")
+        raise AiNarrativeError("LLM returned empty content")
     return content
 
 

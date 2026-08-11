@@ -638,7 +638,7 @@ def llm_call(system: str, user: str, *, temperature: float = 0.7,
         "temperature": temperature,
         "max_tokens": max_tokens,
         "stream": False,
-        "reasoning": {"enabled": False},  # OpenRouter — ปิด reasoning จริง (thinking:disabled ไม่มีผล)
+        "reasoning": {"enabled": False},  # gateway — ปิด reasoning (thinking:disabled ไม่มีผล)
     }
     last_err: Exception | None = None
     for attempt in range(RETRIES + 1):

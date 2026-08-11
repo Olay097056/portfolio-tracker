@@ -87,7 +87,7 @@ def _finish(db: Session, run: JobRun, status: str, detail: dict) -> None:
 
 # ── per-tick caps (grilling 03) ──────────────────────────────────────────────
 MAX_LLM_TURNS_PER_TICK = 3
-# News enrich is one DeepSeek call per item (~5-8s on OpenRouter): 40 items
+# News enrich is one DeepSeek call per item (~5-8s): 40 items
 # would blow past Vercel's 300s maxDuration (measured 2026-08-11: a 40-item
 # tick was killed at ~250s). 15 items + prewarm + the rest of the tick stays
 # inside the budget; the queue drains over consecutive ticks.

@@ -16,6 +16,7 @@ from sqlalchemy import engine_from_config, pool
 import app.boardroom_service  # noqa: F401
 import app.boardroom_stance_service  # noqa: F401
 import app.cache  # noqa: F401  (cache_entries — ticket 06)
+import app.jobs  # noqa: F401  (job_runs — ticket 07)
 import app.country_ai_service  # noqa: F401
 import app.models  # noqa: F401
 import app.news_service  # noqa: F401

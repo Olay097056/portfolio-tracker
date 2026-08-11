@@ -61,7 +61,8 @@ def add_meeting(db, *, key: str | None = None, minutes_ago: int = 0,
 def _stub_side_effects(monkeypatch):
     # no FRED snapshot fetch, no background threads, no real LLM
     monkeypatch.setattr(br, "build_snapshot", lambda db: {"macro_values": {}, "model_scores": {}})
-    monkeypatch.setattr(br, "start_meeting_background", lambda db, mid: None)
+    # check_triggers advances via the job loop helper (ticket 07) — stub it out
+    monkeypatch.setattr(br, "advance_running_meetings", lambda db, max_llm_turns: 0)
     stub = lambda *a, **k: ("—", {"prompt_tokens": 1, "completion_tokens": 1}, 0.01)
     monkeypatch.setattr(br, "llm_call", stub)
     br.seed_seats(None) if False else None  # (engine seeds via create_meeting path)
@@ -204,6 +205,9 @@ def test_trigger_check_endpoint(client, db_session, monkeypatch):
 def test_meetings_list_includes_trigger_stats(client, db_session, monkeypatch):
     monkeypatch.setattr(br, "start_meeting_background", lambda db, mid: None)
     add_news(db_session, impact=90, title="ข่าว list")
+    # trigger เกิดจาก job loop (ticket 07 — ไม่มี piggyback บน GET) → เรียก check ตรงๆ ก่อน
+    resp = client.post("/api/boardroom/triggers/check")
+    assert resp.status_code == 200
     resp = client.get("/api/boardroom/meetings")
     assert resp.status_code == 200
     body = resp.json()

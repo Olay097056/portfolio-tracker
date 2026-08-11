@@ -167,11 +167,7 @@ def get_models(db: Session = Depends(get_db)) -> ModelsOut:
 def refresh_models(db: Session = Depends(get_db)) -> ModelsOut:
     cache_clear(_CACHE_PREFIX)
     out = _get_or_fetch(db)
-    try:
-        from app import boardroom_service
-        boardroom_service.check_triggers(db)  # piggyback (ticket 10)
-    except Exception:
-        pass
+    # (trigger check moved to the central job loop — grilling 03 / ticket 07)
     return out
 
 # ---------------------------------------------------------------------------

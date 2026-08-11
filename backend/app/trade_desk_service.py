@@ -15,14 +15,14 @@
 from __future__ import annotations
 
 import json
-import threading
+# (threading import removed — background work moved to the job loop, ticket 07)
 import uuid
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Session, relationship
 
-from app.database import Base, get_db
+from app.database import Base
 from app.boardroom_service import build_snapshot, llm_call, local_midnight_utc
 from app.boardroom_stance_service import _as_utc, _macro_data, _yf_candles, resolve_price_key
 from app import price_service
@@ -544,15 +544,13 @@ def run_due_turns(db: Session, scenario: str = "") -> list[dict]:
 
 
 def run_due_turns_background(scenario: str = "") -> None:
-    """รันใน background thread (piggyback ตอนเปิดหน้า — ไม่บล็อก request)."""
-    def _work():
-        db = next(get_db())
-        try:
-            seed_teams(db)
-            run_due_turns(db, scenario)
-        finally:
-            db.close()
-    threading.Thread(target=_work, daemon=True).start()
+    """Compatibility shim — due turns now run in the central job loop
+    (vercel-supabase 07: app/jobs.run_due_turns every 10-min tick). The old
+    implementation spawned a daemon thread, which serverless kills when the
+    request ends; callers (GET /api/trade-desk/state) keep working unchanged
+    and the job loop drives the work instead.
+    """
+    return None
 
 
 # ── State (สำหรับ UI) ───────────────────────────────────────────────────────

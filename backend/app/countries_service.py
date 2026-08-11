@@ -12,9 +12,7 @@ flagged, not presented as current.
 
 from __future__ import annotations
 
-import asyncio
 import re
-import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
@@ -78,43 +76,108 @@ _HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.
 
 
 def _chromium_path() -> str | None:
-    """Locate the headless Chromium for Playwright, cross-platform:
-    the ms-playwright dir on the host (chromium-1208), or the image-installed
-    browser in the container (/root/.cache/ms-playwright, version may differ)."""
-    import glob
-    import os
-    from pathlib import Path
-
-    candidates: list[str] = []
-
-    def add(base: Path) -> None:
-        for ver_dir in sorted(glob.glob(str(base / "chromium-*"))):
-            candidates.append(str(Path(ver_dir) / "chrome-win64" / "chrome.exe"))
-            candidates.append(str(Path(ver_dir) / "chrome-linux" / "chrome"))
-            candidates.append(str(Path(ver_dir) / "chrome-linux64" / "chrome"))  # newer playwright
-            candidates.append(str(Path(ver_dir) / "chrome-mac" / "Chromium.app" / "Contents" / "MacOS" / "Chromium"))
-        for ver_dir in sorted(glob.glob(str(base / "chromium_headless_shell-*"))):
-            candidates.append(str(Path(ver_dir) / "chrome-win64" / "headless_shell.exe"))
-            candidates.append(str(Path(ver_dir) / "chrome-linux" / "headless_shell"))
-            candidates.append(str(Path(ver_dir) / "chrome-linux64" / "headless_shell"))
-            candidates.append(str(Path(ver_dir) / "chrome-mac" / "headless_shell"))
-
-    env_path = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
-    if env_path:
-        add(Path(env_path))
-    add(Path("/root/.cache/ms-playwright"))   # container (playwright install default)
-    add(Path.home() / "AppData" / "Local" / "ms-playwright")  # Windows host
-    for c in candidates:
-        if os.path.exists(c):
-            return c
+    """Legacy Playwright chromium locator — kept only for the docstring; the
+    wgb scraper moved to the JSON API (ticket 07) and no longer needs a browser.
+    Returns None so any stale caller degrades to the API path."""
     return None
 
 
-_CHROME = _chromium_path()
-_FRED_WINDOW = 400  # days, same as macro_service
+# wgb country SYMBOL ids (from each country page's jsGlobalVars.COUNTRY1.SYMBOL,
+# collected 2026-08-11 — stable identifiers, do not expire). Countries that
+# only have a wgb "home" page (LA/SA/AE) or no page have no symbol and fall
+# back to FRED or None exactly as before (they are manual/sparse tier).
+_WGB_SYMBOLS: dict[str, str] = {
+    "US": "6", "TH": "53", "JP": "11", "FR": "3", "VN": "58", "GB": "5",
+    "CA": "21", "CH": "24", "AU": "22", "KR": "29", "NO": "18", "MX": "14",
+    "CN": "9", "IN": "8", "ID": "39", "BR": "7", "TR": "13", "PH": "38",
+    "MY": "46", "SG": "52", "HK": "12", "PL": "20", "RU": "10", "ZA": "28",
+}
+_WGB_ENDPOINT = "https://www.worldgovernmentbonds.com/wp-json/country/v1/main"
+_WGB_PAGE = "https://www.worldgovernmentbonds.com/country/{slug}/"
+
+
+def _wgb_yields(slug: str) -> dict[str, dict]:
+    """Full yield table from worldgovernmentbonds via their JSON API:
+    {tenor: {yield, chg_1m_bp, chg_6m_bp}} for every maturity row
+    (1Y, 2Y, 3Y, 4Y, 5Y, 7Y, 10Y, 12Y, 14Y, 15Y, 16Y, 20Y... + T-BILLs).
+
+    Replaces the old Playwright+Chromium scrape (impossible on Vercel — no
+    browser): the site loads the table via POST /wp-json/country/v1/main,
+    which returns ready HTML (mainTable). Origin/Referer headers are required
+    (403 "invalid origin" otherwise) — verified working from Vercel-style
+    egress with an empty UA, 2026-08-11.
+    """
+    code = next((c["code"] for c in COUNTRIES if c["slug"] == slug), None)
+    symbol = _WGB_SYMBOLS.get(code) if code else None
+    if not symbol:
+        return {}
+    try:
+        gv = {
+            "JS_VARIABLE": "jsGlobalVars", "FUNCTION": "Country", "DOMESTIC": True,
+            "ENDPOINT": "https://www.worldgovernmentbonds.com/wp-json/country/v1/historical",
+            "DATE_RIF": "2099-12-31", "OBJ": None,
+            "COUNTRY1": {"SYMBOL": symbol, "URL_PAGE": slug}, "COUNTRY2": None,
+            "OBJ1": None, "OBJ2": None,
+        }
+        r = httpx.post(_WGB_ENDPOINT, json={"GLOBALVAR": gv}, timeout=20,
+                       headers={"Origin": "https://www.worldgovernmentbonds.com",
+                                "Referer": _WGB_PAGE.format(slug=slug)})
+        if r.status_code != 200:
+            return {}
+        payload = r.json()
+    except Exception:
+        return {}
+
+    out: dict[str, dict] = {}
+    table_html = payload.get("mainTable", "")
+    if not table_html:
+        return out
+    for row_html in re.findall(r"<tr[^>]*>(.*?)</tr>", table_html, re.S):
+        cells = [re.sub(r"<[^>]+>", "", c).strip()
+                 for c in re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", row_html, re.S)]
+        if not cells:
+            continue
+        # first td is empty (link/icon column) — the maturity label is the
+        # first non-empty cell; scan all cells for the label pattern.
+        label = ""
+        value_idx = 1
+        for i, c in enumerate(cells):
+            if re.match(r"^\d+\s*years?$", c.lower()) or "t-bill" in c.lower():
+                label = c.lower()
+                value_idx = i + 1
+                break
+        if not label:
+            continue
+        m = re.match(r"^(\d+)\s*years?$", label)
+        tenor = None
+        if m:
+            tenor = f"{m.group(1)}Y"
+        elif "t-bill" in label:
+            m2 = re.match(r"t-bill\s*(\d+)m", label)
+            tenor = f"{m2.group(1)}M" if m2 else None
+        if not tenor:
+            continue
+        try:
+            value = float(cells[value_idx].rstrip("%"))
+        except (ValueError, IndexError):
+            continue
+        chg1 = chg6 = None
+        if len(cells) > value_idx + 1:
+            m3 = re.match(r"([+-]?[\d.]+)", cells[value_idx + 1])
+            if m3:
+                chg1 = float(m3.group(1))
+        if len(cells) > value_idx + 2:
+            m4 = re.match(r"([+-]?[\d.]+)", cells[value_idx + 2])
+            if m4:
+                chg6 = float(m4.group(1))
+        out[tenor] = {"yield": value, "chg_1m_bp": chg1, "chg_6m_bp": chg6}
+    return out
 
 
 # --- Yield fetch -----------------------------------------------------------
+_FRED_WINDOW = 400  # days, same as macro_service
+
+
 def _fred_series(series_id: str) -> list[tuple[str, float]] | None:
     """FRED CSV rows (date, value) — no custom UA (TLS-fingerprint lesson)."""
     try:
@@ -136,58 +199,6 @@ def _fred_series(series_id: str) -> list[tuple[str, float]] | None:
         return out or None
     except Exception:
         return None
-
-
-def _wgb_yields(slug: str) -> dict[str, dict]:
-    """Full yield table from worldgovernmentbonds via Playwright:
-    {tenor: {yield, chg_1m_bp, chg_6m_bp}} for every maturity row
-    (1Y, 2Y, 3Y, 4Y, 5Y, 7Y, 10Y, 12Y, 14Y, 15Y, 16Y, 20Y... + T-BILLs)."""
-    chrome = _CHROME
-    if not chrome:
-        return {}
-    try:
-        from playwright.sync_api import sync_playwright
-
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True, executable_path=chrome)
-            page = browser.new_page()
-            try:
-                page.goto(f"https://www.worldgovernmentbonds.com/country/{slug}/",
-                          timeout=45000, wait_until="domcontentloaded")
-                page.wait_for_timeout(2500)
-                rows = page.eval_on_selector_all(
-                    "table tr",
-                    "els => els.map(e => e.innerText).filter(t => /year|T-BILL|MONTH/.test(t))")
-                out: dict[str, dict] = {}
-                for row in rows:
-                    cells = [c.strip() for c in row.split("\t") if c.strip()]
-                    if len(cells) < 2:
-                        continue
-                    label = cells[0].lower()
-                    m = re.match(r"^(\d+)\s*years?$", label)
-                    tenor = None
-                    if m:
-                        tenor = f"{m.group(1)}Y"
-                    elif "t-bill" in label:
-                        m2 = re.match(r"t-bill\s*(\d+)m", label)
-                        tenor = f"{m2.group(1)}M" if m2 else None
-                    if not tenor:
-                        continue
-                    try:
-                        value = float(cells[1].rstrip("%"))
-                    except (ValueError, IndexError):
-                        continue
-                    chg1 = None
-                    if len(cells) > 2:
-                        m3 = re.match(r"([+-]?[\d.]+)", cells[2])
-                        if m3:
-                            chg1 = float(m3.group(1))
-                    out[tenor] = {"yield": value, "chg_1m_bp": chg1}
-                return out
-            finally:
-                browser.close()
-    except Exception:
-        return {}
 
 
 def _wgb_10y(slug: str) -> tuple[float | None, float | None, str | None]:

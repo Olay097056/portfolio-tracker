@@ -36,7 +36,7 @@ import math
 import os
 import re
 import secrets
-import threading
+# (threading import removed — background work moved to the job loop, ticket 07)
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -56,6 +56,8 @@ CAP_MAX_CALLS = 40
 CAP_CALL_TIMEOUT_S = 120
 CAP_MEETING_TIMEOUT_S = 30 * 60
 RETRIES = 1
+# Per-tick LLM turn cap for the central job loop (grilling 03 / ticket 07).
+MAX_LLM_TURNS_PER_TICK = 3
 
 # Memory (ticket 05)
 MEMORY_INJECT_MIN_CONF = 60.0
@@ -1197,40 +1199,71 @@ class BoardroomEngine:
 
 
 # ---------------------------------------------------------------------------
-# Background runner (single-process: one meeting at a time)
+# Background runner — serverless-safe (vercel-supabase 07): no daemon threads.
+# A meeting advances <= `max_llm_turns` LLM turns per tick; the pg_cron job
+# (app/jobs.run_due_turns -> advance_running_meetings) picks it back up on the
+# next 10-min tick. On a single Vercel function the old thread died with the
+# request; now the work is driven by the job loop, never by a thread.
 # ---------------------------------------------------------------------------
-_runner_lock = threading.Lock()
-_active_meeting: dict[str, bool] = {}
+
+
+def advance_running_meetings(db: Session, max_llm_turns: int) -> int:
+    """Advance every meeting with status == 'running' up to `max_llm_turns`
+    LLM turns total across all meetings. Returns the number of turns run.
+
+    Idempotent: a meeting that is finished/failed is skipped; a meeting that
+    hits the per-meeting caps (CAP_MAX_CALLS / timeout) is failed by advance().
+    """
+    turns_run = 0
+    engine = BoardroomEngine(db)
+    meetings = (
+        db.query(BoardroomMeeting)
+        .filter(BoardroomMeeting.status == "running")
+        .order_by(BoardroomMeeting.created_at.asc())  # oldest first
+        .all()
+    )
+    for meeting in meetings:
+        if turns_run >= max_llm_turns:
+            break
+        try:
+            while turns_run < max_llm_turns:
+                before = meeting.llm_calls
+                status = engine.advance(meeting.id)
+                after = meeting.llm_calls
+                if after > before:
+                    turns_run += 1
+                if status != "running":
+                    break
+        except KeyError:
+            continue
+        except Exception:
+            # mark failed so the UI isn't stuck on 'running' forever
+            try:
+                m = db.get(BoardroomMeeting, meeting.id)
+                if m and m.status == "running":
+                    m.status = "failed"
+                    m.error = "internal engine error"
+                    m.updated_at = _now()
+                    db.commit()
+            except Exception:
+                pass
+    return turns_run
 
 
 def start_meeting_background(db: Session, meeting_id: str) -> None:
-    """Advance the meeting until done in a daemon thread (or fail)."""
-    def _run():
-        with _runner_lock:
-            try:
-                engine = BoardroomEngine(db)
-                while True:
-                    status = engine.advance(meeting_id)
-                    if status != "running":
-                        break
-                    time.sleep(0.5)
-            except Exception:
-                # mark failed so the UI isn't stuck on 'running' forever
-                try:
-                    m = db.get(BoardroomMeeting, meeting_id)
-                    if m and m.status == "running":
-                        m.status = "failed"
-                        m.error = "internal engine error"
-                        m.updated_at = _now()
-                        db.commit()
-                except Exception:
-                    pass
-            finally:
-                _active_meeting.pop(meeting_id, None)
+    """Compatibility shim: run one full job tick synchronously.
 
-    _active_meeting[meeting_id] = True
-    t = threading.Thread(target=_run, daemon=True)
-    t.start()
+    A meeting created/resumed from a request must start advancing immediately
+    (waiting up to 10 min for the cron tick would be a terrible UX), but it
+    must NOT race the pg_cron tick on the same meeting. The central job lock
+    (job_runs, ticket 07) makes concurrent entry harmless: whoever wins does
+    the work, the loser returns skipped. Previously this spawned a daemon
+    thread that looped until the meeting finished — impossible on serverless,
+    where the function is destroyed when the response ends.
+    """
+    from app import jobs
+
+    jobs.run_due_turns(db)
 
 
 def seed_seats(db: Session) -> None:
@@ -1427,7 +1460,12 @@ def check_triggers(db: Session) -> dict:
     meeting = engine.create_meeting(agenda=agenda, trigger_type=ttype, mode="short")
     meeting.trigger_key = key
     db.commit()
-    start_meeting_background(db, meeting.id)
+    # Inside a job tick (jobs.run_due_turns) the job lock already guards
+    # overlap, so advance directly instead of re-entering the job loop
+    # (start_meeting_background -> run_due_turns would deadlock on its own
+    # running row). The created meeting advances up to the per-tick LLM cap;
+    # the next 10-min tick continues it (vercel-supabase 07).
+    advance_running_meetings(db, max_llm_turns=MAX_LLM_TURNS_PER_TICK)
     _log_trigger(db, ttype, agenda, False, meeting_id=meeting.id)
     return {"checked_at": now.isoformat(), "triggered": True, "meeting_id": meeting.id,
             "reason": agenda, "skipped": False}

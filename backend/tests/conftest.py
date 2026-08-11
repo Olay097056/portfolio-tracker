@@ -42,6 +42,7 @@ from alembic.config import Config
 
 import app.models  # noqa: F401,E402  (registers ORM classes with Base.metadata)
 import app.cache  # noqa: F401,E402  (registers cache_entries table)
+import app.jobs  # noqa: F401,E402  (registers job_runs table)
 import app.news_service  # noqa: F401,E402  (registers the news_items table)
 import app.boardroom_service  # noqa: F401,E402  (registers the boardroom_* tables)
 import app.boardroom_stance_service  # noqa: F401,E402  (registers boardroom_stances/unresolved)

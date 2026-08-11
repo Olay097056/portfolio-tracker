@@ -1,0 +1,142 @@
+"""Central job runner — single pg_cron entrypoint (vercel-supabase plan ticket 07).
+
+Serverless (Vercel) kills a function the moment the response ends, so the old
+fire-and-forget daemon threads (boardroom meeting runner, news enrich sweep,
+trade-desk due turns) die mid-flight. grilling 03 decided: ONE cron tick
+(pg_cron -> pg_net -> POST /api/jobs/run-due-turns) every 10 minutes, and the
+tick itself checks what is due for every subsystem.
+
+Design notes:
+- `job_runs` table acts as the overlap lock: a tick INSERTs a running row
+  first (or aborts if one is already running) and marks it finished at the
+  end. If a tick crashes mid-way, the row stays `running` and the next tick
+  sees it and skips — the 10-min cadence means a wedged lock heals on its
+  own by just waiting for the next tick (heartbeat column reserved for a
+  future watchdog).
+- Per-tick caps (grilling 03): <= 3 LLM turns across boardroom+trade-desk,
+  news enrich <= 40 items, all within Vercel's 300s maxDuration.
+- Everything is idempotent per subsystem: boardroom advance checks status,
+  trade-desk checks next_turn_at/master_on/daily cap, news enrich is
+  translate-once — a skipped tick is harmless, the next tick continues.
+"""
+from __future__ import annotations
+
+import json
+from datetime import datetime, timezone
+
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
+from sqlalchemy.orm import Session
+
+from app.database import Base, SessionLocal
+
+
+class JobRun(Base):
+    __tablename__ = "job_runs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    job_name = Column(String, nullable=False, default="run-due-turns")
+    started_at = Column(DateTime, nullable=False)
+    finished_at = Column(DateTime, nullable=True)
+    status = Column(String, nullable=False, default="running")  # running/finished/failed
+    heartbeat_at = Column(DateTime, nullable=True)
+    detail = Column(Text, nullable=True)  # JSON summary of what the tick did
+
+
+def _now_utc_naive():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _try_acquire_lock(db: Session) -> JobRun | None:
+    """Insert a running job_runs row; None if one is already running (overlap)."""
+    running = (
+        db.query(JobRun)
+        .filter(JobRun.status == "running")
+        .order_by(JobRun.started_at.desc())
+        .first()
+    )
+    if running is not None:
+        return None
+    run = JobRun(job_name="run-due-turns", started_at=_now_utc_naive(), status="running")
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+    return run
+
+
+def _finish(db: Session, run: JobRun, status: str, detail: dict) -> None:
+    run.status = status
+    run.finished_at = _now_utc_naive()
+    run.detail = json.dumps(detail, ensure_ascii=False)
+    db.commit()
+
+
+# ── per-tick caps (grilling 03) ──────────────────────────────────────────────
+MAX_LLM_TURNS_PER_TICK = 3
+NEWS_ENRICH_LIMIT_PER_TICK = 40
+
+
+def run_due_turns(db: Session) -> dict:
+    """One full tick: pre-warm caches, then advance every due subsystem.
+
+    Callable both from the /api/jobs/run-due-turns endpoint (pg_cron) and from
+    request paths that used to piggyback work (boardroom meeting create, news
+    refresh, trade-desk state) — the job_runs lock makes concurrent entry
+    harmless: whoever wins the lock does the work, the loser returns skipped.
+    """
+    run = _try_acquire_lock(db)
+    if run is None:
+        return {"skipped": "job_already_running"}
+
+    detail: dict = {"prewarm": None, "boardroom": None, "trade_desk": None, "news": None}
+    try:
+        # 1. Pre-warm macro/market caches (Postgres cache_entries, ticket 06) so
+        #    the dashboard is warm even on a cold function. Cheap when fresh.
+        from app import macro_service
+
+        try:
+            dash = macro_service.build_dashboard(force=False)
+            detail["prewarm"] = {"dashboard": "ok" if dash else "empty",
+                                 "fred": len(macro_service.fred_history_map(
+                                     list(macro_service._SERIES.keys())))}
+        except Exception as exc:  # never let prewarm fail the whole tick
+            detail["prewarm"] = {"error": str(exc)[:200]}
+
+        # 2. Boardroom: trigger check + advance running meetings (<=3 LLM turns).
+        from app import boardroom_service
+
+        try:
+            trigger = boardroom_service.check_triggers(db)
+            advanced = boardroom_service.advance_running_meetings(
+                db, max_llm_turns=MAX_LLM_TURNS_PER_TICK)
+            detail["boardroom"] = {"trigger": trigger.get("skip_reason") or (
+                "triggered" if trigger.get("triggered") else "checked"),
+                "advanced_turns": advanced}
+        except Exception as exc:
+            detail["boardroom"] = {"error": str(exc)[:200]}
+
+        # 3. Trade-desk: run due turns (own due-checks inside).
+        from app import trade_desk_service as td
+
+        try:
+            td.seed_teams(db)
+            due = td.run_due_turns(db)
+            detail["trade_desk"] = [r.get("skipped") or r.get("team")
+                                    for r in due if isinstance(r, dict)]
+        except Exception as exc:
+            detail["trade_desk"] = {"error": str(exc)[:200]}
+
+        # 4. News: enrich pending (<=40) — refresh happens on-demand via the
+        #    news endpoint (fast fetch), enrichment is the slow LLM part.
+        from app import news_service
+
+        try:
+            enriched = news_service.enrich_pending(db, limit=NEWS_ENRICH_LIMIT_PER_TICK)
+            detail["news"] = {"enriched": enriched}
+        except Exception as exc:
+            detail["news"] = {"error": str(exc)[:200]}
+
+        _finish(db, run, "finished", detail)
+        return detail
+    except Exception as exc:
+        _finish(db, run, "failed", {"error": str(exc)[:500]})
+        return {"error": str(exc)[:500]}

@@ -6,7 +6,7 @@ reference site's /news data access. Backed by the SQLite news pipeline."""
 from __future__ import annotations
 
 import json
-import threading
+# (no threading import — enrichment moved to the central job loop, ticket 07)
 import time
 from datetime import datetime, timezone
 from typing import Annotated
@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from app import news_service
 from app.cache import cache_clear, cache_get, cache_set
-from app.database import SessionLocal, get_db
+from app.database import get_db
 
 router = APIRouter(prefix="/api/news", tags=["news"])
 
@@ -74,31 +74,13 @@ def _to_out(row) -> NewsItemOut:
 
 
 def _kick_off_enrichment() -> None:
-    """Fire-and-forget background enrichment: the request returns as soon as
-    headlines are persisted (~5s) and DeepSeek translation catches up in the
-    background — a full sweep would take ~8 minutes synchronously.
-
-    The background sweep loops until every pending item is enriched (chunked
-    20/call), so a fresh 286-item sweep finishes in one pass instead of one
-    40-item round per 5-minute refresh. Re-entrancy: a second sweep may start
-    while one is running; both pull from the same `title_th IS NULL` queue
-    and the translate-once rule makes duplicate work harmless.
+    """Enrichment is driven by the central job loop (vercel-supabase 07):
+    app/jobs.run_due_turns -> news_service.enrich_pending(limit=40) every
+    10-min tick. Previously this spawned a daemon thread that looped until the
+    queue drained — impossible on serverless, where the function is destroyed
+    when the response ends. Kept as a no-op shim so callers don't change.
     """
-
-    def _work():
-        try:
-            db = SessionLocal()
-            try:
-                while True:
-                    done = news_service.enrich_pending(db, limit=40)
-                    if done < 40:
-                        break  # queue drained (or all remaining failed this round)
-            finally:
-                db.close()
-        except Exception:
-            pass  # never let background failures break the page
-
-    threading.Thread(target=_work, daemon=True).start()
+    return None
 
 
 def _get_or_refresh(db: Session, force: bool = False) -> dict:
@@ -185,11 +167,7 @@ def refresh_news(db: Session = Depends(get_db)) -> NewsListOut:
     except Exception:
         pass
     cache_clear(_CACHE_PREFIX)  # force a fresh payload build (sources may have changed)
-    try:
-        from app import boardroom_service
-        boardroom_service.check_triggers(db)  # piggyback (ticket 10)
-    except Exception:
-        pass
+    # (trigger check moved to the central job loop — grilling 03 / ticket 07)
     return get_news(db=db)
 
 

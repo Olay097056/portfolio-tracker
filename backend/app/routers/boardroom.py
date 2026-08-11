@@ -135,8 +135,8 @@ def create_meeting(payload: MeetingCreate, db: Session = Depends(get_db)):
 
 @router.get("/meetings", response_model=MeetingListOut)
 def list_meetings(db: Session = Depends(get_db)):
-    # piggyback trigger check (ticket 10) — guard 10 นาทีอยู่ฝั่ง check_triggers
-    boardroom_service.check_triggers(db)
+    # (trigger check moved to the central job loop — grilling 03 / ticket 07:
+    #  piggyback on page views was removed; pg_cron drives check_triggers)
     meetings = (db.query(boardroom_service.BoardroomMeeting)
                 .order_by(desc(boardroom_service.BoardroomMeeting.created_at))
                 .limit(50).all())

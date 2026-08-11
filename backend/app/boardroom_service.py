@@ -638,7 +638,7 @@ def llm_call(system: str, user: str, *, temperature: float = 0.7,
         "temperature": temperature,
         "max_tokens": max_tokens,
         "stream": False,
-        "reasoning": {"enabled": False},  # gateway — ปิด reasoning (thinking:disabled ไม่มีผล)
+        "thinking": {"type": "disabled"},  # opencode-go — ปิด reasoning จริง (วัด 2026-08-11: reasoning.enabled=false ยังคิด 160+ tokens, thinking.type=disabled → 0)
     }
     last_err: Exception | None = None
     for attempt in range(RETRIES + 1):

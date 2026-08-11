@@ -226,7 +226,7 @@ def _enrich_batch(items: list[dict]) -> list[dict]:
                 "temperature": 0.2,
                 "max_tokens": 8000,
                 "response_format": {"type": "json_object"},
-                "reasoning": {"enabled": False},  # gateway — ปิด reasoning
+                "thinking": {"type": "disabled"},  # opencode-go — ปิด reasoning (วัดแล้ว)
             },
             timeout=180,
         )

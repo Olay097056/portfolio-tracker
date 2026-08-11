@@ -73,7 +73,7 @@ def _call_deepseek(system: str, user: str, max_tokens: int = 8000) -> str | None
                 "temperature": 0.2,
                 "max_tokens": max_tokens,
                 "response_format": {"type": "json_object"},
-                "reasoning": {"enabled": False},  # gateway — ปิด reasoning
+                "thinking": {"type": "disabled"},  # opencode-go — ปิด reasoning (วัดแล้ว: thinking.type=disabled → reasoning_tokens 0)
             },
             timeout=240,
         )

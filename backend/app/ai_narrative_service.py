@@ -356,7 +356,8 @@ def _fact_check_narrative(narrative: str, m: AiSignalMetricsIn) -> list[str]:
 def _call_llm(prompt: str) -> str:
     """DeepSeek via opencode-go gateway (same config as the rest of the app — news_service.DEEPSEEK_*).
 
-    reasoning disabled (gateway-native; `thinking` didn't stick) + json_object so the model
+    reasoning disabled via thinking.type=disabled (opencode-go; measured 2026-08-11 —
+    reasoning.enabled=false is ignored, thinking.type=disabled → 0 reasoning tokens) + json_object so the model
     returns the AiNarrativeOut JSON directly, as the prompt already asks. Returns the raw
     content string; the caller's _parse_model_output handles anything non-JSON.
     """
@@ -376,7 +377,7 @@ def _call_llm(prompt: str) -> str:
                 "max_tokens": 8000,
                 "stream": False,
                 "response_format": {"type": "json_object"},
-                "reasoning": {"enabled": False},
+                "thinking": {"type": "disabled"},  # opencode-go — ปิด reasoning (วัดแล้ว)
             },
             timeout=TIMEOUT_SECONDS,
         )

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { RiskBanner } from './RiskBanner';
 import { getModelsDashboard, refreshModelsDashboard } from '../../api/client';
 import type {
   ModelsDashboard as ModelsDashboardData,
@@ -504,6 +505,8 @@ export function ModelsDashboard() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* 🚫 Risk warning (D9 — ticket 06) */}
+      <RiskBanner id="models" />
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>

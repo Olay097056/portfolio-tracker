@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { RiskBanner } from './RiskBanner';
 import {
   closeSignal,
   getSignalsDashboard,
@@ -447,6 +448,9 @@ export function SignalsDashboard() {
           ) : null}
         </div>
       </div>
+
+      {/* 🚫 Risk warning (D8+D19 — guard rail ticket 06) */}
+      <RiskBanner id="signals" />
 
       {/* Notes */}
       {data?.notes?.length ? (

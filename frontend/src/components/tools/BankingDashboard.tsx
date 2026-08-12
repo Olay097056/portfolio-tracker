@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { RiskBanner } from './RiskBanner';
 import { getBankingDashboard, refreshBankingDashboard } from '../../api/client';
 import type {
   BankingDashboard as BankingDashboardData,
@@ -344,6 +345,8 @@ export function BankingDashboard() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* 🚫 Risk warning (D13 — ticket 06) */}
+      <RiskBanner id="banking" />
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
         <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700 }}>

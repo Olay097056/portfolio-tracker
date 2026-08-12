@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { RiskBanner } from './RiskBanner';
 import { getOverviewDashboard, refreshOverviewBrief } from '../../api/client';
 import type {
   OverviewDashboard, OverviewKeyFigure, OverviewModelCard, OverviewYieldPoint,
@@ -183,6 +184,8 @@ export function OverviewDashboard() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* 🚫 Risk warning (D10 — ticket 06) */}
+      <RiskBanner id="overview" />
       {/* ── AI สรุปสถานการณ์ ── */}
       <Panel accent title={
         <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { RiskBanner } from './RiskBanner';
 import { getCmeZone } from '../../api/client';
 import type { CmeZone, CmeGoldFlow, CmeFedWatch, CmeCryptoIv } from '../../api/types';
 
@@ -187,6 +188,8 @@ export function CmeDashboard() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* 🚫 Risk warning (D12 — ticket 06) */}
+      <RiskBanner id="cme" />
       <FedWatchCards fw={data.fedwatch} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
         <GoldFlow gf={data.gold_flow} />

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { RiskBanner } from './RiskBanner';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Text, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -144,6 +145,10 @@ export function OfficeDashboard() {
 
   return (
     <div style={{ position: 'relative', width: '100%', height: 'calc(100vh - 180px)', minHeight: 500 }}>
+      {/* 🚫 Risk warning (D17 — ticket 06, มุมล่างขวา) */}
+      <div style={{ position: 'absolute', bottom: 40, right: 12, zIndex: 10, maxWidth: 320 }}>
+        <RiskBanner id="office" />
+      </div>
       {/* 3D Canvas */}
       <Canvas style={{ background: INK.bg }} gl={{ antialias: true }}>
         <OfficeScene onRoomClick={setSelectedRoom} />

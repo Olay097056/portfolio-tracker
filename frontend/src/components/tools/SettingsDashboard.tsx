@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { RiskBanner } from './RiskBanner';
 
 // ตั้งค่า — หน้า /settings ของ reference (ใบ 11): บัญชี + รูปแบบการแจ้งเตือน
 // (Telegram ถูกตัดออกตามใบ 09) — เก็บใน localStorage (ยังไม่มีระบบ auth)
@@ -78,6 +79,8 @@ export function SettingsDashboard() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* 🚫 Risk warning (D18 — ticket 06) */}
+      <RiskBanner id="settings" />
       {/* ── บัญชี ── */}
       <div style={box}>
         <div style={label}>บัญชี</div>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { RiskBanner } from './RiskBanner';
 import { getFearGreed } from '../../api/client';
 import type { FearGreed, FearGreedIndicator } from '../../api/types';
 
@@ -161,6 +162,8 @@ export function SentimentDashboard() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* 🚫 Risk warning (D11 — ticket 06) */}
+      <RiskBanner id="sentiment" />
       {/* ── 2 ดัชนีหลัก ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
         <Panel title="ดัชนีความกลัว-ความโลภ (CNN)" right={

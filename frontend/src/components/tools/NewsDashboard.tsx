@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { RiskBanner } from './RiskBanner';
 import { getNews, refreshNews } from '../../api/client';
 import type { NewsItem, NewsList } from '../../api/types';
 
@@ -242,6 +243,8 @@ export function NewsDashboard() {
 
   return (
     <div style={{ background: INK.bg, minHeight: '100%' }}>
+      {/* 🚫 Risk warning (D15 — ticket 06) */}
+      <RiskBanner id="news" style={{ marginBottom: 14 }} />
       {/* Header row: title + controls */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 14 }}>
         <div style={{ fontSize: '1.05rem', fontWeight: 800, color: INK.ink }}>📰 ข่าวสาร</div>

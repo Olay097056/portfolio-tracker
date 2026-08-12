@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { RiskBanner } from './RiskBanner';
 
 // บทเรียน — หน้า /learn ของ reference (ใบ 11): 7 บทเรียน
 // เนื้อหาเขียนใหม่เองทั้งหมด (ไม่คัดลอกจาก reference — ตัดสินใบ 09):
@@ -149,6 +150,8 @@ export function LearnDashboard() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* 🚫 Risk warning (D16 — ticket 06) */}
+      <RiskBanner id="learn" />
       <div style={{
         background: INK.panel, border: `1px solid ${INK.panelBorder}`, borderRadius: 12,
         padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10,

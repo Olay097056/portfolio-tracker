@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { RiskBanner } from './RiskBanner';
 import { getCountriesDashboard, refreshCountriesDashboard } from '../../api/client';
 import type { CountriesDashboard as CountriesData, CountryCard } from '../../api/types';
 import { CountryDetailPage } from './CountryDetailPage';
@@ -270,6 +271,8 @@ export function CountriesDashboard() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* 🚫 Risk warning (D14 — ticket 06) */}
+      <RiskBanner id="countries" />
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
         <div>

@@ -44,7 +44,7 @@
 | D17 | ✅ มี | **OfficeDashboard.tsx** — grep = **0 hits**   เสร็จ (8e60611) |
 | D18 | ✅ มี | **SettingsDashboard.tsx** — grep = **0 hits**   เสร็จ (8e60611) |
 | D19 | ✅ มี | **SignalsDashboard.tsx** — คำเตือน "แม่นยำในอดีตประมาณ 62-63%" · user อนุมัติแล้วในแผน ai-signal-investor-upgrades (2026-08-06) · **หายระหว่างการเขียนใหม่** — grep ทั้งไฟล์ = 0 hits   เสร็จ (8e60611) |
-| **สรุป** | | **7 มี · 12 ขาด** (นับ D3+D4+D5 เป็นรายการ 5/16 แท็บ) |
+| **สรุป** | | **19 มี · 0 ขาด · 0 ต่าง** | |
 
 ---
 
@@ -61,7 +61,7 @@
 | 1.7 | ❌ ขาด | CDS proxy / หางประมูล 10Y / ดีลเลอร์รับ / SRF / หนี้ธุรกิจ | เรา: ไม่พบในโค้ด (บางตัวมี proxy ได้: auction btc มีแล้ว / WRESBAL คล้าย SRF) | เอา (ต้องหาแหล่ง — หางประมูลจาก auction ที่มี) |
 | 1.8 | ✅ มี | Bid-to-Cover แยก tenor | **MacroDashboard.tsx** — ผ่าน `/api/macro` · แก้จาก 2.59x ซ้ำแล้ว |
 | 1.9 | ✅ มี | CPI/PCE | **MacroDashboard.tsx** — ผ่าน FRED series |
-| **สรุป** | | **3 มี · 6 ขาด** (ไม่นับ CME ที่แยกหน้า) | |
+| **สรุป** | | **3 มี · 6 ขาด · 0 ต่าง** | |
 
 ---
 
@@ -73,7 +73,7 @@
 | 2.2 | ⚠️ ต่าง | ความมั่นใจต่อโมเดล (%) | คำนวณจริง = % indicators มีข้อมูลสด (model_service.py:889) แต่ตอนนี้ 100 ทุกตัว | เอา (เปลี่ยนป้ายเป็น "ความครบของข้อมูล" — ค่าถูกแต่ชื่อผิด แบบ MTD ใบ 03) |
 | 2.3 | ✅ มี | เกณฑ์ก่อตัว 40 / ทำงาน 60 (เส้นบนกราฟ) | **ModelsDashboard.tsx** — factorCaps + progress bar |
 | 2.4 | ✅ มี | คำเตือนความเสี่ยง / disclaimer | RiskBanner id="models" — ใบ 06 ทำ |
-| **สรุป** | | **1 มี · 1 ขาด · 2 ต่าง** | |
+| **สรุป** | | **3 มี · 0 ขาด · 1 ต่าง** | |
 
 ---
 
@@ -86,7 +86,7 @@
 | 3.3 | ✅ มี | ค่าคาดหวัง/payoff/ถือเฉลี่ย/R:R | SignalsDashboard.tsx:506-510 (expectancy/payoff/avg_hold/avg_rr) |
 | 3.4 | ✅ มี | แยกหมวด STOCKS/CRYPTO/MACRO/FOREX + WR | SignalsDashboard.tsx:335-343,542 (byCat + WR ต่อหมวด) |
 | 3.5 | ✅ มี | คำเตือนความแม่นยำ | RiskBanner id="signals" (รวม D8+D19) — ใบ 06 ทำ |
-| **สรุป** | | **1 มี · 3 ขาด · 1 ต่าง** | |
+| **สรุป** | | **5 มี · 0 ขาด · 0 ต่าง** | |
 
 ---
 
@@ -98,7 +98,7 @@
 | 4.2 | ✅ มี | Crypto FG 29 (Fear) | **SentimentDashboard.tsx** — `crypto_fear_greed` field |
 | 4.3 | ✅ มี | MOVE/VIX/DXY/HY spread indicators | **SentimentDashboard.tsx** — 4 indicators |
 | 4.4 | ✅ มี | คำเตือนความเสี่ยง / disclaimer | RiskBanner id="sentiment" — ใบ 06 ทำ |
-| **สรุป** | | **3 มี · 1 ขาด** | |
+| **สรุป** | | **4 มี · 0 ขาด · 0 ต่าง** | |
 
 ---
 
@@ -112,7 +112,7 @@
 | 5.4 | ✅ มี | COT (Commitment of Traders) | **CmeDashboard.tsx** |
 | 5.5 | ❌ ขาด | CME กรอบ ±σ (บอกให้ไปดูที่ Macro?) | ref: อยู่หน้า CME zone · เรา: มีบางส่วน — ตรวจ coverage  | ซ้ำ 1.1 — เอาออก (ไม่ต้องทำซ้ำ) |
 | 5.6 | ✅ มี | คำเตือน / disclaimer | RiskBanner id="cme" — ใบ 06 ทำ |
-| **สรุป** | | **4 มี · 2 ขาด** | |
+| **สรุป** | | **5 มี · 1 ขาด · 0 ต่าง** | |
 
 ---
 
@@ -126,7 +126,7 @@
 | 6.4 | ✅ มี | SOFR-EFFR spread | **BankingDashboard.tsx** |
 | 6.5 | ✅ มี | %1D change ต่อหุ้น | BankingDashboard.tsx:413-433 ตาราง "ราคา + 1D" + change_pct สี |
 | 6.6 | ✅ มี | คำเตือน / disclaimer | RiskBanner id="banking" — ใบ 06 ทำ |
-| **สรุป** | | **4 มี · 2 ขาด** | |
+| **สรุป** | | **6 มี · 0 ขาด · 0 ต่าง** | |
 
 ---
 
@@ -138,7 +138,7 @@
 | 7.2 | ⚠️ ต่าง | "ข้อมูลจำกัด/รายวัน/เรียลไทม์" badge ต่อประเทศ | แสดงแล้ว (CountriesDashboard.tsx:167 data_tier_note_th) แต่เป็นข้อความธรรมดา · tier 4 ระดับ (sparse/daily/realtime/manual) vs ต้นฉบับ 3 | เอา (badge มีสี + map tier) |
 | 7.3 | ✅ มี | "±bps vs US" | CountriesDashboard.tsx:141-143 bps_vs_us + สี amber/sky |
 | 7.4 | ✅ มี | คำเตือน / disclaimer | RiskBanner id="countries" — ใบ 06 ทำ |
-| **สรุป** | | **1 มี · 1 ขาด · 2 ต่าง** | |
+| **สรุป** | | **3 มี · 0 ขาด · 1 ต่าง** | |
 
 ---
 
@@ -150,7 +150,7 @@
 | 8.2 | ✅ มี | ผลต่อ 6 โมเดล (scoring engine) | **ForecastDashboard.tsx** |
 | 8.3 | ✅ มี | Banner ค่าสมมติ + disclaimer | **ForecastDashboard.tsx:242** |
 | 8.4 | ✅ มี | การจำลองเป็นค่าประมาณทิศทาง | **ForecastDashboard.tsx:293** |
-| **สรุป** | | **4 มี · 0 ขาด** | ✅ ใกล้เคียง reference มากที่สุด |
+| **สรุป** | | **4 มี · 0 ขาด · 0 ต่าง** | |
 
 ---
 
@@ -173,7 +173,7 @@
 | 10.1 | ✅ มี | Signals จากการประชุม + match positions | **BoardroomSignalsDashboard.tsx** |
 | 10.2 | ✅ มี | "มุมมอง (ไม่เข้าบัญชี)" | **BoardroomSignalsDashboard.tsx:49,66** |
 | 10.3 | ✅ มี | goMeetingFromSignals flow | **BoardroomSignalsDashboard.tsx** |
-| **สรุป** | | **3 มี · 0 ขาด** | ✅ |
+| **สรุป** | | **3 มี · 0 ขาด · 0 ต่าง** | |
 
 ---
 
@@ -199,7 +199,7 @@
 | 11.14 | ✅ มี | ปุ่ม "ดูรายละเอียดทีม →" + TeamDetailPage | **TradeDeskDashboard.tsx:75** → **TeamDetailPage.tsx** (233 lines, 14 sections) |
 | 11.15 | ✅ มี | Disclaimer (guard rail) | **TradeDeskDashboard.tsx:55** · **TeamDetailPage.tsx:57** |
 | **11.16** | ✅ มี | Team detail: 16 stat cards (4×4), equity SVG, MANDATE, constitution, 6 analysts, meeting history paginated, coach log, KB | **TeamDetailPage.tsx** |
-| **สรุป** | | **8 มี · 6 ขาด · 3 ต่าง** | |
+| **สรุป** | | **15 มี · 0 ขาด · 0 ต่าง** | |
 
 ---
 
@@ -211,7 +211,7 @@
 | 12.1 | ✅ มี | filter สำนักข่าว · sort (ล่าสุด/ผลกระทบ) · pagination · AI วิเคราะห์ |
 | 12.2 | ⚠️ ต่าง | ref: impact slider · เรา: dropdown (NewsDashboard.tsx:201,279-289 — ฟังก์ชันครบ) | เอา (เปลี่ยน dropdown → slider) |
 | 12.3 | ✅ มี | disclaimer | RiskBanner id="news" — ใบ 06 ทำ |
-| **สรุป** | | **1 มี · 1 ขาด · 1 ต่าง** |
+| **สรุป** | | **2 มี · 0 ขาด · 1 ต่าง** | |
 
 ### 13. ภาพรวม (OverviewDashboard.tsx — 400 lines)
 | # | สถานะ | รายการ |
@@ -219,14 +219,14 @@
 | 13.1 | ✅ มี | AI brief (DeepSeek) + key indicators |
 | 13.2 | ⚠️ ต่าง | ref: มี card layout ต่างจากของเรา — ตรวจ | ทีหลัง (เปิดสองหน้าเทียบ) |
 | 13.3 | ✅ มี | disclaimer | RiskBanner id="overview" — ใบ 06 ทำ |
-| **สรุป** | | **1 มี · 1 ขาด · 1 ต่าง** |
+| **สรุป** | | **2 มี · 0 ขาด · 1 ต่าง** | |
 
 ### 14. บทเรียน (LearnDashboard.tsx — 236 lines)
 | # | สถานะ | รายการ |
 |---|---|---|
 | 14.1 | ✅ มี | 7 บทเรียน (self-authored Thai+EN) |
 | 14.2 | ✅ มี | disclaimer | RiskBanner id="learn" — ใบ 06 ทำ |
-| **สรุป** | | **1 มี · 1 ขาด** |
+| **สรุป** | | **2 มี · 0 ขาด · 0 ต่าง** | |
 
 ### 15. ออฟฟิศ 3D (OfficeDashboard.tsx — 202 lines)
 | # | สถานะ | รายการ |
@@ -234,14 +234,14 @@
 | 15.1 | ✅ มี | R3F scene + 12 rooms + OrbitControls + job runs panel |
 | 15.2 | ⚠️ ต่าง | ref: 13 แผนก · GLB characters · click detail · เรา: 12 ห้อง box+sphere (OfficeDashboard.tsx:10-22) | ทีหลัง (เปิดสองหน้าเทียบ) |
 | 15.3 | ✅ มี | disclaimer | RiskBanner id="office" — ใบ 06 ทำ |
-| **สรุป** | | **1 มี · 1 ขาด · 1 ต่าง** |
+| **สรุป** | | **2 มี · 0 ขาด · 1 ต่าง** | |
 
 ### 16. ตั้งค่า (SettingsDashboard.tsx — 142 lines)
 | # | สถานะ | รายการ |
 |---|---|---|
 | 16.1 | ✅ มี | Telegram link placeholder (UI only — user ตัดสินใจตัด) |
 | 16.2 | ✅ มี | disclaimer | RiskBanner id="settings" — ใบ 06 ทำ |
-| **สรุป** | | **1 มี · 1 ขาด** |
+| **สรุป** | | **2 มี · 0 ขาด · 0 ต่าง** | |
 
 ---
 
@@ -274,3 +274,6 @@
 - ภาคทัณฑ์ / พัก / ไล่ออก · "รุ่น" (generation) · แสดงทีมที่ถูกปลด
 - Telegram bot · Real order execution (PAPER ONLY)
 - แข่งข้ามค่ายโมเดล (1 ทีม DeepSeek)
+
+
+

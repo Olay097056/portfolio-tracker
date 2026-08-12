@@ -1109,3 +1109,32 @@ export interface JobRunView {
 export interface JobStatus {
   recent_runs: JobRunView[]; running: boolean;
 }
+
+// --- Team Detail (trade-desk-detail plan) ---
+export interface TeamDetail {
+  team: {
+    code: string; name_th: string; name_en: string; status: string; gen: number;
+    mandate: string | null; team_directive: string | null;
+    lead_model: string; analyst_prompts: Record<string, string>;
+    capital: number; balance: number; equity: number; pnl_pct: number;
+    margin_used: number; live_pnl: number; closed_pnl: number;
+    next_turn_at: string | null; turns_today: number;
+    cost_today_usd: number; cost_total_usd: number;
+  };
+  positions: {
+    open: TradeDeskPosition[];
+    closed: { id: string; symbol: string; side: string; entry_price: number;
+              close_price: number | null; realized_pnl: number; closed_by: string | null }[];
+  };
+  pending_orders: { id: string; symbol: string; order_type: string;
+    target_price: number; size_notional: number; status: string }[];
+  meetings: { items: { id: string; consensus: string; trigger: string;
+    analyst_count: number; tokens_in: number; cost_usd: number }[];
+    total: number; page: number; per_page: number };
+  constitutions: { id: string; content: string; created_at: string | null }[];
+  coach_log: { id: string; analyst_seat: string; log_type: string; content: string }[];
+  knowledge: {
+    loss: { symbol: string; side: string; pnl_pct: number }[];
+    profit: { symbol: string; side: string; pnl_pct: number }[];
+  };
+}

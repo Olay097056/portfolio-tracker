@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getTradeDeskState, triggerTradeDeskTurn, getHyperliquidMarkets } from '../../api/client';
 import type { TradeDeskState, HyperliquidMarket } from '../../api/types';
+import { TeamDetailPage } from './TeamDetailPage';
 
 // ── Ink palette (inline style — NO Tailwind) ────────────────────────────────
 const INK = {
@@ -37,7 +38,7 @@ const freshness = (iso: string | null) => {
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 
-function TeamCard({ team }: { team: TradeDeskState['teams'][0] }) {
+function TeamCard({ team, onDetail }: { team: TradeDeskState['teams'][0]; onDetail: () => void }) {
   const pnlColor = (team.pnl_pct ?? 0) >= 0 ? INK.green : INK.red;
   return (
     <div style={{ background: INK.panel, border: `1px solid ${INK.panelBorder}`, borderRadius: 12, padding: 20 }}>
@@ -67,6 +68,11 @@ function TeamCard({ team }: { team: TradeDeskState['teams'][0] }) {
         <span style={{ fontSize: 11, color: INK.inkDim }}>MTD: <b style={{ color: INK.text }}>{fmtPct(team.weekly_target_pct, false)}</b></span>
         <span style={{ fontSize: 11, color: INK.inkDim }}>Turns today: <b style={{ color: INK.text }}>{team.turns_today}</b></span>
         <span style={{ fontSize: 11, color: INK.inkDim }}>Cost: <b style={{ color: INK.text }}>${fmtNum(team.cost_today_usd, 4)}</b></span>
+        <button onClick={onDetail} style={{
+          padding: '4px 14px', borderRadius: 999, border: `1px solid ${INK.sky}`,
+          background: 'transparent', color: INK.sky, fontWeight: 600, fontSize: 11, cursor: 'pointer',
+          marginLeft: 'auto',
+        }}>ดูรายละเอียดทีม →</button>
         {team.next_turn_at && (
           <span style={{ fontSize: 11, color: INK.inkDim }}>
             Next: <b style={{ color: freshness(team.next_turn_at).color }}>{freshness(team.next_turn_at).label}</b>
@@ -197,6 +203,7 @@ export function TradeDeskDashboard() {
   const [loading, setLoading] = useState(true);
   const [turning, setTurning] = useState(false);
   const [msg, setMsg] = useState('');
+  const [detailTeam, setDetailTeam] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -221,6 +228,10 @@ export function TradeDeskDashboard() {
 
   if (loading) return <div style={{ padding: 40, color: INK.inkFaint, textAlign: 'center' }}>⏳ กำลังโหลด...</div>;
 
+  if (detailTeam) {
+    return <TeamDetailPage teamCode={detailTeam} onBack={() => setDetailTeam(null)} />;
+  }
+
   const team = state?.teams?.[0];
 
   return (
@@ -244,7 +255,7 @@ export function TradeDeskDashboard() {
       {msg && <div style={{ padding: '8px 12px', borderRadius: 8, background: INK.sky + '15', color: INK.sky, fontSize: 12 }}>{msg}</div>}
 
       {/* Team Card */}
-      {team && <TeamCard team={team} />}
+      {team && <TeamCard team={team} onDetail={() => setDetailTeam(team.code)} />}
 
       {/* Open Positions */}
       <Section title="ไม้ที่เปิดอยู่" count={state?.positions?.open?.length}>

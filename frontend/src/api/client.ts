@@ -50,6 +50,7 @@ import type {
   BoardroomStancesPayload,
   TradeDeskState,
   TradeDeskTurnResult,
+  TeamDetail,
   HyperliquidMarketsResponse,
   JobStatus,
 } from './types';
@@ -640,4 +641,8 @@ export function getHyperliquidMarkets(): Promise<HyperliquidMarketsResponse> {
 // --- Job status (office 3D) ---
 export function getJobStatus(): Promise<JobStatus> {
   return request<JobStatus>('/api/jobs/status');
+}
+export function getTeamDetail(teamCode: string, page?: number): Promise<TeamDetail> {
+  const params = page ? `?page=${page}` : '';
+  return request<TeamDetail>(`/api/trade-desk/team/${teamCode}${params}`);
 }

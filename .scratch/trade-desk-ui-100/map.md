@@ -1,5 +1,21 @@
 # Map — Trade Desk UI 100% Match (main page + team detail)
 
+> ## ⛔ แผนนี้ถูกยกเลิก (2026-08-12) — ทั้ง 3 ใบปิดด้วยสถานะ superseded
+>
+> **อย่าหยิบไปทำต่อ** งานส่วนที่ยังถูกต้องถูกทำไปแล้วในแผน `reference-parity`
+> (ใบ 07/08/09) ส่วนที่เหลือ user ตัดทิ้งหรือยังวัดไม่ได้
+>
+> - **"100%" ในชื่อแผนคือปัญหาเอง** — commit ที่ปิดใบ 03 ชื่อ "Trade Desk Main 100%"
+>   แล้วลบโค้ดทิ้ง 250 บรรทัด (`3cf88fe`) จนหน้าทีมเทรดเหลือ 145 บรรทัด
+>   ดู `.scratch/reference-parity/map.md` หัวข้อ "รากของปัญหา"
+> - **Destination ด้านล่างขัดกับคำตัดสินของ user**: "9 team cards" · "competition chart" ·
+>   "monthly ranking" · "open positions all teams" · org chart แบบมี hit rate + trust bars
+>   → ทั้งหมดอยู่ใน Out of scope ตั้งแต่ user สั่ง "1 ทีมก็พอ เลิกคิดเรื่องแข่ง"
+> - สภาพจริงตอนนี้: `TradeDeskDashboard.tsx` 259 บรรทัด · `TeamDetailPage.tsx` 240 บรรทัด
+>   prod คืน `extended_stats` ครบแล้ว แต่ `closed_count = 0` — ยังไม่มีไม้ปิด สถิติจึงเป็น `None`
+>
+> ของที่ยังอยากได้จริงถูกย้ายไป backlog ของ `reference-parity` แล้ว
+
 ## Destination
 
 Trade desk pages เหมือน reference 100%:

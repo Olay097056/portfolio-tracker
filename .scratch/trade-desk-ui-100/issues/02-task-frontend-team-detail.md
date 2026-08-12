@@ -1,9 +1,30 @@
 # 02 — Task: Frontend — Team Detail 100% match
 
 Type: task
-Status: open
+Status: closed (superseded)
 Claimed:
 Blocked by: 01
+
+## Answer — ปิดเพราะตกยุค (2026-08-12) ไม่ใช่เพราะทำเสร็จ
+
+ใบนี้สั่ง "match reference **100%**" ซึ่ง map ของ reference-parity ห้ามไว้ตรงๆ:
+*"ห้ามเขียนคำว่า 100% เว้นแต่มี checklist ที่ user เซ็นครบรองรับ"* — เพราะนิยาม "100%" แบบไม่มีคนเซ็น
+คือสิ่งที่ทำให้ `TradeDeskDashboard.tsx` หดจาก 376 เหลือ 145 บรรทัดโดยเทสต์ผ่านหมด
+
+จาก 14 ส่วนที่ขอ:
+- **มีแล้ว**: directive + แก้ไข · equity chart · open positions · pending orders · meeting history ·
+  ผังทีม + **"ดู prompt เต็ม"** (`expandedPrompt` บรรทัด 27, `analyst_prompts` บรรทัด 160-162) ·
+  constitution · coach log · KB
+- **user ตัดแล้ว**: org chart แบบมี `hit_rate%` + trust bars + "ประวัติ & คะแนน" (ใบ 05 → ทีหลัง) ·
+  Reviews scorecard แบบมี **rank/composite** (กลไกแข่งขัน — Out of scope) · Ledger (ทีหลัง)
+- **วัดไม่ได้ตอนนี้**: Max DD (peak→trough+dates) · Fees/Tokens/LLM calls/Wakes — `closed_count = 0`
+**หลักฐานสภาพจริง (ตรวจ 2026-08-12 หลังใบ 07/08/09 ของ reference-parity)**
+- `TradeDeskDashboard.tsx` 259 บรรทัด · `TeamDetailPage.tsx` 240 บรรทัด
+- prod `/api/trade-desk/team/DEEPSEEK` คืน `extended_stats` ครบ: `win_rate · win_count · loss_count · avg_win · avg_loss · rr_ratio · profit_factor · net_pnl · closed_count · reserved_margin`
+- endpoint ที่ใบ 01 ขอ มีแล้ว: `GET /team/{code}/equity` · `POST /team/{code}/directive` · `POST /team/{code}/master`
+- แต่ `closed_count = 0` — **ยังไม่มีไม้ปิดสักไม้** สถิติทุกตัวจึงเป็น `None`
+
+**ห้ามเปิดใบนี้ใหม่โดยไม่อ่าน `.scratch/reference-parity/map.md` หัวข้อ "รากของปัญหา" ก่อน**
 
 ## Question
 

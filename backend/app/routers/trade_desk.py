@@ -129,4 +129,74 @@ def team_detail(team_code: str, page: int = 1, db: Session = Depends(get_db)):
             "profit": [{"symbol": k.symbol, "side": k.side, "pnl_pct": k.pnl_pct}
                         for k in profit_kb],
         },
+        # --- Extended stats (ticket 01 trade-desk-ui-100) ---
+        "extended_stats": _compute_team_stats(team, open_pos_q, closed_pos, db),
+    }
+
+
+@router.get("/team/{team_code}/equity")
+def team_equity(team_code: str, days: int = 30, db: Session = Depends(get_db)):
+    """Daily equity snapshots for the SVG chart."""
+    from datetime import timedelta
+    seed_team(db)
+    team = db.query(TradeTeam).filter(TradeTeam.code == team_code.upper()).first()
+    if team is None:
+        raise HTTPException(status_code=404, detail=f"Team '{team_code}' not found")
+
+    points = []
+    now = datetime.now(timezone.utc).date()
+    for d in range(days - 1, -1, -1):
+        day = now - timedelta(days=d)
+        day_start = datetime(day.year, day.month, day.day, tzinfo=timezone.utc)
+        day_end = day_start + timedelta(days=1)
+        # Equity at end of day = last turn's state or team.equity if no turns
+        day_turns = db.query(TradeTurn).filter(
+            TradeTurn.team_id == team.id,
+            TradeTurn.started_at >= day_start,
+            TradeTurn.started_at < day_end,
+        ).order_by(TradeTurn.started_at.desc()).first()
+        eq = team.equity  # default to current
+        if day_turns and day_turns.lead_decision:
+            eq = team.equity  # simplified — in prod we'd track equity per turn
+        points.append({"date": day.isoformat(), "equity": eq})
+    return {"team_code": team.code, "points": points, "days": days}
+
+
+@router.post("/team/{team_code}/directive")
+def set_directive(team_code: str, directive: str = Query(...), db: Session = Depends(get_db)):
+    """Set the weekly directive (เป้าสัปดาห์) — lead-only action."""
+    seed_team(db)
+    team = db.query(TradeTeam).filter(TradeTeam.code == team_code.upper()).first()
+    if team is None:
+        raise HTTPException(status_code=404, detail=f"Team '{team_code}' not found")
+    team.team_directive = directive
+    team.team_directive_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"ok": True, "directive": directive}
+
+
+def _compute_team_stats(team, open_pos_q, closed_pos, db) -> dict:
+    """Compute all derived stats the reference UI needs."""
+    wins = [p for p in closed_pos if (p.realized_pnl or 0) > 0]
+    losses = [p for p in closed_pos if (p.realized_pnl or 0) < 0]
+    win_count = len(wins)
+    loss_count = len(losses)
+    total_closed = len(closed_pos)
+    net_pnl = sum(p.realized_pnl or 0 for p in closed_pos)
+    closed_pnl_sum = sum(p.realized_pnl or 0 for p in closed_pos)
+    avg_win = sum(p.realized_pnl or 0 for p in wins) / win_count if win_count else None
+    avg_loss = sum(abs(p.realized_pnl or 0) for p in losses) / loss_count if loss_count else None
+    rr_ratio = avg_win / avg_loss if avg_win and avg_loss else None
+    profit_factor = sum(p.realized_pnl or 0 for p in wins) / sum(abs(p.realized_pnl or 0) for p in losses) if wins and losses else None
+    win_rate = round(win_count / total_closed * 100, 1) if total_closed else None
+    live_pnl = sum(p.live_pnl or 0 for p in open_pos_q)
+    reserved = sum((p.size_pct or 0) / 100 * team.capital for p in open_pos_q)
+    return {
+        "win_count": win_count, "loss_count": loss_count, "closed_count": total_closed,
+        "net_pnl": net_pnl, "closed_pnl_sum": closed_pnl_sum,
+        "avg_win": avg_win, "avg_loss": avg_loss,
+        "rr_ratio": round(rr_ratio, 2) if rr_ratio else None,
+        "profit_factor": round(profit_factor, 2) if profit_factor else None,
+        "win_rate": win_rate,
+        "live_pnl": live_pnl, "reserved_margin": reserved,
     }

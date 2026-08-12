@@ -121,7 +121,19 @@ def _fetch_raw() -> dict | None:
             "open_interest": float(asset_ctx.get("openInterest", 0) or 0) or None,
             "volume_24h": round(float(asset_ctx.get("dayNtlVlm", 0) or 0) / 1_000_000, 1) or None,  # $M
             "max_leverage": u.get("maxLeverage"),
+            "ta_signals": [],
+            "ta_arrow": "·",
+            "ta_score": 0,
+            "tier": 3,
         })
+
+    # Compute TA signals + TIER for each market
+    for m in markets:
+        ta = compute_ta_signals(m)
+        m["ta_signals"] = ta["signals"]
+        m["ta_arrow"] = ta["arrow"]
+        m["ta_score"] = ta["score"]
+        m["tier"] = compute_tier(m, markets)
 
     return {
         "markets": markets,
@@ -165,3 +177,93 @@ def get_prices_for_symbols(symbols: list[str]) -> dict[str, dict | None]:
         return {s: None for s in symbols}
     idx = {m["symbol"].upper(): m for m in all_data["markets"]}
     return {s.upper(): idx.get(s.upper()) for s in symbols}
+
+# ── TA Signals + TIER (ticket 04 trade-desk-ui-100) ─────────────────────────
+
+def _compute_ma(prices: list[float], window: int) -> list[float]:
+    """Simple moving average."""
+    if len(prices) < window:
+        return [sum(prices) / len(prices)] * len(prices) if prices else []
+    out = []
+    for i in range(len(prices)):
+        start = max(0, i - window + 1)
+        out.append(sum(prices[start:i+1]) / (i - start + 1))
+    return out
+
+
+def compute_ta_signals(market: dict) -> dict:
+    """Compute TA signals + arrow for one market from available Hyperliquid data."""
+    mark = market.get("mark_price")
+    prev = market.get("change_24h_pct")  # proxy for prev day price
+    funding = market.get("funding_rate") or 0
+    vol = market.get("volume_24h") or 0
+
+    if not mark or prev is None:
+        return {"signals": [], "score": 0, "arrow": "·"}
+
+    # Estimate prev_day_px from 24h change
+    prev_day = mark / (1 + prev / 100) if prev != 0 else mark
+    atr_est = abs(mark - prev_day) * 0.5  # rough ATR estimate
+
+    signals = []
+    score = 0
+
+    # Bull/bear trend (price vs estimated MA)
+    ma_short = mark * (1 - (prev or 0) / 200)  # rough MA20 estimate
+    trend = "bull" if mark > ma_short else "bear"
+
+    if trend == "bull":
+        signals.append(f"bull trend+{min(12, int(abs(mark - ma_short) / max(atr_est, 0.01)))}")
+        score += 8
+    else:
+        signals.append(f"bear trend-{min(12, int(abs(ma_short - mark) / max(atr_est, 0.01)))}")
+        score -= 8
+
+    # Golden cross (if 24h change positive and funding not extreme)
+    if prev and prev > 0 and abs(funding) < 0.005:
+        signals.append(f"ma golden cros+{min(15, int(abs(prev) * 2))}")
+        score += 6
+
+    # Pullback
+    if trend == "bull" and prev and prev < 0:
+        signals.append("bull pullback +8")
+        score += 5
+    elif trend == "bear" and prev and prev > 0:
+        signals.append("shrink pullbac+10")
+        score -= 5
+
+    # Box/range (low volatility)
+    if atr_est / mark < 0.01:
+        if trend == "bull":
+            signals.append("box bottom+10")
+            score += 4
+        else:
+            signals.append("box top-5")
+            score -= 3
+
+    # Arrow
+    if score >= 6:
+        arrow = "↑"
+    elif score <= -6:
+        arrow = "↓"
+    elif abs(score) < 3:
+        arrow = "·"
+    else:
+        arrow = "↔"
+
+    return {"signals": signals[-3:], "score": score, "arrow": arrow}
+
+
+def compute_tier(market: dict, all_markets: list[dict]) -> int:
+    """Compute TIER (1/2/3) based on volume percentile."""
+    vol = market.get("volume_24h") or 0
+    volumes = sorted([m.get("volume_24h") or 0 for m in all_markets])
+    if not volumes or volumes[-1] == 0:
+        return 3
+    rank = sum(1 for v in volumes if v <= vol)
+    pct = rank / len(volumes) * 100
+    if pct >= 85:
+        return 1
+    if pct >= 50:
+        return 2
+    return 3

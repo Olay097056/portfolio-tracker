@@ -1,5 +1,7 @@
 """Trade desk router — POST /api/trade-desk/turn · GET /api/trade-desk/state · GET /api/trade-desk/team/{code}."""
 
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -137,7 +139,6 @@ def team_detail(team_code: str, page: int = 1, db: Session = Depends(get_db)):
 @router.get("/team/{team_code}/equity")
 def team_equity(team_code: str, days: int = 30, db: Session = Depends(get_db)):
     """Daily equity snapshots for the SVG chart."""
-    from datetime import timedelta
     seed_team(db)
     team = db.query(TradeTeam).filter(TradeTeam.code == team_code.upper()).first()
     if team is None:

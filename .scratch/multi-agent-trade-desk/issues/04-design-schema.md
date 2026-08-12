@@ -1,17 +1,20 @@
 # 04 — Design: Trade desk schema
 
 Type: task
-Status: open
-Claimed:
+Status: closed
+Claimed: hermes/2026-08-12
 Blocked by: 01
 
-## Question
+## Answer
 
-ออกแบบ DB schema สำหรับทีมเทรด (1 ทีม deepseek — multi-agent ภายใน):
+Schema ออกแบบ + implement — commit `c48ebcc`
 
-1. **trade_teams**: team code, name_th/en, status, capital, equity, lead_model, constitution (JSON), weekly_kpi, weekly_target_pct, turn_interval_hours
-2. **trade_turns**: turn_id, team_id, meeting_agenda, analyst_opinions (JSON), lead_decision (JSON), consensus, dissent, token_cost
-3. **trade_positions**: position_id, team_id, turn_id, symbol, side, size_pct, entry_price, sl, tp, status, closed_by (reason code)
-4. **trade_knowledge**: knowledge_id, team_id (null = central), type (win/loss), symbol, side, entry, exit, pnl_pct, lesson_summary, turn_id
+**Models** (SQLAlchemy, 4 tables):
+- **TradeTeam**: code/capital/equity/constitution (lead_system_prompt + analyst_prompts JSON), weekly targets, turn config, LLM model
+- **TradeTurn**: agenda, analyst_opinions (JSON[{seat, opinion, key_signals, tokens}]), lead_decision (JSON), consensus/dissent, token_cost, trigger type
+- **TradePosition**: symbol/side/size_pct/entry/sl/tp, status, closed_by (reason code), realized/live PnL
+- **TradeKnowledge**: win→team_id (team KB), loss→team_id=NULL (central KB), lesson_summary, key_signals snapshot
 
-Deliverable: SQL schema + SQLAlchemy models in `backend/app/trade_desk_service.py` (replace deleted old one)
+**Default prompts**: lead + 4 analysts (trend/technical/macro/contrarian) — Thai, JSON output format
+**seed_team()**: idempotent, creates single DEEPSEEK team
+**Tests**: 4 passed — full suite **527 passed**

@@ -1,22 +1,20 @@
 # 05 — Prototype: Multi-agent prompt design
 
 Type: prototype
-Status: open
-Claimed:
+Status: closed
+Claimed: hermes/2026-08-12
 Blocked by: 01
 
-## Question
+## Answer
 
-ออกแบบ prompt structure สำหรับ multi-agent trade desk (1 ทีม deepseek — 5 persona):
+Prototype ทดสอบด้วย LLM จริง — 2 runs สำเร็จ (script: `prototype-05/prototype_meeting.py`)
 
-1. **Lead prompt** (system): หัวหน้าทีม — ประเมินตลาด, ตั้งวาระประชุม, ฟัง analysts, เคาะออเดอร์, ปรับธรรมนูญทีม
-2. **Analyst prompts** (system × 4):
-   - trend: สายโมเมนตัม/เทรนด์ — ดู MA, โมเมนตัม, คะแนนโมเดล
-   - technical: สายเทคนิคอล — แนวรับ/ต้าน, รูปแบบแท่ง, volume
-   - macro: สายมหภาค — FRED, ยิลด์, เงินเฟ้อ, จุดเปลี่ยน
-   - contrarian: สายสวนฝูง — ข่าว impact, ตำแหน่งตลาด, โอกาสกลับตัว
-3. **Meeting agenda format**: lead เลือก topics + lens → สร้าง user message ให้ analysts
-4. **Output format**: JSON schema (order: market/side/size_pct/sl/tp)
-5. **Constitution (ธรรมนูญทีม)**: rules/constraints — e.g. "no market orders", "max 3 positions"
+### Results:
+- 4 analysts (trend/tech/macro/contrarian) + lead → complete meeting cycle
+- Run 1: bearish consensus → **SHORT BTC-USD**
+- Run 2: split opinion (trend/macro bearish vs contrarian bullish) → **HOLD** — "รอหลักฐานแรก...งดเทรดช่วงข่าว" — ฉลาด! ตรงกับ reference (Claude team: "เชื่อสัญญาณเตือน จึงไม่เพิ่มไม้")
+- Cost: **$0.0010/turn** (~$0.14/day for 144 turns) — cheaper than reference's $5-7/day
 
-Deliverable: prompt templates + tested flow (อย่างน้อย 1 mock turn)
+### Deliverable: `prototype-05/README.md` (full analysis + next steps)
+### Issues: technical analyst JSON parsing ~50% fail (need stricter format)
+### Production recommendations: parallelize 4 analysts, add KB retrieval

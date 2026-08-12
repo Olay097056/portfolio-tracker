@@ -1,19 +1,22 @@
 # 06 — Task: Hyperliquid price feed integration
 
 Type: task
-Status: open
-Claimed:
+Status: closed
+Claimed: hermes/2026-08-12
 Blocked by: 01
 
-## Question
+## Answer
 
-เชื่อมต่อ Hyperliquid API สำหรับ 122 ตลาด (เหมือน reference):
+Hyperliquid price feed — commit `0be5b24`
 
-1. **API endpoint**: Hyperliquid info + perp metadata — `https://api.hyperliquid.xyz/info`
-2. **Market discovery**: ดึงรายชื่อตลาดทั้งหมด → กรองเฉพาะ crypto/stocks/macro/FX → แยก category
-3. **Price feed**: real-time prices via WebSocket หรือ REST polling (ขั้นต่ำ: REST `/info` + L2 snapshot)
-4. **TA signals**: implement basic TA (MA crossover, trend detection, pullback)
-5. **Cache**: TTL 30-60s (Hyperliquid rate limit generous — but cache anyway)
-6. **Mock execution**: สำหรับ dev — simulate order placement/fill (prod: real Hyperliquid orders ต้องมี wallet — out of scope?)
+**Service**: `backend/app/hyperliquid_service.py`
+- GET /api/hyperliquid/markets → 232 markets (crypto 20 + stocks 212)
+- Prices (mark/mid/oracle), 24h change, funding rate, OI, volume
+- 60s cache · category classifier (crypto/stocks — macro/FX from yfinance)
+- GET /api/hyperliquid/markets/{symbol} → single lookup
+- `get_prices_for_symbols()` helper for bulk context building
 
-Deliverable: `backend/app/hyperliquid_service.py` — price feed + market list + TA signals
+**Key finding**: Hyperliquid meta universe = crypto + stock perps only.
+GOLD/CL/SP500/JPY/EUR → fed from yfinance via macro_service (already exists).
+
+**Tests**: 7 passed (classify + service) · full suite **534 passed**

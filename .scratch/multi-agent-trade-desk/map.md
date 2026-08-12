@@ -26,12 +26,20 @@
 
 - [01 research trade desk architecture](issues/01-research-trade-desk-architecture.md) — 9 ทีม 9 LLM (OpenRouter) · multi-agent: lead + 4 analysts (trend/tech/macro/contrarian) · 12 context types · 122 ตลาด Hyperliquid · edge fn trade-admin (RLS) · KB แยกทีม/กลาง · autonomous SL/TP · token ~$0.0004/turn — deliverable `docs/research/multi-agent-trade-desk-reference-2026-08-11.md`
 - [02 research office 3D architecture](issues/02-research-office-3d-architecture.md) — React Three Fiber + OrbitControls · 13 แผนก · character system (board/staff, states: idle/meeting/speaking) · state model (pipeline+teams+meeting) · interaction model (orbit/zoom/pan/click/dblclick/Esc) · UI overlay (cards/news ticker/job runs/queue) — deliverable `docs/research/office-3d-reference-2026-08-11.md`
+- [03 task delete old code](issues/03-task-delete-old-code.md) — ลบ trade_desk_service + router + tests + OfficeDashboard + BondCrisisPage tabs + client/types · pytest 523 · vitest 553 · prod trade-desk 404 ✓ — commit `2586883`
+- [04 design schema](issues/04-design-schema.md) — 4 SQLAlchemy models (TradeTeam/TradeTurn/TradePosition/TradeKnowledge) · KB split: win→team, loss→central · default prompts (lead+4 analysts, Thai, JSON) · seed_team() idempotent · full suite 527 passed — commit `c48ebcc`
+- [05 prototype prompts](issues/05-prototype-prompts.md) — 2 real LLM runs · multi-agent debate: split opinion → lead HOLD (ฉลาด!) · $0.001/turn · script: `prototype-05/prototype_meeting.py` · deliverable: `prototype-05/README.md`
+- [06 hyperliquid integration](issues/06-task-hyperliquid-integration.md) — 232 markets (crypto+stocks) · prices/funding/OI/volume · 60s cache · /api/hyperliquid/markets · macro/FX via yfinance (existing) · suite 534 passed — commit `0be5b24`
+- [07 task turn engine](issues/07-task-turn-engine.md) — context builder (macro/models/sentiment/news + hyperliquid) · parallel 4 analysts (ThreadPoolExecutor) · lead consensus · run_due_turns (cron) · get_state (frontend) · router POST /turn + GET /state · suite 538 passed — commit `3f50628`
+- [08 task frontend trade desk](issues/08-task-frontend-trade-desk.md) — team card (equity/P&L/margin) · open positions table · turn history · market table (200+ with filter) · manual trigger · vitest 557 — commit `7fcb99b`
+- [09 task office 3D](issues/09-task-office-3d.md) — React Three Fiber scene (12 rooms, character spheres, OrbitControls, room info cards) · job runs panel · pulse animation · vitest 559 — commit `2867f78`
+
+## Status: ✅ CLOSED (2026-08-12) — ใบ 01-09 ปิดครบ · multi-agent trade desk + office 3D LIVE
 
 ## Not yet specified
 
 - **Peer review mechanism**: analyst scoring ยังไง? metric?
 - **Constitution auto-adjustment**: lead ปรับ prompt ลูกทีมยังไง? เก็บ version?
-- **Office 3D**: ยังไม่ dig (ใบ 02 open)
 
 ## Out of scope
 

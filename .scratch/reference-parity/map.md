@@ -62,9 +62,12 @@
 - [08 pending orders + master switch](issues/08-task-pending-orders.md) — migration Alembic `b7e5f2a1c9d3` (trade_pending_orders + master_on — idempotent, รัน prod ก่อนโค้ด: master_on=1, rows 1/1 ไม่หาย) · settle ใน tick 10 นาทีเดิม **ไม่เรียก LLM** (100 รอบ = 0 calls) · LIMIT fill ที่ราคา target, STOP ที่ mark, หมดอายุ→cancel · master off หยุดเทิร์นใหม่ แต่ settle/SL-TP ยังทำงาน · AI สั่ง MARKET/LIMIT/STOP ได้ · UI master toggle + pending table · pytest 551 · vitest 589 · commit `caf7027`
 - [09 ai targets + summaries](issues/09-task-ai-targets-summaries.md) — migration `c4d3e2f1a9b8` (trade_summaries + UNIQUE(team_id,kind,period) = ตัวกันซ้ำ DB — รัน prod ก่อนโค้ด: constraint มี, rows 0, teams 1/1) · weekly target: tick แรกของสัปดาห์ **เฉพาะ master_on+active** (ปิด→0 คอล) · directive มีน้ำหนักเหนือเป้า AI (เทสต์ยืนยันใน context) · daily/monthly summary 1 คอล/ช่วง · ไม่มีกิจกรรม→ไม่เรียก LLM · cost เข้าตัวนับทีม · เฟส 3.5 ใน tick เดิม · UI การ์ดสรุป · pytest 561 (+10 idempotence) · vitest 590 · commit `e22829b`
 - [04 grilling user signs checklist รอบสอง](issues/04-grilling-user-signs-checklist.md) — **30/30 ตัดสินครบ** · 10 เอา · 2 ทีหลัง (13.2 overview layout, 15.2 office 13 แผนก — ต้องเปิดสองหน้าเทียบ) · **18 ทำไปแล้ว** (16/30 ล้าสมัย — checklist เขียนก่อนใบ 02-09 แก้โค้ด) · บทเรียน: re-verify sweep ตัด 9 แถว · grep ผิดที่ 2 ครั้ง (7.2 ข้อความอยู่ backend data_tier_note_th) · 2.2 ค่าถูกชื่อผิด → เปลี่ยนป้าย "ความครบของข้อมูล" — แตกเป็น tickets 10/11
+- [10 มหภาค IV/EIA/CDS](issues/10-task-macro-iv-eia-cds.md) — GVZCLS 27.90 + OVXCLS 56.06 ติดป้าย "ETF IV (CBOE) ไม่ใช่ futures CME" · EIA เพิ่ม `unavailable_reason_th` (การ์ดมีอยู่แล้ว ที่ขาดคือเหตุผล) · 1.7 ได้ 3 (SRF proxy RPONTSYD · หนี้ธุรกิจ BCNSDODNS · ดีลเลอร์รับ 7.03%) **วัดไม่ได้ 2 (CDS สหรัฐ · หางประมูลต้องใช้ when-issued)** · 1.2/1.3 ซ้ำกับ CmeDashboard · **เจอบั๊กโปรดักชัน: `us_auction_indirect_10y` แสดง 2.59% (bid-to-cover) แทน 73.67% เพราะสาขา `td_indirect` เป็นโค้ดตาย — มี stub แต่ไม่เคยมีเทสต์ assert ค่า** · pytest 566 · vitest 599
 - [11 UI 4 จุด](issues/11-task-ui-4-points.md) — 2.2 ป้าย "ความครบของข้อมูล" (models + overview เท่านั้น — boardroom/signals เป็นคนละค่า ไม่แตะ) · 12.2 slider 0-100 step 5 ยิงตอน pointerUp · 7.2 badge 4 tier มีสี (27 badge บนหน้าจริง) · 9.4 filter **ที่ server ก่อน `.limit(50)`** + แยก state `archive` ไม่ให้แผงประชุมสดหาย · พิสูจน์เทสต์ล้มได้ 2 เคส · pytest 562 · vitest 597 · `--check` mismatches=0 · **hermes โควตาหมดกลางทาง — claude ทำต่อจนจบ**
 
 ## Not yet specified
+
+- **`frontend/src/App.test.tsx` พึ่งพาพอร์ต 8000 ว่าง** — ยิง fetch จริงแล้วคาดว่าต้องล้ม เปิด dev server ไว้เทสต์แดงทันที (ตระกูลเดียวกับบั๊ก DB isolation) — ควร mock client
 
 - **hit rate ต่อ analyst + ledger** — ตัดสิน "ทีหลัง" ในใบ 05 (รอไม้ปิดจริงก่อน — ตอนนี้ trade_positions=0, นิยาม hit ยังไม่ชัด) — จะกลับมาเมื่อพอร์ตมีประวัติเทรด
 - **หน้าที่ต้นฉบับมีแต่เราไม่มี / เรามีแต่ต้นฉบับไม่มี** — รอ ticket 01 ว่ามีไหม
@@ -78,6 +81,7 @@
 - สรุปรายเดือนแบบจัดอันดับ 🥇🥈🥉 (ถ้าจะเอาสรุปรายเดือน ต้องเป็นแบบทีมเดียว)
 
 **อื่นๆ**
+- **CME กรอบ ±1σ 11 ผลิตภัณฑ์ (checklist 1.1 + 5.5)** — user ตัดสิน 2026-08-12 **รับสภาพ** · ใบ 10 พิสูจน์แล้วว่าไม่มีแหล่งฟรี: `/api/cme` ไม่มีคีย์ `zones` · `iv_products` = 0 รายการ · CME settlement/vol ต้องซื้อ — ปิดด้วยงานไม่ได้
 - แข่งข้ามค่ายโมเดล — เรามี DeepSeek คีย์เดียว
 - การส่งคำสั่งซื้อขายจริง — PAPER ONLY ยังเป็นกฎเด็ดขาดเหมือนเดิม
 - แจ้งเตือน Telegram

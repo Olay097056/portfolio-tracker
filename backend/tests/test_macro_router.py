@@ -86,6 +86,7 @@ def _stub_extras(monkeypatch):
         "30-Year": AUCTION_ROWS,
     })
     monkeypatch.setattr(macro_service, "_fetch_auction_indirect_share", lambda term="10-Year": [("2026-07-08", 65.2)])
+    monkeypatch.setattr(macro_service, "_fetch_auction_dealer_share", lambda term="10-Year": [("2026-07-08", 7.03)])
     monkeypatch.setattr(macro_service, "_fetch_cftc", lambda dataset="disagg": COT_DISAGG if dataset == "disagg" else COT_TFF)
     monkeypatch.setattr(macro_service, "_fetch_tic", lambda: TIC_ROWS)
     monkeypatch.setattr(macro_service, "_fetch_eia", lambda series_id: EIA_ROWS.get(series_id))
@@ -318,6 +319,7 @@ def test_both_sources_down_returns_200_with_unavailable_sections(monkeypatch):
     monkeypatch.setattr(macro_service, "_fetch_tga", lambda: None)
     monkeypatch.setattr(macro_service, "_fetch_auction_map", lambda term_key=None: {})
     monkeypatch.setattr(macro_service, "_fetch_auction_indirect_share", lambda term="10-Year": None)
+    monkeypatch.setattr(macro_service, "_fetch_auction_dealer_share", lambda term="10-Year": None)
     monkeypatch.setattr(macro_service, "_fetch_cftc", lambda dataset="disagg": None)
     monkeypatch.setattr(macro_service, "_fetch_tic", lambda: None)
     monkeypatch.setattr(macro_service, "_fetch_eia", lambda series_id: None)
@@ -419,3 +421,71 @@ def test_refresh_invalidates_cache(monkeypatch):
     response = client.post("/api/macro/refresh")
     assert response.status_code == 200
     assert calls["n"] == 2
+
+
+# ---------------------------------------------------------------------------
+# ticket 10 — macro row 1.1/1.4/1.5/1.7
+# ---------------------------------------------------------------------------
+def test_auction_share_cards_are_not_bid_to_cover(client, monkeypatch):
+    """The three 10Y auction cards must carry three different numbers.
+
+    `_build_card` used to route on `meta["td"]` alone, so every series with a
+    term — including the indirect-share and dealer-take-down cards — got the
+    bid-to-cover ratio. The indirect card rendered "2.59 %" (a cover ratio)
+    under a percentage label for as long as it existed. Distinct stub values
+    here mean a regression cannot hide: all three would collapse to 2.59.
+    """
+    _stub_fred(monkeypatch)
+    _stub_yfinance(monkeypatch)
+    _stub_extras(monkeypatch)
+    by_key = {s["key"]: s for s in client.get("/api/macro").json()["sections"]}
+    items = {i["series_id"]: i for i in by_key["creditSpreads"]["items"]}
+
+    assert items["us_auction_btc"]["value"] == pytest.approx(2.59, abs=0.01)
+    assert items["us_auction_indirect_10y"]["value"] == pytest.approx(65.2, abs=0.01)
+    assert items["us_auction_dealer_10y"]["value"] == pytest.approx(7.03, abs=0.01)
+    assert items["us_auction_indirect_10y"]["value"] != items["us_auction_btc"]["value"]
+    assert items["us_auction_dealer_10y"]["value"] != items["us_auction_btc"]["value"]
+
+
+def test_etf_implied_vol_cards(client, monkeypatch):
+    """GVZ/OVX come from FRED and must be labelled ETF IV, not CME futures IV."""
+    _stub_fred(monkeypatch)
+    _stub_yfinance(monkeypatch)
+    _stub_extras(monkeypatch)
+    by_key = {s["key"]: s for s in client.get("/api/macro").json()["sections"]}
+    items = {i["series_id"]: i for i in by_key["macroIndicators"]["items"]}
+
+    for sid in ("gold_iv", "oil_iv"):
+        assert sid in items, f"{sid} card missing"
+        # the reference uses CME futures IV; ours is the CBOE ETF index, and
+        # the card has to say so or the numbers look like a mismatch/bug
+        assert "ETF IV (CBOE)" in items[sid]["name_th"]
+        assert "futures CME" in items[sid]["name_th"]
+
+
+def test_eia_cards_explain_the_missing_key(client, monkeypatch):
+    """No EIA key → cards stay empty but say why, instead of bare 'ไม่มีข้อมูล'."""
+    _stub_fred(monkeypatch)
+    _stub_yfinance(monkeypatch)
+    _stub_extras(monkeypatch)
+    monkeypatch.setattr(macro_service, "_fetch_eia", lambda series_id: None)
+    monkeypatch.delenv("EIA_API_KEY", raising=False)
+    by_key = {s["key"]: s for s in client.get("/api/macro").json()["sections"]}
+    crude = next(i for i in by_key["bankingIndicators"]["items"]
+                 if i["series_id"] == "us_crude_inventory")
+
+    assert crude["available"] is False
+    assert crude["value"] is None
+    assert "EIA_API_KEY" in (crude["unavailable_reason_th"] or "")
+
+
+def test_srf_and_business_debt_cards_exist(client, monkeypatch):
+    """Row 1.7 — the two sources that turned out to be findable."""
+    _stub_fred(monkeypatch)
+    _stub_yfinance(monkeypatch)
+    _stub_extras(monkeypatch)
+    sections = client.get("/api/macro").json()["sections"]
+    ids = {i["series_id"] for s in sections for i in s["items"]}
+    assert "us_srf_repo" in ids
+    assert "us_business_debt" in ids

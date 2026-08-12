@@ -99,6 +99,23 @@ def grand_summary_errors(lines: list[str], totals: tuple[int, int, int, int]) ->
     aggregate = next((line.strip() for line in lines[start:] if line.startswith("| **รวม** |")), None)
     if aggregate != expected:
         return [f"Grand Summary mismatch: got {aggregate!r}, expected {expected!r}"]
+
+    # The per-section rows of that table are a third layer. Rather than match
+    # labels to headings (the 12–16 row aggregates five subsections, so a
+    # 1:1 match does not exist), check that the columns ADD UP to the total.
+    # Any stale section row shows up here as a column that no longer sums.
+    col_sums = [0, 0, 0]
+    for line in lines[start:]:
+        if line.startswith("| **รวม** |"):
+            break
+        cells = [c.strip() for c in line.split("|")[1:-1]]
+        if len(cells) != 5 or not all(c.isdigit() for c in cells[1:4]):
+            continue
+        for k in range(3):
+            col_sums[k] += int(cells[1 + k])
+    if col_sums != [yes, missing, diff]:
+        return ["Grand Summary section rows do not add up: columns sum to "
+                f"{col_sums} but live rows are {[yes, missing, diff]}"]
     return []
 
 
@@ -146,6 +163,20 @@ def run(path: Path, check: bool) -> int:
                 print(f"L{line_no + 1}: {lines[line_no].strip()} -> {expected}")
                 lines[line_no] = expected
                 updates += 1
+
+    # Repair the Grand Summary too. Until 2026-08-12 this function only
+    # DETECTED a stale Grand Summary and left it — so a repair run finished
+    # with "REPAIR VERIFY mismatches = 1" and whoever ran it had to patch the
+    # aggregate by hand. It got missed once and caught the next round only by
+    # luck. Repair mode now fixes every layer it checks.
+    if not check:
+        want = f"| **รวม** | **{yes}** | **{missing}** | **{diff}** | **{total}** |"
+        for i, line in enumerate(lines):
+            if line.startswith("| **รวม** |") and line.strip() != want:
+                print(f"L{i + 1}: {line.strip()} -> {want}")
+                lines[i] = want
+                updates += 1
+                break
 
     if not check:
         path.write_text("\n".join(lines) + "\n", encoding="utf-8")

@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import * as client from '../../api/client';
-import type { MacroDashboard as MacroDashboardData } from '../../api/types';
+import type { MacroDashboard as MacroDashboardData, MacroMetricCard } from '../../api/types';
 import { MacroDashboard } from './MacroDashboard';
 
 function makeData(overrides: Partial<MacroDashboardData> = {}): MacroDashboardData {
@@ -178,5 +178,45 @@ describe('MacroDashboard', () => {
       expect(screen.getByText(/โหลดข้อมูลไม่สำเร็จ/)).toBeTruthy();
       expect(screen.getByRole('button', { name: /ลองใหม่/ })).toBeTruthy();
     });
+  });
+});
+
+describe('MacroDashboard — การ์ดที่ไม่มีข้อมูล (ใบ 10 / แถว 1.5)', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const withCard = (card: MacroMetricCard) =>
+    makeData({
+      sections: [{
+        key: 'bankingIndicators',
+        title_th: 'ตัวชี้วัดภาคการธนาคาร',
+        title_en: 'Banking Indicators',
+        items: [card],
+      }],
+    });
+
+  it('บอกเหตุผลเมื่อ backend ส่งมา แทนที่จะขึ้น "ไม่มีข้อมูล" ลอยๆ', async () => {
+    vi.spyOn(client, 'getMacroDashboard').mockResolvedValue(withCard({
+      series_id: 'us_crude_inventory', name_th: 'สต็อกน้ำมันดิบสหรัฐ', name_en: 'US Crude Oil Inventories',
+      unit: 'M bbl', value: null, change_val: null, change_pct: null, trend: 'flat',
+      recorded_at: null, available: false,
+      unavailable_reason_th: 'ต้องตั้งค่า EIA_API_KEY (ขอฟรีที่ api.eia.gov) จึงจะดึงสต็อกน้ำมันได้',
+    }));
+
+    render(<MacroDashboard />);
+
+    expect(await screen.findByText(/ต้องตั้งค่า EIA_API_KEY/)).toBeTruthy();
+    expect(screen.queryByText('ไม่มีข้อมูล')).toBeNull();
+  });
+
+  it('ไม่มีเหตุผล → กลับไปใช้ "ไม่มีข้อมูล" เหมือนเดิม', async () => {
+    vi.spyOn(client, 'getMacroDashboard').mockResolvedValue(withCard({
+      series_id: 'us_banking_stress_index', name_th: 'ดัชนีความเสี่ยงแบงก์รัน', name_en: 'Banking Stress Index',
+      unit: 'index', value: null, change_val: null, change_pct: null, trend: 'flat',
+      recorded_at: null, available: false, unavailable_reason_th: null,
+    }));
+
+    render(<MacroDashboard />);
+
+    expect(await screen.findByText('ไม่มีข้อมูล')).toBeTruthy();
   });
 });

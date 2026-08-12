@@ -52,16 +52,16 @@
 
 | # | สถานะ | รายการ | หลักฐาน (อ้างอิง) |
 |---|---|---|---|
-| 1.1 | ❌ ขาด | CME กรอบ ±1σ 11 ผลิตภัณฑ์ + "0/11 นอกกรอบ" + ลิงก์ CME | research: `bond-crisis-existing-pages-gaps` #1 · ref มี `tdCtxCme` i18n · เรา: **CmeDashboard.tsx** แยกหน้า — MacroDashboard ไม่แสดง CME  | เอา (แบบ D: GVZCLS/OVXCLS ผ่าน FRED — ติดป้าย ETF IV, พันธบัตร "—") |
-| 1.2 | ❌ ขาด | ทองคำ CME โฟลว์ (OI 400,331 · Δ+2,629 · วอลุ่ม 142,327) | ref: `tdCme`, i18n `tdGoldOITitle` · เรา: ไม่พบใน MacroDashboard  | เอา (ซ้ำกับ 5.3 — ทำที่เดียว: gold flow มีแล้ว CFTC fallback) |
-| 1.3 | ❌ ขาด | FedWatch 5 การ์ด | ref: i18n `tdFedWatch` · เรา: CmeDashboard.tsx มี `/api/cme` → ไม่แสดงใน MacroDashboard  | เอา (ซ้ำกับ 5.1 — FedWatch ZQ=F มีแล้ว 52% hike) |
-| 1.4 | ❌ ขาด | CME IV (ทอง/เงิน/เบรนต์/TTF + บอนด์ 2-30Y/SOFR) | เรา: ไม่พบในโค้ด  | เอา (แบบ D: เพิ่ม GVZCLS/OVXCLS เข้า _SERIES + คริปโต IV เดิม) |
-| 1.5 | ❌ ขาด | EIA สต็อก 5 ตัว | เรา: series มีแล้วใน macro_service (crude/gasoline/distillate) + API คืนจริง — แต่ไม่แสดงบน UI | เอา (backend พร้อม, เพิ่ม UI) |
+| 1.1 | ❌ ขาด | CME กรอบ ±1σ 11 ผลิตภัณฑ์ + "0/11 นอกกรอบ" + ลิงก์ CME | research: `bond-crisis-existing-pages-gaps` #1 · ref มี `tdCtxCme` i18n · เรา: **CmeDashboard.tsx** แยกหน้า — MacroDashboard ไม่แสดง CME  | เอา (แบบ D: GVZCLS/OVXCLS ผ่าน FRED — ติดป้าย ETF IV, พันธบัตร "—") · ใบ 10 ตรวจแล้ว: CME settlement/vol ±1σ ไม่มีแหล่งฟรี — ปิดด้วยงานไม่ได้ ต้องให้ user ตัดสินว่ารับสภาพหรือหาแหล่งเสียเงิน · **นอกขอบเขต (user ตัดสิน 2026-08-12: รับสภาพ — ไม่มีแหล่งฟรี)** |
+| 1.2 | ✅ มี | ทองคำ CME โฟลว์ (OI 400,331 · Δ+2,629 · วอลุ่ม 142,327) | ref: `tdCme`, i18n `tdGoldOITitle` · เรา: ไม่พบใน MacroDashboard  | เอา (ซ้ำกับ 5.3 — ทำที่เดียว: gold flow มีแล้ว CFTC fallback) · เสร็จ (ใบ 10 — ซ้ำ: มีบน CmeDashboard แล้ว `/api/cme` gold_flow future_oi 400,030 · option_oi 807,107 — ref ก็แยกหน้า CME เหมือนกัน) |
+| 1.3 | ✅ มี | FedWatch 5 การ์ด | ref: i18n `tdFedWatch` · เรา: CmeDashboard.tsx มี `/api/cme` → ไม่แสดงใน MacroDashboard  | เอา (ซ้ำกับ 5.1 — FedWatch ZQ=F มีแล้ว 52% hike) · เสร็จ (ใบ 10 — ซ้ำ: FedWatchCards บน CmeDashboard.tsx:50 จาก ZQ=F วิธีเดียวกับ CME FedWatch) |
+| 1.4 | ⚠️ ต่าง | CME IV (ทอง/เงิน/เบรนต์/TTF + บอนด์ 2-30Y/SOFR) | เรา: ไม่พบในโค้ด  | เอา (แบบ D: เพิ่ม GVZCLS/OVXCLS เข้า _SERIES + คริปโต IV เดิม) · เสร็จบางส่วน (ใบ 10 — ทอง GVZCLS 27.90 + น้ำมัน OVXCLS 56.06 เป็น **ETF IV (CBOE) ไม่ใช่ futures CME** ติดป้ายบนการ์ดแล้ว · คริปโตมีบน CME tab · แร่เงิน VXSLVCLS หยุดเผยแพร่ 2022-02-11 ห้ามใช้ · เบรนต์/TTF/พันธบัตร VXTLTCLS ไม่มีบน FRED) |
+| 1.5 | ✅ มี | EIA สต็อก 5 ตัว | เรา: series มีแล้วใน macro_service (crude/gasoline/distillate) + API คืนจริง — แต่ไม่แสดงบน UI | เอา (backend พร้อม, เพิ่ม UI) · เสร็จ (ใบ 10 — การ์ดแสดงอยู่แล้ว 5 ใบ ค่าว่างเพราะไม่มี key → เพิ่ม `unavailable_reason_th` บอกเหตุผลบนการ์ดแทน "ไม่มีข้อมูล" ลอยๆ) |
 | 1.6 | ✅ มี | เงินฝาก $19,362.7B (FRED DPSACBW027SBOG) | **MacroDashboard.tsx** — ผ่าน `/api/macro` · แก้หน่วยแล้ว (scale=1) |
-| 1.7 | ❌ ขาด | CDS proxy / หางประมูล 10Y / ดีลเลอร์รับ / SRF / หนี้ธุรกิจ | เรา: ไม่พบในโค้ด (บางตัวมี proxy ได้: auction btc มีแล้ว / WRESBAL คล้าย SRF) | เอา (ต้องหาแหล่ง — หางประมูลจาก auction ที่มี) |
+| 1.7 | ⚠️ ต่าง | CDS proxy / หางประมูล 10Y / ดีลเลอร์รับ / SRF / หนี้ธุรกิจ | เรา: ไม่พบในโค้ด (บางตัวมี proxy ได้: auction btc มีแล้ว / WRESBAL คล้าย SRF) | เอา (ต้องหาแหล่ง — หางประมูลจาก auction ที่มี) · เสร็จบางส่วน (ใบ 10 — เพิ่มได้ 3: SRF proxy RPONTSYD 0.1$B · หนี้ธุรกิจ BCNSDODNS 14,453.8$B · ดีลเลอร์รับ 7.03% จาก TreasuryDirect · **วัดไม่ได้ 2: CDS สหรัฐไม่มีแหล่งฟรี · หางประมูลจริงต้องใช้ when-issued yield ซึ่ง TreasuryDirect ไม่เผยแพร่**) |
 | 1.8 | ✅ มี | Bid-to-Cover แยก tenor | **MacroDashboard.tsx** — ผ่าน `/api/macro` · แก้จาก 2.59x ซ้ำแล้ว |
 | 1.9 | ✅ มี | CPI/PCE | **MacroDashboard.tsx** — ผ่าน FRED series |
-| **สรุป** | | **3 มี · 6 ขาด · 0 ต่าง** | |
+| **สรุป** | | **6 มี · 1 ขาด · 2 ต่าง** | |
 
 ---
 
@@ -110,7 +110,7 @@
 | 5.2 | ✅ มี | Crypto IV (Deribit — BTC 58.11%) | **CmeDashboard.tsx** — `/api/cme` |
 | 5.3 | ✅ มี | Gold OI (CFTC fallback 371,551) | **CmeDashboard.tsx** — CME 403 → CFTC fallback  | ซ้ำ 1.2 — เอาออก (ไม่ต้องทำซ้ำ) |
 | 5.4 | ✅ มี | COT (Commitment of Traders) | **CmeDashboard.tsx** |
-| 5.5 | ❌ ขาด | CME กรอบ ±σ (บอกให้ไปดูที่ Macro?) | ref: อยู่หน้า CME zone · เรา: มีบางส่วน — ตรวจ coverage  | ซ้ำ 1.1 — เอาออก (ไม่ต้องทำซ้ำ) |
+| 5.5 | ❌ ขาด | CME กรอบ ±σ (บอกให้ไปดูที่ Macro?) | ref: อยู่หน้า CME zone · เรา: มีบางส่วน — ตรวจ coverage  | ซ้ำ 1.1 — เอาออก (ไม่ต้องทำซ้ำ) · ใบ 10 ตรวจแล้ว: ซ้ำกับ 1.1 — CME ±σ ไม่มีแหล่งฟรี (`/api/cme` ไม่มีคีย์ zones · iv_products = 0 รายการ) · **นอกขอบเขต (user ตัดสิน 2026-08-12: รับสภาพ — ไม่มีแหล่งฟรี)** |
 | 5.6 | ✅ มี | คำเตือน / disclaimer | RiskBanner id="cme" — ใบ 06 ทำ |
 | **สรุป** | | **5 มี · 1 ขาด · 0 ต่าง** | |
 
@@ -250,7 +250,7 @@
 | หมวด | ✅ มี | ❌ ขาด | ⚠️ ต่าง | รวม |
 |---|---|---|---|---|
 | คำเตือนความเสี่ยง / Disclaimer | 19 | 0 | 0 | 19 |
-| 1. ข้อมูลมหภาค | 3 | 6 | 0 | 9 |
+| 1. ข้อมูลมหภาค | 6 | 1 | 2 | 9 |
 | 2. โมเดลทำกำไร | 4 | 0 | 0 | 4 |
 | 3. สัญญาณเทรด | 5 | 0 | 0 | 5 |
 | 4. อารมณ์ตลาด | 4 | 0 | 0 | 4 |
@@ -262,7 +262,7 @@
 | 10. สัญญาณที่ประชุม | 3 | 0 | 0 | 3 |
 | 11. ทีมเทรด | 15 | 0 | 0 | 15 |
 | 12–16. หน้าที่ research เก่าน้อย | 11 | 0 | 2 | 13 |
-| **รวม** | **87** | **7** | **2** | **96** |
+| **รวม** | **90** | **2** | **4** | **96** |
 
 - ❌ 7 = ใบ 10 (1.1–1.5, 1.7, 5.5) · ⚠️ 2 = backlog (13.2 overview layout, 15.2 office 13 แผนก) · ใบ 11 (2.2/7.2/9.4/12.2) เสร็จแล้ว
 

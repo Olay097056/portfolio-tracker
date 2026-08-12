@@ -57,6 +57,9 @@ class MacroMetricCard(BaseModel):
     trend: Literal["up", "down", "flat"] = "flat"
     recorded_at: str | None = None
     available: bool = False
+    # Why the card is empty, when the cause is known and fixable (e.g. a free
+    # API key nobody has set). None = unavailable for no stated reason.
+    unavailable_reason_th: str | None = None
 
 
 class MacroSection(BaseModel):

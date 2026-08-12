@@ -386,6 +386,8 @@ export interface MacroMetricCard {
   trend: 'up' | 'down' | 'flat';
   recorded_at: string | null;
   available: boolean;
+  /** why the card is empty, when the cause is known and fixable */
+  unavailable_reason_th?: string | null;
 }
 
 export interface MacroSection {

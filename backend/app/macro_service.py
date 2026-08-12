@@ -109,6 +109,15 @@ _SERIES: dict[str, dict] = {
             "name_th": "ดัชนีความผันผวน VIX", "name_en": "VIX"},
     "move": {"fred": None, "yf": "^MOVE", "unit": "pts", "kind": "plain",
              "name_th": "ดัชนี MOVE (ความผันผวนตลาดพันธบัตร)", "name_en": "MOVE Index (Bond Volatility)"},
+    # ETF implied vol from CBOE via FRED. NOT the CME futures IV the reference
+    # site uses — different underlying, so the numbers will not match it. The
+    # Thai label says so on the card rather than in a comment nobody reads.
+    "gold_iv": {"fred": "GVZCLS", "yf": None, "unit": "index", "kind": "plain",
+                "name_th": "ความผันผวนแฝงทองคำ GVZ — ETF IV (CBOE) ไม่ใช่ futures CME",
+                "name_en": "Gold ETF Implied Vol (GVZ, CBOE)"},
+    "oil_iv": {"fred": "OVXCLS", "yf": None, "unit": "index", "kind": "plain",
+               "name_th": "ความผันผวนแฝงน้ำมัน OVX — ETF IV (CBOE) ไม่ใช่ futures CME",
+               "name_en": "Crude Oil ETF Implied Vol (OVX, CBOE)"},
     "xauusd": {"fred": None, "yf": "GC=F", "unit": "USD", "kind": "plain",
                "name_th": "ทองคำ", "name_en": "Gold"},
     "xagusd": {"fred": None, "yf": "SI=F", "unit": "USD", "kind": "plain",
@@ -186,6 +195,12 @@ _SERIES: dict[str, dict] = {
                            "name_th": "ผลประมูลพันธบัตร 30 ปี (Bid-to-Cover)", "name_en": "30Y Auction Bid-to-Cover"},
     "us_auction_indirect_10y": {"td": "10-Year", "yf": None, "unit": "%", "kind": "td_indirect",
                                 "name_th": "สัดส่วน Indirect Bidder ประมูล 10 ปี", "name_en": "10Y Auction Indirect Bidder Share"},
+    "us_auction_dealer_10y": {"td": "10-Year", "yf": None, "unit": "%", "kind": "td_dealer",
+                              "name_th": "สัดส่วนดีลเลอร์รับประมูล 10 ปี (ยิ่งสูง = ดีมานด์อ่อน)",
+                              "name_en": "10Y Auction Primary Dealer Take-down"},
+    "us_business_debt": {"fred": "BCNSDODNS", "yf": None, "unit": "$B", "kind": "plain", "scale": 0.001,
+                         "name_th": "หนี้ภาคธุรกิจ (ไม่ใช่สถาบันการเงิน) — รายไตรมาส",
+                         "name_en": "Nonfinancial Corporate Business Debt (quarterly)"},
     # --- banking indicators (category: banking, excluding the SOFR-EFFR spread) ---
     "us_banking_stress_index": {"fred": None, "yf": None, "unit": "index", "kind": "plain",
                                 "name_th": "ดัชนีความเสี่ยงแบงก์รัน (Composite)", "name_en": "Banking Stress Index"},
@@ -199,6 +214,9 @@ _SERIES: dict[str, dict] = {
                   "name_th": "ดัชนีความตึงเครียดการเงิน (StL Fed)", "name_en": "St. Louis Fed Financial Stress Index"},
     "us_bank_reserves": {"fred": "WRESBAL", "yf": None, "unit": "$B", "kind": "plain", "scale": 0.001,
                          "name_th": "เงินสำรองธนาคารที่เฟด (WRESBAL)", "name_en": "Bank Reserves at Fed (WRESBAL)"},
+    "us_srf_repo": {"fred": "RPONTSYD", "yf": None, "unit": "$B", "kind": "plain",
+                    "name_th": "เฟดอัดสภาพคล่องผ่าน repo (พร็อกซี SRF — ไม่ใช่ยอด SRF โดยตรง)",
+                    "name_en": "Fed Overnight Repo Ops (SRF proxy)"},
     "us_cp_rate_90d": {"fred": "RIFSPPNAAD90NB", "yf": None, "unit": "%", "kind": "plain",
                        "name_th": "Commercial Paper 90 วัน (AA)", "name_en": "90-Day AA Commercial Paper Rate"},
     "us_fima_repo_pool": {"fred": "WLRRAFOIAL", "yf": None, "unit": "$B", "kind": "plain", "scale": 0.001,
@@ -226,14 +244,15 @@ SECTIONS: list[dict] = [
     {"key": "moneyMarketRates", "title_th": "อัตราดอกเบี้ยตลาดเงิน", "title_en": "Money Market Rates",
      "series": ["us_sofr", "us_effr", "us_obfr", "us_on_rrp", "us_tga", "us_sofr_effr_spread"]},
     {"key": "macroIndicators", "title_th": "ตัวชี้วัดมหภาค", "title_en": "Macro Indicators",
-     "series": ["dxy", "vix", "move", "xauusd", "xagusd", "usoil", "brent",
+     "series": ["dxy", "vix", "move", "gold_iv", "oil_iv", "xauusd", "xagusd", "usoil", "brent",
                 "us_cpi_yoy", "us_pce_yoy", "us_core_cpi", "us_10y_real",
                 "us_10y_breakeven", "us_5y_breakeven", "us_unemployment"]},
     {"key": "creditSpreads", "title_th": "เครดิตและการคลัง", "title_en": "Credit & Fiscal",
      "series": ["us_hy_spread", "us_ig_spread", "us_debt_gdp", "us_fiscal_deficit",
                 "us_household_debt", "us_sloos_tightening",
                 "us_auction_btc", "us_auction_btc_2y", "us_auction_btc_5y",
-                "us_auction_btc_30y", "us_auction_indirect_10y"]},
+                "us_auction_btc_30y", "us_auction_indirect_10y",
+                "us_auction_dealer_10y", "us_business_debt"]},
     {"key": "positioning", "title_th": "การถือครอง (COT/TIC)", "title_en": "Positioning (COT/TIC)",
      "series": ["cot_gold_mm_net", "cot_silver_mm_net", "cot_wti_mm_net",
                 "cot_copper_mm_net", "cot_wheat_mm_net", "cot_corn_mm_net",
@@ -243,7 +262,7 @@ SECTIONS: list[dict] = [
                 "foreign_ust_total", "foreign_official_ust"]},
     {"key": "bankingIndicators", "title_th": "ตัวชี้วัดภาคการธนาคาร", "title_en": "Banking Indicators",
      "series": ["us_banking_stress_index", "us_bank_deposits", "us_small_bank_deposits",
-                "us_discount_window", "us_stlfsi", "us_bank_reserves",
+                "us_discount_window", "us_stlfsi", "us_bank_reserves", "us_srf_repo",
                 "us_cp_rate_90d", "us_fima_repo_pool", "us_fima_repo_used",
                 "us_crude_inventory", "us_crude_inventory_chg",
                 "us_gasoline_inventory", "us_distillate_inventory",
@@ -480,6 +499,45 @@ def _fetch_auction_indirect_share(term: str = "10-Year") -> list[tuple[str, floa
         if item.get("term") != term:
             continue
         accepted = _num(item.get("indirectBidderAccepted"))
+        total = _num(item.get("totalAccepted"))
+        if accepted is None or not total:
+            continue
+        rows.append((str(item.get("auctionDate", ""))[:10], _round(accepted / total * 100, 2)))
+    rows.sort()
+    return rows or None
+
+
+def _fetch_auction_dealer_share(term: str = "10-Year") -> list[tuple[str, float]] | None:
+    """Primary-dealer take-down (%) of recent auctions of the given term.
+
+    primaryDealerAccepted / totalAccepted * 100 — dealers are the buyer of
+    last resort, so a RISING share means real money stepped back. Denominator
+    is totalAccepted to match _fetch_auction_indirect_share, so the two cards
+    sit on the same base and can be read against each other.
+
+    Note: this is NOT the auction tail. A true tail is high yield minus the
+    when-issued yield at the bid deadline, and TreasuryDirect does not publish
+    when-issued — see ticket 10.
+    """
+    try:
+        response = httpx.get(
+            TREASURYDIRECT_AUCTION_URL,
+            params={"pagesize": "50", "type": "Note", "format": "json"},
+            headers=_HEADERS,
+            timeout=_TIMEOUT_SECONDS,
+            follow_redirects=True,
+        )
+        if response.status_code != 200:
+            return None
+        payload = response.json()
+    except Exception:
+        return None
+
+    rows: list[tuple[str, float]] = []
+    for item in payload:
+        if item.get("term") != term:
+            continue
+        accepted = _num(item.get("primaryDealerAccepted"))
         total = _num(item.get("totalAccepted"))
         if accepted is None or not total:
             continue
@@ -741,6 +799,7 @@ def _build_card(
     tga_rows: list[tuple[str, float]] | None = None,
     auction_map: dict[str, list[tuple[str, float]]] | None = None,
     auction_indirect_rows: list[tuple[str, float]] | None = None,
+    auction_dealer_rows: list[tuple[str, float]] | None = None,
     cftc_disagg: list[dict] | None = None,
     cftc_tff: list[dict] | None = None,
     tic_rows: list[tuple[str, float]] | None = None,
@@ -770,11 +829,19 @@ def _build_card(
     # TGA: fiscaldata reports millions; the card displays $B, so scale like FRED.
     if meta.get("fd") == "tga" and tga_rows:
         return builder({**meta, "scale": 0.001}, tga_rows)
-    if meta.get("td") and auction_map:
+    # Bid-to-cover cards only. The `kind` guard matters: td_indirect/td_dealer
+    # also carry a `td` term, and without it this branch swallowed them and
+    # served the bid-to-cover ratio instead — us_auction_indirect_10y rendered
+    # "2.59 %" (a cover ratio) under the label "สัดส่วน Indirect Bidder"
+    # for as long as that card has existed. Found while adding td_dealer,
+    # ticket 10.
+    if meta.get("td") and auction_map and meta.get("kind") == "plain":
         rows = auction_map.get(meta["td"])
         return builder(meta, rows) if rows else _unavailable_card()
     if meta.get("kind") == "td_indirect" and auction_indirect_rows:
         return builder(meta, auction_indirect_rows)
+    if meta.get("kind") == "td_dealer" and auction_dealer_rows:
+        return builder(meta, auction_dealer_rows)
     # COT positioning: one fetch per CFTC report, sliced per contract code.
     cftc_spec = meta.get("cftc")
     if cftc_spec:
@@ -797,15 +864,26 @@ def _build_card(
             if not rows:
                 rows = (eia_rows or {}).get(series_id.removesuffix("_chg"))
             rows = _wow_change(rows)
-        return builder(meta, rows) if rows else _unavailable_card()
+        if rows:
+            return builder(meta, rows)
+        import os
+        return _unavailable_card(
+            None if os.environ.get("EIA_API_KEY")
+            else "ต้องตั้งค่า EIA_API_KEY (ขอฟรีที่ api.eia.gov) จึงจะดึงสต็อกน้ำมันได้")
     if meta.get("yf"):
         return builder(meta, None)  # filled below from yfinance (yield fallback too)
     return _unavailable_card()
 
 
-def _unavailable_card() -> dict:
+def _unavailable_card(reason_th: str | None = None) -> dict:
+    """A card with no data.
+
+    `reason_th` says WHY when the cause is known and fixable — "ไม่มีข้อมูล"
+    alone reads as "the dashboard is broken" when the real answer is "this
+    source needs a free API key nobody has set" (ticket 10 / row 1.5).
+    """
     return {"value": None, "change_val": None, "change_pct": None, "trend": "flat",
-            "recorded_at": None, "available": False}
+            "recorded_at": None, "available": False, "unavailable_reason_th": reason_th}
 
 
 def _wow_change(rows: list[tuple[str, float]] | None) -> list[tuple[str, float]] | None:
@@ -915,6 +993,7 @@ def build_dashboard(force: bool = False) -> dict:
         tga_future = pool.submit(_fetch_tga)
         auction_future = pool.submit(_fetch_auction_map)
         auction_indirect_future = pool.submit(_fetch_auction_indirect_share)
+        auction_dealer_future = pool.submit(_fetch_auction_dealer_share)
         disagg_future = pool.submit(_fetch_cftc, "disagg")
         tff_future = pool.submit(_fetch_cftc, "tff")
         tic_future = pool.submit(_fetch_tic)
@@ -929,6 +1008,7 @@ def build_dashboard(force: bool = False) -> dict:
         tga_rows = tga_future.result()
         auction_map = auction_future.result()
         auction_indirect_rows = auction_indirect_future.result()
+        auction_dealer_rows = auction_dealer_future.result()
         cftc_disagg = disagg_future.result()
         cftc_tff = tff_future.result()
         tic_rows = tic_future.result()
@@ -939,6 +1019,7 @@ def build_dashboard(force: bool = False) -> dict:
     for sid, meta in _SERIES.items():
         cards[sid] = _build_card(
             sid, meta, fred_rows, tga_rows, auction_map, auction_indirect_rows,
+            auction_dealer_rows,
             cftc_disagg, cftc_tff, tic_rows, eia_rows,
         )
     yf_rows = _fill_from_yfinance(cards, prefetched=yf_prefetched)

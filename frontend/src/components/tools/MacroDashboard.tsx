@@ -111,7 +111,9 @@ function MetricCard({ card }: { card: MacroMetricCard }) {
               <TrendArrow trend={card.trend} /> {change ?? ''}
             </>
           ) : (
-            <span style={{ color: INK.inkFaint }}>ไม่มีข้อมูล</span>
+            <span style={{ color: INK.inkFaint }} title={card.unavailable_reason_th ?? undefined}>
+              {card.unavailable_reason_th ?? 'ไม่มีข้อมูล'}
+            </span>
           )}
         </span>
       </div>

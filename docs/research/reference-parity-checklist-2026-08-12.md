@@ -23,27 +23,28 @@
 
 ## คำเตือนความเสี่ยง / Disclaimer (จากใบ 02 — user สั่งเพิ่ม)
 
-| # | สถานะ | หลักฐาน (i18n + ไฟล์+บรรทัดเรา) |
-|---|---|---|
-| D1 | ✅ มี | **TradeDeskDashboard.tsx:55-62** — `🚫 พอร์ตจำลอง — ไม่ใช่การเทรดจริง ไม่มีการส่งคำสั่งไปตลาดใดๆ และไม่ใช่คำแนะนำการลงทุน` |
-| D2 | ✅ มี | **TeamDetailPage.tsx:57-63** — ข้อความเดียวกัน |
-| D3 | ✅ มี | **MacroDashboard.tsx:464** — `ข้อมูลเพื่อการศึกษาเท่านั้น ไม่ใช่คำแนะนำการลงทุน` |
-| D4 | ✅ มี | **ForecastDashboard.tsx:242** — `⚠️ ตัวเลขทั้งหมดในหน้านี้เป็นสถานการณ์สมมติ...ไม่ใช่คำแนะนำการลงทุน` |
-| D5 | ✅ มี | **ForecastDashboard.tsx:293** — `การจำลองเป็นค่าประมาณทิศทาง...ไม่ใช่คำแนะนำการลงทุน` |
-| D6 | ✅ มี | **BoardroomDashboard.tsx:65** — `disclaimer: 'ข้อมูลเพื่อการศึกษาเท่านั้น ไม่ใช่คำแนะนำการลงทุน'` |
-| D7 | ✅ มี | **BoardroomSignalsDashboard.tsx:66** — `มุมมอง (ไม่เข้าบัญชี) — ข้อมูลเพื่อการศึกษาเท่านั้น ไม่ใช่คำแนะนำการลงทุน` |
-| D8 | ❌ ขาด | **SignalsDashboard.tsx** — grep `disclaimer\|ไม่ใช่คำ\|คำเตือน` = **0 hits** · สัญญาณเทรดเป็นหน้าที่ชี้นำการลงทุนตรงที่สุด ควรมีคำเตือนความแม่นยำ |
-| D9 | ❌ ขาด | **ModelsDashboard.tsx** — grep = **0 hits** · หน้าแสดงคะแนนโมเดลทำกำไร ไม่มีคำเตือนใดๆ |
-| D10 | ❌ ขาด | **OverviewDashboard.tsx** — grep = **0 hits** |
-| D11 | ❌ ขาด | **SentimentDashboard.tsx** — grep = **0 hits** · `FearGreedIndex.tsx:362` มีแต่ `SentimentDashboard` ไม่ดึงเข้ามา |
-| D12 | ❌ ขาด | **CmeDashboard.tsx** — grep = **0 hits** |
-| D13 | ❌ ขาด | **BankingDashboard.tsx** — grep = **0 hits** |
-| D14 | ❌ ขาด | **CountriesDashboard.tsx** — grep = **0 hits** |
-| D15 | ❌ ขาด | **NewsDashboard.tsx** — grep = **0 hits** |
-| D16 | ❌ ขาด | **LearnDashboard.tsx:58** — `ข้อควรจำ:` — **ไม่ใช่ disclaimer** (เป็นบทเรียน) |
-| D17 | ❌ ขาด | **OfficeDashboard.tsx** — grep = **0 hits** |
-| D18 | ❌ ขาด | **SettingsDashboard.tsx** — grep = **0 hits** |
-| **สรุป** | | **7 มี · 11 ขาด** (นับ D3+D4+D5 เป็นรายการ 5/16 แท็บ) |
+| # | สถานะ | หลักฐาน | คำตัดสิน |
+|---|---|---|:---:|
+| D1 | ✅ มี | **TradeDeskDashboard.tsx:55-62** — `🚫 พอร์ตจำลอง — ไม่ใช่การเทรดจริง ไม่มีการส่งคำสั่งไปตลาดใดๆ และไม่ใช่คำแนะนำการลงทุน`   ✅ |
+| D2 | ✅ มี | **TeamDetailPage.tsx:61** — ข้อความเดียวกัน (sed -n 61p ยืนยัน)   ✅ |
+| D3 | ✅ มี | **MacroDashboard.tsx:464** — `ข้อมูลเพื่อการศึกษาเท่านั้น ไม่ใช่คำแนะนำการลงทุน`   ✅ |
+| D4 | ✅ มี | **ForecastDashboard.tsx:242** — `⚠️ ตัวเลขทั้งหมดในหน้านี้เป็นสถานการณ์สมมติ...ไม่ใช่คำแนะนำการลงทุน`   ✅ |
+| D5 | ✅ มี | **ForecastDashboard.tsx:293** — `การจำลองเป็นค่าประมาณทิศทาง...ไม่ใช่คำแนะนำการลงทุน`   ✅ |
+| D6 | ✅ มี | **BoardroomDashboard.tsx:65** — `disclaimer: 'ข้อมูลเพื่อการศึกษาเท่านั้น ไม่ใช่คำแนะนำการลงทุน'`   ✅ |
+| D7 | ✅ มี | **BoardroomSignalsDashboard.tsx:66** — `มุมมอง (ไม่เข้าบัญชี) — ข้อมูลเพื่อการศึกษาเท่านั้น ไม่ใช่คำแนะนำการลงทุน`   ✅ |
+| D8 | ❌ ขาด | **SignalsDashboard.tsx** — grep `disclaimer\|ไม่ใช่คำ\|คำเตือน` = **0 hits** · สัญญาณเทรดเป็นหน้าที่ชี้นำการลงทุนตรงที่สุด ควรมีคำเตือนความแม่นยำ   เอา |
+| D9 | ❌ ขาด | **ModelsDashboard.tsx** — grep = **0 hits** · หน้าแสดงคะแนนโมเดลทำกำไร ไม่มีคำเตือนใดๆ   เอา |
+| D10 | ❌ ขาด | **OverviewDashboard.tsx** — grep = **0 hits**   เอา |
+| D11 | ❌ ขาด | **SentimentDashboard.tsx** — grep = **0 hits** · `FearGreedIndex.tsx:362` มีแต่ `SentimentDashboard` ไม่ดึงเข้ามา   เอา |
+| D12 | ❌ ขาด | **CmeDashboard.tsx** — grep = **0 hits**   เอา |
+| D13 | ❌ ขาด | **BankingDashboard.tsx** — grep = **0 hits**   เอา |
+| D14 | ❌ ขาด | **CountriesDashboard.tsx** — grep = **0 hits**   เอา |
+| D15 | ❌ ขาด | **NewsDashboard.tsx** — grep = **0 hits**   เอา |
+| D16 | ❌ ขาด | **LearnDashboard.tsx:58** — `ข้อควรจำ:` — **ไม่ใช่ disclaimer** (เป็นบทเรียน)   เอา |
+| D17 | ❌ ขาด | **OfficeDashboard.tsx** — grep = **0 hits**   เอา |
+| D18 | ❌ ขาด | **SettingsDashboard.tsx** — grep = **0 hits**   เอา |
+| D19 | ❌ ขาด | **SignalsDashboard.tsx** — คำเตือน "แม่นยำในอดีตประมาณ 62-63%" · user อนุมัติแล้วในแผน ai-signal-investor-upgrades (2026-08-06) · **หายระหว่างการเขียนใหม่** — grep ทั้งไฟล์ = 0 hits   เอา |
+| **สรุป** | | **7 มี · 12 ขาด** (นับ D3+D4+D5 เป็นรายการ 5/16 แท็บ) |
 
 ---
 
@@ -182,15 +183,15 @@
 
 | # | สถานะ | รายการ | หลักฐาน |
 |---|---|---|---|
-| 11.1 | ⚠️ ต่าง | อันดับ `#1` ฮาร์ดโค้ด | **TradeDeskDashboard.tsx:59** — `#1` เขียนตาย ไม่ใช่จาก data |
-| 11.2 | ⚠️ ต่าง | `✗0 ⏳0` ฮาร์ดโค้ด | **TradeDeskDashboard.tsx:72** — `✗0` `⏳0` คงที่ ไม่ใช่จาก turn stats จริง |
-| 11.3 | ⚠️ ต่าง | `MTD` แสดงค่า `weekly_target_pct` (bug) | **TradeDeskDashboard.tsx:70** — `F.pct(team.weekly_target_pct,false)` ใช้ weekly เป็น MTD |
-| 11.4 | ❌ ขาด | กราฟ equity ทุกโหมด (24h/7d/30d/All) + time toggle | ref: `tdChart`, `tdChartEmpty` · เรา: ไม่พบใน TradeDeskDashboard — TeamDetailPage มี SVG 30d เฉพาะ detail page |
-| 11.5 | ❌ ขาด | สวิตช์หลัก (master on/off) | ref: `tdPause`/`tdResume` · เรา: ไม่พบในโค้ด |
-| 11.6 | ❌ ขาด | โควตาเทิร์นรายวัน + ตัวนับถัดไป | ref: `tdNextTurn`, `tdForceTurn` · เรา: ไม่พบในโค้ด (TeamDetailPage มีปุ่ม Force Turn แต่ไม่มี countdown จริง) |
-| 11.7 | ❌ ขาด | ออเดอร์ที่ตั้งไว้ (pending LIMIT/STOP) ในหน้า main | เรา: `TradePendingOrder` table มีแล้ว · แต่ **ไม่แสดงใน TradeDeskDashboard** — แสดงเฉพาะ TeamDetailPage |
-| 11.8 | ❌ ขาด | สรุปประจำวัน/รายเดือน (daily/weekly summary) | เรา: ไม่พบในโค้ด |
-| 11.9 | ❌ ขาด | คำสั่งโต๊ะกลาง (directive) ในหน้า main | เรา: `POST /directive` API มี · แต่ **ไม่แสดงใน TradeDeskDashboard** |
+| 11.1 | ⚠️ ต่าง | อันดับ `#1` ฮาร์ดโค้ด | **TradeDeskDashboard.tsx:59** — `#1` เขียนตาย ไม่ใช่จาก data  เอา (ค่าจาก data) |
+| 11.2 | ⚠️ ต่าง | `✗0 ⏳0` ฮาร์ดโค้ด | **TradeDeskDashboard.tsx:72** — `✗0` `⏳0` คงที่ ไม่ใช่จาก turn stats จริง  เอา (turn stats จริง) |
+| 11.3 | ⚠️ ต่าง | `MTD` แสดงค่า `weekly_target_pct` (bug) | **TradeDeskDashboard.tsx:70** — `F.pct(team.weekly_target_pct,false)` ใช้ weekly เป็น MTD  เอา (MTD field จริง) |
+| 11.4 | ❌ ขาด | กราฟ equity ทุกโหมด (24h/7d/30d/All) + time toggle | ref: `tdChart`, `tdChartEmpty` · เรา: ไม่พบใน TradeDeskDashboard — TeamDetailPage มี SVG 30d เฉพาะ detail page  เอา |
+| 11.5 | ❌ ขาด | สวิตช์หลัก (master on/off) | ref: `tdPause`/`tdResume` · เรา: ไม่พบในโค้ด  เอา |
+| 11.6 | ❌ ขาด | โควตาเทิร์นรายวัน + ตัวนับถัดไป | ref: `tdNextTurn`, `tdForceTurn` · เรา: ไม่พบในโค้ด (TeamDetailPage มีปุ่ม Force Turn แต่ไม่มี countdown จริง)  เอา |
+| 11.7 | ❌ ขาด | ออเดอร์ที่ตั้งไว้ (pending LIMIT/STOP) ในหน้า main | เรา: `TradePendingOrder` table มีแล้ว · แต่ **ไม่แสดงใน TradeDeskDashboard** — แสดงเฉพาะ TeamDetailPage  เอา |
+| 11.8 | ❌ ขาด | สรุปประจำวัน/รายเดือน (daily/weekly summary) | เรา: ไม่พบในโค้ด  เอา |
+| 11.9 | ❌ ขาด | คำสั่งโต๊ะกลาง (directive) ในหน้า main | เรา: `POST /directive` API มี · แต่ **ไม่แสดงใน TradeDeskDashboard**  เอา |
 | 11.10 | ✅ มี | Team card (equity/P&L/margin/cash) | **TradeDeskDashboard.tsx:56-77** |
 | 11.11 | ✅ มี | ตารางไม้เปิด (open positions) | **TradeDeskDashboard.tsx:79-94** |
 | 11.12 | ✅ มี | ประวัติเทิร์น (turn history) | **TradeDeskDashboard.tsx:97-113** |

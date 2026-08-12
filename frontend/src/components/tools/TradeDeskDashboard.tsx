@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getTradeDeskState, triggerTradeDeskTurn, getHyperliquidMarkets } from '../../api/client';
+import { getTradeDeskState, triggerTradeDeskTurn, getHyperliquidMarkets, setTeamDirective } from '../../api/client';
 import type { TradeDeskState, HyperliquidMarket } from '../../api/types';
 import { TeamDetailPage } from './TeamDetailPage';
+import { EquityChart, NextTurnCountdown } from './TradeDeskCharts';
 
 const INK = { bg:'#0d1220',panel:'#131a2b',panelBorder:'#1e2940',card:'#161e30',text:'#e6ecf5',dim:'#8a97ad',faint:'#5a6b85',green:'#10b981',red:'#ef4444',amber:'#f59e0b',sky:'#38bdf8',gold:'#f5c542' };
 const NUM: React.CSSProperties = { fontVariantNumeric:'tabular-nums' };
@@ -19,12 +20,26 @@ export function TradeDeskDashboard() {
   const [msg, setMsg] = useState('');
   const [detailTeam, setDetailTeam] = useState<string | null>(null);
   const [mktCat, setMktCat] = useState('all');
+  const [directive, setDirective] = useState('');
+  const [directiveDraft, setDirectiveDraft] = useState('');
+  const [editingDirective, setEditingDirective] = useState(false);
 
   const fetch = useCallback(async () => {
     try { const [s,m] = await Promise.all([getTradeDeskState(), getHyperliquidMarkets()]); setState(s); setMarkets(m.markets||[]); } catch {}
     setLoading(false);
   }, []);
   useEffect(() => { fetch(); }, [fetch]);
+  // sync directive from state
+  useEffect(() => {
+    const d = (state?.teams?.[0] as any)?.team_directive;
+    if (typeof d === 'string' && d !== directive) { setDirective(d); setDirectiveDraft(d); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
+  const saveDirective = async () => {
+    try { await setTeamDirective('DEEPSEEK', directiveDraft); setDirective(directiveDraft); setEditingDirective(false); setMsg('📌 directive อัปเดตแล้ว'); await fetch(); }
+    catch (e: any) { setMsg(e?.message || 'บันทึก failed'); }
+  };
 
   const doTurn = async () => { setTurning(true);setMsg(''); try { const r = await triggerTradeDeskTurn('DEEPSEEK'); setMsg(`${(r as any)?.action?.toUpperCase?.()||'?'} ${(r as any)?.market||''} — ${(r as any)?.rationale?.slice(0,80)||''}`); await fetch(); } catch(e:any){ setMsg(e?.message||'fail'); } setTurning(false); };
 
@@ -76,10 +91,46 @@ export function TradeDeskDashboard() {
           <div style={{display:'flex',gap:14,marginTop:10,borderTop:`1px solid ${INK.panelBorder}`,paddingTop:10,flexWrap:'wrap',alignItems:'center'}}>
             <span style={{fontSize:11,color:INK.dim}}>MTD: <b style={{color:INK.text}}>{(team as any).mtd_pnl_pct != null ? F.pct((team as any).mtd_pnl_pct, false) : '—'}</b> / 5–20%</span>
             <span style={{fontSize:11,color:INK.dim}}>เป้าสัปดาห์นี้: <b style={{color:INK.text}}>{F.pct(team.weekly_target_pct,false)}</b></span>
-            <span style={{fontSize:11,color:INK.dim}}>เทิร์นวันนี้: <b style={{color:INK.text}}>{team.turns_today}</b></span>
+            <span style={{fontSize:11,color:INK.dim}}>เทิร์นวันนี้: <b style={{color:INK.text}}>{team.turns_today}</b>/4</span>
+            <NextTurnCountdown nextTurnAt={(team as any).next_turn_at ?? null} />
             <span style={{fontSize:11,color:INK.dim}}>Cost: <b style={{color:INK.text}}>${F.num(team.cost_today_usd,4)}</b></span>
             <button onClick={()=>setDetailTeam(team.code)} style={{padding:'4px 14px',borderRadius:999,border:`1px solid ${INK.sky}`,background:'transparent',color:INK.sky,fontWeight:600,fontSize:11,cursor:'pointer',marginLeft:'auto'}}>ดูรายละเอียดทีม →</button>
           </div>
+        </div>
+      )}
+
+      {/* Equity chart (11.4) */}
+      {team && <EquityChart teamCode={team.code} />}
+
+      {/* Directive editor (11.9) */}
+      {team && (
+        <div style={{ background: INK.panel, border: `1px solid ${INK.panelBorder}`, borderRadius: 12, padding: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: INK.text }}>📌 คำสั่งโต๊ะกลาง (directive)</span>
+            {!editingDirective && (
+              <button onClick={() => { setDirectiveDraft(directive); setEditingDirective(true); }}
+                style={{ padding: '2px 12px', borderRadius: 999, border: `1px solid ${INK.sky}`, background: 'transparent', color: INK.sky, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>
+                {directive ? 'แก้ไข' : 'ตั้งคำสั่ง'}
+              </button>
+            )}
+          </div>
+          {editingDirective ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <textarea value={directiveDraft} onChange={(e) => setDirectiveDraft(e.target.value)}
+                placeholder='เช่น "งดเทรดตอนข่าว FOMC — รอหลังประกาศ 30 นาที"'
+                rows={2}
+                style={{ background: INK.bg, border: `1px solid ${INK.panelBorder}`, borderRadius: 8, color: INK.text, fontSize: 12, padding: '8px 10px', fontFamily: 'inherit', resize: 'vertical' }} />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={saveDirective} style={{ padding: '4px 14px', borderRadius: 8, border: 'none', background: INK.sky, color: '#000', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>บันทึก</button>
+                <button onClick={() => { setDirectiveDraft(directive); setEditingDirective(false); }} style={{ padding: '4px 14px', borderRadius: 8, border: `1px solid ${INK.panelBorder}`, background: 'transparent', color: INK.dim, fontSize: 11, cursor: 'pointer' }}>ยกเลิก</button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize: 11, color: directive ? INK.text : INK.faint, lineHeight: 1.5 }} data-testid="directive-text">
+              {directive || 'ยังไม่มีคำสั่ง — AI ตัดสินใจเองจากข้อมูล'}{' '}
+              {directive && <span style={{ color: INK.sky, fontWeight: 600 }}>📌 AI จะเห็นคำสั่งนี้ทุกเทิร์น</span>}
+            </div>
+          )}
         </div>
       )}
 

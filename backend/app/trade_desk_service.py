@@ -372,9 +372,18 @@ def _run_analyst(seat: str, system_prompt: str, user_prompt: str) -> dict:
     }
 
 
-def _build_base_context(db: Session) -> str:
+def _build_base_context(db: Session, team: TradeTeam | None = None) -> str:
     """Gather bond-crisis data shared across all analysts."""
     parts = ["=== BOND-CRISIS SNAPSHOT ===\n"]
+    # คำสั่งโต๊ะกลาง (directive) + ลู่ทีม (mandate) — ต้องให้ AI เห็นจริง
+    if team is not None:
+        if getattr(team, "team_directive", None):
+            parts.append("--- คำสั่งโต๊ะกลาง (directive — user ตั้ง, ต้องทำตาม) ---")
+            parts.append(f"  📌 {team.team_directive}")
+        if getattr(team, "mandate", None):
+            parts.append("--- ลู่ทีม (mandate — กำหนดจากส่วนกลาง) ---")
+            parts.append(f"  {team.mandate}")
+        parts.append("")
     try:
         from app import macro_service
         dash = macro_service.build_dashboard()
@@ -466,7 +475,7 @@ def run_turn(db: Session, team: TradeTeam, trigger: str = "manual",
         agenda = ("ประเมินสถานการณ์ตลาด — CPI + JGB + FedWatch "
                   "เลนส์ contrarian: ถ้ากระแสหลักผิด หลักฐานแรกคืออะไร?")
 
-    base_ctx = _build_base_context(db)
+    base_ctx = _build_base_context(db, team)
     specs = [
         ("trend", _DEFAULT_TREND_PROMPT),
         ("technical", _DEFAULT_TECHNICAL_PROMPT),
@@ -492,7 +501,7 @@ def run_turn(db: Session, team: TradeTeam, trigger: str = "manual",
         f"[{r['seat']}] bias={r['parsed'].get('bias', '?')} "
         f"conf={r['parsed'].get('confidence', '?')}"
         for r in results)
-    lead_user = (f"{agenda}\n\nข้อเสนอลูกทีม:\n{opinions}\n\n"
+    lead_user = (f"{agenda}\n\n{base_ctx}\n\nข้อเสนอลูกทีม:\n{opinions}\n\n"
                  "เคาะออเดอร์ (JSON: action, market, side, size_pct, sl_pct, tp_pct, rationale)")
     lead_content, lead_usage, _ = llm_call(
         team.lead_system_prompt or _DEFAULT_LEAD_PROMPT,

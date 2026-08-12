@@ -24,6 +24,7 @@ export function TeamDetailPage({ teamCode, onBack }: Props) {
   const [data, setData] = useState<TeamDetail | null>(null);
   const [equity, setEquity] = useState<{date:string;equity:number}[]>([]);
   const [page, setPage] = useState(1);
+  const [expandedPrompt, setExpandedPrompt] = useState<string | null>(null);
   const [dirEdit, setDirEdit] = useState(false);
   const [dirText, setDirText] = useState('');
   const [loading, setLoading] = useState(true);
@@ -165,8 +166,14 @@ export function TeamDetailPage({ teamCode, onBack }: Props) {
                 <span style={{fontSize:10,color:INK.sky,fontWeight:600}}>hit-rate —</span>
               </div>
               <div style={{fontSize:10,color:INK.faint,marginBottom:4}}>{seat} · ตั้งโดยหัวหน้า</div>
-              <div style={{fontSize:10,color:INK.dim,maxHeight:40,overflow:'hidden'}}>{prompt.slice(0,100)}...</div>
-              <button style={{marginTop:6,fontSize:10,color:INK.sky,background:'none',border:'none',cursor:'pointer',padding:0}}>ดู prompt เต็ม</button>
+              {expandedPrompt === seat ? (
+                <pre style={{fontSize:10,color:INK.dim,whiteSpace:'pre-wrap',wordBreak:'break-word',background:INK.bg,border:`1px solid ${INK.panelBorder}`,borderRadius:6,padding:8,maxHeight:180,overflowY:'auto',margin:0}} data-testid={`prompt-full-${seat}`}>{prompt}</pre>
+              ) : (
+                <div style={{fontSize:10,color:INK.dim,maxHeight:40,overflow:'hidden'}}>{prompt.slice(0,100)}...</div>
+              )}
+              <button onClick={()=>setExpandedPrompt(expandedPrompt===seat?null:seat)} style={{marginTop:6,fontSize:10,color:INK.sky,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:600}}>
+                {expandedPrompt===seat?'▲ ซ่อน prompt':'▼ ดู prompt เต็ม'}
+              </button>
             </div>
           ))}
         </div>

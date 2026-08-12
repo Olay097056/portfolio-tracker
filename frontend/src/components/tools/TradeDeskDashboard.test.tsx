@@ -7,6 +7,8 @@ vi.mock('../../api/client', () => ({
   getTradeDeskState: vi.fn(),
   getHyperliquidMarkets: vi.fn(),
   triggerTradeDeskTurn: vi.fn(),
+  getTeamEquity: vi.fn(),
+  setTeamDirective: vi.fn(),
 }));
 
 const MOCK_STATE = {
@@ -130,5 +132,30 @@ describe('TradeDeskDashboard', () => {
     render(<TradeDeskDashboard />);
     await waitFor(() => expect(screen.getAllByText('—').length).toBeGreaterThan(0));
     vi.mocked(client.getTradeDeskState).mockResolvedValue(MOCK_STATE as never);
+  });
+
+  // ── Ticket 07 guard rails ──
+
+  it('shows directive editor (11.9) — directive text visible', async () => {
+    const stateWithDir = {
+      ...MOCK_STATE,
+      teams: [{ ...MOCK_STATE.teams[0], team_directive: 'งดเทรดตอนข่าว FOMC' }],
+    };
+    vi.mocked(client.getTradeDeskState).mockResolvedValue(stateWithDir as never);
+    render(<TradeDeskDashboard />);
+    await waitFor(() => expect(screen.getByText(/งดเทรดตอนข่าว FOMC/)).toBeTruthy());
+    expect(screen.getByText(/คำสั่งโต๊ะกลาง/)).toBeTruthy();
+    vi.mocked(client.getTradeDeskState).mockResolvedValue(MOCK_STATE as never);
+  });
+
+  it('shows quota counter (11.6) — turns_today/4', async () => {
+    render(<TradeDeskDashboard />);
+    await waitFor(() => expect(screen.getAllByText('3').length).toBeGreaterThan(0));
+    expect(screen.getByText(/เทิร์นวันนี้/)).toBeTruthy();
+  });
+
+  it('shows next turn countdown (11.6)', async () => {
+    render(<TradeDeskDashboard />);
+    await waitFor(() => expect(screen.getByTestId('next-turn-countdown')).toBeTruthy());
   });
 });

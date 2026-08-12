@@ -56,10 +56,11 @@
 - [02 restore deleted guardrails](issues/02-task-restore-deleted-guardrails.md) — disclaimer กู้กลับ 2 ไฟล์ (TradeDeskDashboard + TeamDetailPage) · เทสต์ 4→8 · audit 5/16 แท็บมี disclaimer (แก้ตารางเป็น 5 มี · 11 ขาด ตรง grep จริง) · commit `afe792b` + `65fcd97`
 - [03 fix known display bugs](issues/03-task-fix-known-display-bugs.md) — 11.1 เอาป้าย #1 ออก (1 ทีม ไม่แข่ง) · 11.2 เปลี่ยน ✗0 ⏳0 ปลอมเป็น turns_today จริง · 11.3 MTD คำนวณจาก trade_snapshots (equity ต้นเดือน) ไม่ใช่ pnl_pct — null → "—" · เทสต์ MTD 3 ตัว (8.0 ≠ 20.0 พิสูจน์ใช้ snapshot) · suite 541 · commit `023ff08`
 - [06 risk warnings](issues/06-task-risk-warnings.md) — RiskBanner 12 จุด (D8+D19 รวมก้อนเดียวที่สัญญาณเทรด, D9-D18 แยกข้อความตามแท็บ) · D19 ไม่มีเลขปลอม — "ความแม่นยำอยู่ระหว่างการวัดผล" · เทสต์เฝ้า 13 ตัว (ล้มถ้าลบข้อความ) · vitest 578 · commit `8e60611`
+- [05 grilling single team shape](issues/05-grilling-single-team-shape.md) — ตัดสิน 8 ข้อ: 11.4 กราฟ equity เอา (UI มี backend แล้ว) · 11.5 สวิตช์หลัก เอา (สร้างใหม่ 2 ฝั่ง) · 11.6 โควตา UI เอา · 11.7 pending orders **แบบ B** (settle tick 10 นาที — ไม่แตะ cadence; ตารางยังไม่มีจริงต้อง migrate) · 11.8 สรุป LLM เอา · 11.9 directive เอา (ต่อเข้าพร้อมต์ — ตอนนี้เก็บเฉยๆ) · เป้า AI ตั้งเอง เอา · detail page เอาแค่ "ดู prompt เต็ม" (hit rate+ledger ทีหลัง — รอไม้ปิด) — แตกเป็น tickets 07/08/09
 
 ## Not yet specified
 
-- **รายการที่จะแก้จริง** — ยังไม่รู้จนกว่า ticket 01 จะทำ checklist เสร็จและ user เซ็นใน ticket 04 · หลังจากนั้นค่อยแตกเป็น ticket แก้รายหน้า (หน้าละใบ หรือรวมกลุ่ม แล้วแต่ปริมาณที่ user เลือก) — **นี่คือหมอกที่ตั้งใจ ไม่ใช่ความไม่รอบคอบ**
+- **hit rate ต่อ analyst + ledger** — ตัดสิน "ทีหลัง" ในใบ 05 (รอไม้ปิดจริงก่อน — ตอนนี้ trade_positions=0, นิยาม hit ยังไม่ชัด) — จะกลับมาเมื่อพอร์ตมีประวัติเทรด
 - **หน้าที่ต้นฉบับมีแต่เราไม่มี / เรามีแต่ต้นฉบับไม่มี** — รอ ticket 01 ว่ามีไหม
 - **เกณฑ์ว่าอะไร "ทำไม่ได้จริง"** — บางอย่างต้นฉบับทำได้เพราะมีหลายค่ายโมเดล/worker เต็มรูป ของเราอาจติดข้อจำกัด ต้องแยกให้ชัดว่า "ยังไม่ทำ" กับ "ทำไม่ได้" — รอเห็นรายการจริง
 

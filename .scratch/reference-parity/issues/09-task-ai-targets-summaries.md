@@ -1,8 +1,8 @@
 # 09 - Task: AI ตั้งใจ + สรุปประจำวัน/เดือน (LLM)
 
 Type: task
-Status: open
-Claimed:
+Status: closed
+Claimed: hermes/2026-08-12
 Blocked by: 05
 
 ## Question

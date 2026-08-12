@@ -190,7 +190,7 @@
 | 11.5 | ❌ ขาด | สวิตช์หลัก (master on/off) | ref: `tdPause`/`tdResume` · เรา: ไม่พบในโค้ด  เสร็จ (caf7027) |
 | 11.6 | ❌ ขาด | โควตาเทิร์นรายวัน + ตัวนับถัดไป | ref: `tdNextTurn`, `tdForceTurn` · เรา: ไม่พบในโค้ด (TeamDetailPage มีปุ่ม Force Turn แต่ไม่มี countdown จริง)  เสร็จ (c660289) |
 | 11.7 | ❌ ขาด | ออเดอร์ที่ตั้งไว้ (pending LIMIT/STOP) ในหน้า main | เรา: `TradePendingOrder` table มีแล้ว · แต่ **ไม่แสดงใน TradeDeskDashboard** — แสดงเฉพาะ TeamDetailPage  เสร็จ (caf7027) |
-| 11.8 | ❌ ขาด | สรุปประจำวัน/รายเดือน (daily/weekly summary) | เรา: ไม่พบในโค้ด  เอา |
+| 11.8 | ❌ ขาด | สรุปประจำวัน/รายเดือน (daily/weekly summary) | เรา: ไม่พบในโค้ด  เสร็จ (e22829b) |
 | 11.9 | ❌ ขาด | คำสั่งโต๊ะกลาง (directive) ในหน้า main | เรา: `POST /directive` API มี · แต่ **ไม่แสดงใน TradeDeskDashboard**  เสร็จ (c660289) |
 | 11.10 | ✅ มี | Team card (equity/P&L/margin/cash) | **TradeDeskDashboard.tsx:56-77** |
 | 11.11 | ✅ มี | ตารางไม้เปิด (open positions) | **TradeDeskDashboard.tsx:79-94** |

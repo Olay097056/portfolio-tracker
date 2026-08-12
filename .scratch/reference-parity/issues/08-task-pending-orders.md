@@ -1,8 +1,8 @@
 # 08 - Task: Pending orders (แบบ B) + สวิตช์หลัก — งานที่แตะฐานข้อมูล
 
 Type: task
-Status: open
-Claimed:
+Status: closed
+Claimed: hermes/2026-08-12
 Blocked by: 05
 
 > **ใบนี้เป็นใบเดียวที่ได้รับอนุญาตให้ migrate ฐานข้อมูล** — สวิตช์หลัก (11.5) ย้ายมาจากใบ 07

@@ -66,6 +66,13 @@ class TradeTeam(Base):
     cost_today_usd = Column(Float, default=0.0)
     cost_total_usd = Column(Float, default=0.0)
 
+    # MANDATE (ลู่ทีม) — central-mandated, immutable by lead
+    mandate = Column(String(64), nullable=True)          # "contrarian" | "trend" | etc
+    team_directive = Column(Text, nullable=True)          # weekly target set by lead (หัวหน้าตั้ง)
+    team_directive_at = Column(DateTime(timezone=True), nullable=True)
+    gen = Column(Integer, default=1)                     # team generation/version
+    paused = Column(Integer, default=0)                  # 0=active, 1=paused
+
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))
@@ -173,6 +180,51 @@ class TradeKnowledge(Base):
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
+class TradeConstitution(Base):
+    """Versioned team constitution (ธรรมนูญทีม) — written by lead, immutable once created."""
+
+    __tablename__ = "trade_constitutions"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    team_id = Column(String(36), ForeignKey("trade_teams.id"), nullable=False, index=True)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class TradeCoachLog(Base):
+    """Coach / adjustment log (สั่งโค้ช / ปรับตัวตน) — lead managing analyst behavior."""
+
+    __tablename__ = "trade_coach_log"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    team_id = Column(String(36), ForeignKey("trade_teams.id"), nullable=False, index=True)
+    analyst_seat = Column(String(32), nullable=False)
+    log_type = Column(String(16), nullable=False)   # "coach" | "adjust"
+    content = Column(Text, nullable=False)
+    delivered = Column(Integer, default=0)           # 0=pending, 1=delivered
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class TradePendingOrder(Base):
+    """Pending LIMIT/STOP orders — placed by lead, executed when price condition met."""
+
+    __tablename__ = "trade_pending_orders"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    team_id = Column(String(36), ForeignKey("trade_teams.id"), nullable=False, index=True)
+    symbol = Column(String(32), nullable=False)
+    side = Column(String(8), nullable=False)
+    order_type = Column(String(8), nullable=False)   # "LIMIT" | "STOP"
+    target_price = Column(Float, nullable=False)
+    size_notional = Column(Float, nullable=False)
+    margin_reserved = Column(Float, default=0)
+    sl_price = Column(Float, nullable=True)
+    tp_price = Column(Float, nullable=True)
+    status = Column(String(16), default="pending")   # pending | filled | cancelled
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
 # ── Seed ─────────────────────────────────────────────────────────────────────
 
 def seed_team(db: Session) -> TradeTeam:
@@ -189,6 +241,8 @@ def seed_team(db: Session) -> TradeTeam:
                 "technical": _DEFAULT_TECHNICAL_PROMPT,
                 "macro": _DEFAULT_MACRO_PROMPT,
                 "contrarian": _DEFAULT_CONTRARIAN_PROMPT,
+                "news": _DEFAULT_NEWS_PROMPT,
+                "quant": _DEFAULT_QUANT_PROMPT,
             },
         )
         db.add(team)
@@ -251,6 +305,28 @@ _DEFAULT_CONTRARIAN_PROMPT = (
     "ตอบ JSON: "
     '{"market": "BTC-USD", "bias": "bullish|bearish|neutral", '
     '"confidence": 0-100, "contrarian_signal": "..."}'
+)
+
+# --- Prompts added by ticket 02 (6 analysts) ---
+_DEFAULT_NEWS_PROMPT = (
+    "คุณเป็นนักวิเคราะห์สายข่าว — รายงานข่าวสำคัญ+sentiment พร้อม invalidation price "
+    "ที่คำนวณจาก ATR1h*2.0-2.5 ทุกตัว — ต้องมีทั้ง catalyst และ invalidation price "
+    "เป็นตัวเลขชัดเจน อ้างอิงแหล่งข่าวทุกการวิเคราะห์\n"
+    "เสนอมุมมอง: สรุป catalyst + sentiment + invalidation price\n\n"
+    "ตอบ JSON: "
+    '{"market": "BTC-USD", "bias": "bullish|bearish|neutral", '
+    '"confidence": 0-100, "catalyst": "...", "invalidation_price": N}'
+)
+
+_DEFAULT_QUANT_PROMPT = (
+    "คุณเป็นนักวิเคราะห์ควอนต์/ข้อมูล — จับ divergence funding/OI/premium เทียบ momentum "
+    "ระบุ crowding risk + short squeeze danger แบบตัวเลข\n"
+    "ทุกการวิเคราะห์ต้องเสนอ invalidation ราคาชัดเจน (ATR1h*1.5-2.0) "
+    "และอ้างอิงข้อมูลตลาดอย่างน้อย 2 จุด\n"
+    "เสนอมุมมอง: funding/OI/volume divergence + squeeze risk\n\n"
+    "ตอบ JSON: "
+    '{"market": "BTC-USD", "bias": "bullish|bearish|neutral", '
+    '"confidence": 0-100, "funding_rate": N, "oi_change": N, "squeeze_risk": "low|med|high"}'
 )
 
 
@@ -386,12 +462,14 @@ def run_turn(db: Session, team: TradeTeam, trigger: str = "manual",
         ("technical", _DEFAULT_TECHNICAL_PROMPT),
         ("macro", _DEFAULT_MACRO_PROMPT),
         ("contrarian", _DEFAULT_CONTRARIAN_PROMPT),
+        ("news", _DEFAULT_NEWS_PROMPT),
+        ("quant", _DEFAULT_QUANT_PROMPT),
     ]
     results = []
     tokens_in = 0
     tokens_out = 0
 
-    with ThreadPoolExecutor(max_workers=4) as pool:
+    with ThreadPoolExecutor(max_workers=6) as pool:
         futs = {s: pool.submit(_run_analyst, s, sp, _build_seat_context(base_ctx, s, agenda, db))
                 for s, sp in specs}
         for seat, fut in futs.items():

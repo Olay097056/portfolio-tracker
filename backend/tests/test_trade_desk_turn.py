@@ -85,4 +85,4 @@ class TestManualTurnEndpoint:
             TradeTurn.id == body["turn_id"]).first()
         assert turn is not None
         assert turn.trigger == "manual"
-        assert len(turn.analyst_opinions) == 4
+        assert len(turn.analyst_opinions) == 6

@@ -16,7 +16,7 @@ class TestSchema:
         assert team.capital == DEFAULT_CAPITAL
         assert team.lead_system_prompt is not None
         assert team.analyst_prompts is not None
-        assert len(team.analyst_prompts) == 4
+        assert len(team.analyst_prompts) == 6
         # idempotent
         team2 = seed_team(db_session)
         assert team2.id == team.id

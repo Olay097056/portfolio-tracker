@@ -183,9 +183,9 @@
 
 | # | สถานะ | รายการ | หลักฐาน |
 |---|---|---|---|
-| 11.1 | ⚠️ ต่าง | อันดับ `#1` ฮาร์ดโค้ด | **TradeDeskDashboard.tsx:59** — `#1` เขียนตาย ไม่ใช่จาก data  เอา (ค่าจาก data) |
-| 11.2 | ⚠️ ต่าง | `✗0 ⏳0` ฮาร์ดโค้ด | **TradeDeskDashboard.tsx:72** — `✗0` `⏳0` คงที่ ไม่ใช่จาก turn stats จริง  เอา (turn stats จริง) |
-| 11.3 | ⚠️ ต่าง | `MTD` แสดงค่า `weekly_target_pct` (bug) | **TradeDeskDashboard.tsx:70** — `F.pct(team.weekly_target_pct,false)` ใช้ weekly เป็น MTD  เอา (MTD field จริง) |
+| 11.1 | ⚠️ ต่าง | อันดับ `#1` ฮาร์ดโค้ด | **TradeDeskDashboard.tsx:59** — `#1` เขียนตาย ไม่ใช่จาก data  เสร็จ (023ff08) |
+| 11.2 | ⚠️ ต่าง | `✗0 ⏳0` ฮาร์ดโค้ด | **TradeDeskDashboard.tsx:72** — `✗0` `⏳0` คงที่ ไม่ใช่จาก turn stats จริง  เสร็จ (023ff08) |
+| 11.3 | ⚠️ ต่าง | `MTD` แสดงค่า `weekly_target_pct` (bug) | **TradeDeskDashboard.tsx:70** — `F.pct(team.weekly_target_pct,false)` ใช้ weekly เป็น MTD  เสร็จ (023ff08) |
 | 11.4 | ❌ ขาด | กราฟ equity ทุกโหมด (24h/7d/30d/All) + time toggle | ref: `tdChart`, `tdChartEmpty` · เรา: ไม่พบใน TradeDeskDashboard — TeamDetailPage มี SVG 30d เฉพาะ detail page  เอา |
 | 11.5 | ❌ ขาด | สวิตช์หลัก (master on/off) | ref: `tdPause`/`tdResume` · เรา: ไม่พบในโค้ด  เอา |
 | 11.6 | ❌ ขาด | โควตาเทิร์นรายวัน + ตัวนับถัดไป | ref: `tdNextTurn`, `tdForceTurn` · เรา: ไม่พบในโค้ด (TeamDetailPage มีปุ่ม Force Turn แต่ไม่มี countdown จริง)  เอา |

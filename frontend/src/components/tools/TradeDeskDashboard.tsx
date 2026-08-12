@@ -64,7 +64,6 @@ export function TradeDeskDashboard() {
       {team && (
         <div style={{background:INK.panel,border:`1px solid ${INK.panelBorder}`,borderRadius:12,padding:18}}>
           <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12,flexWrap:'wrap'}}>
-            <span style={{fontSize:12,padding:'2px 10px',borderRadius:999,background:INK.gold+'20',color:INK.gold,fontWeight:700}}>#1</span>
             <div>
               <h3 style={{margin:0,fontSize:16,fontWeight:700,color:INK.text}}>{team.name_th}</h3>
               <span style={{fontSize:10,color:INK.faint}}>{team.name_en} · {team.code}</span>
@@ -75,9 +74,9 @@ export function TradeDeskDashboard() {
             {[[F.price(team.equity),'Equity',(team.pnl_pct??0)>=0?INK.green:INK.red],[F.pct(team.pnl_pct),'P&L',(team.pnl_pct??0)>=0?INK.green:INK.red],[F.price(team.margin_used),'Margin',INK.dim],[F.price(team.balance),'Cash',INK.dim]].map(([v,l,c],i)=><div key={i}><div style={{fontSize:10,color:INK.faint}}>{l as string}</div><div style={{fontSize:15,fontWeight:700,color:c as string,...NUM}}>{v as string}</div></div>)}
           </div>
           <div style={{display:'flex',gap:14,marginTop:10,borderTop:`1px solid ${INK.panelBorder}`,paddingTop:10,flexWrap:'wrap',alignItems:'center'}}>
-            <span style={{fontSize:11,color:INK.dim}}>MTD: <b style={{color:INK.text}}>{F.pct(team.weekly_target_pct,false)}</b> / 5–20%</span>
-            <span style={{fontSize:11,color:INK.dim}}>สัปดาห์นี้: <b style={{color:INK.text}}>{F.pct(team.weekly_kpi_pct,false)}</b> / เป้า {F.pct(team.weekly_target_pct,false)}</span>
-            <span style={{fontSize:11,color:INK.dim}}>เทิร์น: <b style={{color:INK.green}}>✓{team.turns_today}</b> <b style={{color:INK.red}}>✗0</b> <b style={{color:INK.amber}}>⏳0</b></span>
+            <span style={{fontSize:11,color:INK.dim}}>MTD: <b style={{color:INK.text}}>{(team as any).mtd_pnl_pct != null ? F.pct((team as any).mtd_pnl_pct, false) : '—'}</b> / 5–20%</span>
+            <span style={{fontSize:11,color:INK.dim}}>เป้าสัปดาห์นี้: <b style={{color:INK.text}}>{F.pct(team.weekly_target_pct,false)}</b></span>
+            <span style={{fontSize:11,color:INK.dim}}>เทิร์นวันนี้: <b style={{color:INK.text}}>{team.turns_today}</b></span>
             <span style={{fontSize:11,color:INK.dim}}>Cost: <b style={{color:INK.text}}>${F.num(team.cost_today_usd,4)}</b></span>
             <button onClick={()=>setDetailTeam(team.code)} style={{padding:'4px 14px',borderRadius:999,border:`1px solid ${INK.sky}`,background:'transparent',color:INK.sky,fontWeight:600,fontSize:11,cursor:'pointer',marginLeft:'auto'}}>ดูรายละเอียดทีม →</button>
           </div>

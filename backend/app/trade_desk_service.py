@@ -209,7 +209,6 @@ class TradePendingOrder(Base):
     """Pending LIMIT/STOP orders — placed by lead, executed when price condition met."""
 
     __tablename__ = "trade_pending_orders"
-
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     team_id = Column(String(36), ForeignKey("trade_teams.id"), nullable=False, index=True)
     symbol = Column(String(32), nullable=False)
@@ -223,6 +222,17 @@ class TradePendingOrder(Base):
     status = Column(String(16), default="pending")   # pending | filled | cancelled
     expires_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class TradeSnapshot(Base):
+    """Periodic equity snapshot — used to compute MTD (equity at month start)."""
+
+    __tablename__ = "trade_snapshots"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    team_id = Column(String(36), ForeignKey("trade_teams.id"), nullable=False, index=True)
+    equity = Column(Float, nullable=False)
+    snapped_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
 
 
 # ── Seed ─────────────────────────────────────────────────────────────────────
@@ -546,6 +556,21 @@ def get_state(db: Session) -> dict:
         TradePosition.team_id == team.id).order_by(TradePosition.opened_at.desc())
     open_pos = [p for p in pos_q if p.status == "open"]
     closed_pos = [p for p in pos_q if p.status == "closed"][:20]
+    # MTD: equity change since start of this calendar month (from snapshots)
+    now = datetime.now(timezone.utc)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    # Find the latest snapshot before this month — that's equity at month start
+    snap_before = db.query(TradeSnapshot).filter(
+        TradeSnapshot.team_id == team.id,
+        TradeSnapshot.snapped_at < month_start,
+    ).order_by(TradeSnapshot.snapped_at.desc()).first()
+    if snap_before is not None:
+        equity_start = snap_before.equity  # real equity at start of this month
+    elif team.created_at and team.created_at.month == now.month and team.created_at.year == now.year:
+        equity_start = team.capital  # team started this month — start from capital
+    else:
+        equity_start = None  # cannot compute — return null, UI shows "—"
+    mtd_pnl_pct = round((team.equity - equity_start) / equity_start * 100, 2) if equity_start else None
     turns = db.query(TradeTurn).filter(
         TradeTurn.team_id == team.id).order_by(TradeTurn.started_at.desc()).limit(10).all()
     return {
@@ -554,6 +579,7 @@ def get_state(db: Session) -> dict:
             "status": team.status, "capital": team.capital, "balance": team.balance,
             "equity": team.equity,
             "pnl_pct": round((team.equity - team.capital) / team.capital * 100, 2) if team.capital else 0,
+            "mtd_pnl_pct": mtd_pnl_pct,
             "margin_used": sum((p.size_pct or 0) / 100 * team.capital for p in open_pos),
             "weekly_target_pct": team.weekly_target_pct,
             "weekly_kpi_pct": team.weekly_kpi_pct,

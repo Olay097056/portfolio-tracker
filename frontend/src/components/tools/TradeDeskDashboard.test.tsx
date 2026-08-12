@@ -108,4 +108,27 @@ describe('TradeDeskDashboard', () => {
       }
     });
   });
+
+  // ── MTD test (ticket 03 reference-parity) ──
+  it('shows MTD from mtd_pnl_pct when available', async () => {
+    const stateWithMtd = {
+      ...MOCK_STATE,
+      teams: [{ ...MOCK_STATE.teams[0], pnl_pct: 8.0, mtd_pnl_pct: 8.0 }],
+    };
+    vi.mocked(client.getTradeDeskState).mockResolvedValue(stateWithMtd as never);
+    render(<TradeDeskDashboard />);
+    await waitFor(() => expect(screen.getByText(/\+8\.00%/)).toBeTruthy());
+    vi.mocked(client.getTradeDeskState).mockResolvedValue(MOCK_STATE as never);
+  });
+
+  it('shows — when mtd_pnl_pct is null (no snapshot)', async () => {
+    const stateNullMtd = {
+      ...MOCK_STATE,
+      teams: [{ ...MOCK_STATE.teams[0], mtd_pnl_pct: null }],
+    };
+    vi.mocked(client.getTradeDeskState).mockResolvedValue(stateNullMtd as never);
+    render(<TradeDeskDashboard />);
+    await waitFor(() => expect(screen.getAllByText('—').length).toBeGreaterThan(0));
+    vi.mocked(client.getTradeDeskState).mockResolvedValue(MOCK_STATE as never);
+  });
 });

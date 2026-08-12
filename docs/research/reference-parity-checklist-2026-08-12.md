@@ -32,18 +32,18 @@
 | D5 | ✅ มี | **ForecastDashboard.tsx:293** — `การจำลองเป็นค่าประมาณทิศทาง...ไม่ใช่คำแนะนำการลงทุน`   ✅ |
 | D6 | ✅ มี | **BoardroomDashboard.tsx:65** — `disclaimer: 'ข้อมูลเพื่อการศึกษาเท่านั้น ไม่ใช่คำแนะนำการลงทุน'`   ✅ |
 | D7 | ✅ มี | **BoardroomSignalsDashboard.tsx:66** — `มุมมอง (ไม่เข้าบัญชี) — ข้อมูลเพื่อการศึกษาเท่านั้น ไม่ใช่คำแนะนำการลงทุน`   ✅ |
-| D8 | ❌ ขาด | **SignalsDashboard.tsx** — grep `disclaimer\|ไม่ใช่คำ\|คำเตือน` = **0 hits** · สัญญาณเทรดเป็นหน้าที่ชี้นำการลงทุนตรงที่สุด ควรมีคำเตือนความแม่นยำ   เสร็จ (8e60611) |
-| D9 | ❌ ขาด | **ModelsDashboard.tsx** — grep = **0 hits** · หน้าแสดงคะแนนโมเดลทำกำไร ไม่มีคำเตือนใดๆ   เสร็จ (8e60611) |
-| D10 | ❌ ขาด | **OverviewDashboard.tsx** — grep = **0 hits**   เสร็จ (8e60611) |
-| D11 | ❌ ขาด | **SentimentDashboard.tsx** — grep = **0 hits** · `FearGreedIndex.tsx:362` มีแต่ `SentimentDashboard` ไม่ดึงเข้ามา   เสร็จ (8e60611) |
-| D12 | ❌ ขาด | **CmeDashboard.tsx** — grep = **0 hits**   เสร็จ (8e60611) |
-| D13 | ❌ ขาด | **BankingDashboard.tsx** — grep = **0 hits**   เสร็จ (8e60611) |
-| D14 | ❌ ขาด | **CountriesDashboard.tsx** — grep = **0 hits**   เสร็จ (8e60611) |
-| D15 | ❌ ขาด | **NewsDashboard.tsx** — grep = **0 hits**   เสร็จ (8e60611) |
-| D16 | ❌ ขาด | **LearnDashboard.tsx:58** — `ข้อควรจำ:` — **ไม่ใช่ disclaimer** (เป็นบทเรียน)   เสร็จ (8e60611) |
-| D17 | ❌ ขาด | **OfficeDashboard.tsx** — grep = **0 hits**   เสร็จ (8e60611) |
-| D18 | ❌ ขาด | **SettingsDashboard.tsx** — grep = **0 hits**   เสร็จ (8e60611) |
-| D19 | ❌ ขาด | **SignalsDashboard.tsx** — คำเตือน "แม่นยำในอดีตประมาณ 62-63%" · user อนุมัติแล้วในแผน ai-signal-investor-upgrades (2026-08-06) · **หายระหว่างการเขียนใหม่** — grep ทั้งไฟล์ = 0 hits   เสร็จ (8e60611) |
+| D8 | ✅ มี | **SignalsDashboard.tsx** — grep `disclaimer\|ไม่ใช่คำ\|คำเตือน` = **0 hits** · สัญญาณเทรดเป็นหน้าที่ชี้นำการลงทุนตรงที่สุด ควรมีคำเตือนความแม่นยำ   เสร็จ (8e60611) |
+| D9 | ✅ มี | **ModelsDashboard.tsx** — grep = **0 hits** · หน้าแสดงคะแนนโมเดลทำกำไร ไม่มีคำเตือนใดๆ   เสร็จ (8e60611) |
+| D10 | ✅ มี | **OverviewDashboard.tsx** — grep = **0 hits**   เสร็จ (8e60611) |
+| D11 | ✅ มี | **SentimentDashboard.tsx** — grep = **0 hits** · `FearGreedIndex.tsx:362` มีแต่ `SentimentDashboard` ไม่ดึงเข้ามา   เสร็จ (8e60611) |
+| D12 | ✅ มี | **CmeDashboard.tsx** — grep = **0 hits**   เสร็จ (8e60611) |
+| D13 | ✅ มี | **BankingDashboard.tsx** — grep = **0 hits**   เสร็จ (8e60611) |
+| D14 | ✅ มี | **CountriesDashboard.tsx** — grep = **0 hits**   เสร็จ (8e60611) |
+| D15 | ✅ มี | **NewsDashboard.tsx** — grep = **0 hits**   เสร็จ (8e60611) |
+| D16 | ✅ มี | **LearnDashboard.tsx:58** — `ข้อควรจำ:` — **ไม่ใช่ disclaimer** (เป็นบทเรียน)   เสร็จ (8e60611) |
+| D17 | ✅ มี | **OfficeDashboard.tsx** — grep = **0 hits**   เสร็จ (8e60611) |
+| D18 | ✅ มี | **SettingsDashboard.tsx** — grep = **0 hits**   เสร็จ (8e60611) |
+| D19 | ✅ มี | **SignalsDashboard.tsx** — คำเตือน "แม่นยำในอดีตประมาณ 62-63%" · user อนุมัติแล้วในแผน ai-signal-investor-upgrades (2026-08-06) · **หายระหว่างการเขียนใหม่** — grep ทั้งไฟล์ = 0 hits   เสร็จ (8e60611) |
 | **สรุป** | | **7 มี · 12 ขาด** (นับ D3+D4+D5 เป็นรายการ 5/16 แท็บ) |
 
 ---
@@ -183,15 +183,15 @@
 
 | # | สถานะ | รายการ | หลักฐาน |
 |---|---|---|---|
-| 11.1 | ⚠️ ต่าง | อันดับ `#1` ฮาร์ดโค้ด | **TradeDeskDashboard.tsx:59** — `#1` เขียนตาย ไม่ใช่จาก data  เสร็จ (023ff08) |
-| 11.2 | ⚠️ ต่าง | `✗0 ⏳0` ฮาร์ดโค้ด | **TradeDeskDashboard.tsx:72** — `✗0` `⏳0` คงที่ ไม่ใช่จาก turn stats จริง  เสร็จ (023ff08) |
-| 11.3 | ⚠️ ต่าง | `MTD` แสดงค่า `weekly_target_pct` (bug) | **TradeDeskDashboard.tsx:70** — `F.pct(team.weekly_target_pct,false)` ใช้ weekly เป็น MTD  เสร็จ (023ff08) |
-| 11.4 | ❌ ขาด | กราฟ equity ทุกโหมด (24h/7d/30d/All) + time toggle | ref: `tdChart`, `tdChartEmpty` · เรา: ไม่พบใน TradeDeskDashboard — TeamDetailPage มี SVG 30d เฉพาะ detail page  เสร็จ (c660289) |
-| 11.5 | ❌ ขาด | สวิตช์หลัก (master on/off) | ref: `tdPause`/`tdResume` · เรา: ไม่พบในโค้ด  เสร็จ (caf7027) |
-| 11.6 | ❌ ขาด | โควตาเทิร์นรายวัน + ตัวนับถัดไป | ref: `tdNextTurn`, `tdForceTurn` · เรา: ไม่พบในโค้ด (TeamDetailPage มีปุ่ม Force Turn แต่ไม่มี countdown จริง)  เสร็จ (c660289) |
-| 11.7 | ❌ ขาด | ออเดอร์ที่ตั้งไว้ (pending LIMIT/STOP) ในหน้า main | เรา: `TradePendingOrder` table มีแล้ว · แต่ **ไม่แสดงใน TradeDeskDashboard** — แสดงเฉพาะ TeamDetailPage  เสร็จ (caf7027) |
-| 11.8 | ❌ ขาด | สรุปประจำวัน/รายเดือน (daily/weekly summary) | เรา: ไม่พบในโค้ด  เสร็จ (e22829b) |
-| 11.9 | ❌ ขาด | คำสั่งโต๊ะกลาง (directive) ในหน้า main | เรา: `POST /directive` API มี · แต่ **ไม่แสดงใน TradeDeskDashboard**  เสร็จ (c660289) |
+| 11.1 | ✅ มี | อันดับ `#1` ฮาร์ดโค้ด | **TradeDeskDashboard.tsx:59** — `#1` เขียนตาย ไม่ใช่จาก data  เสร็จ (023ff08) |
+| 11.2 | ✅ มี | `✗0 ⏳0` ฮาร์ดโค้ด | **TradeDeskDashboard.tsx:72** — `✗0` `⏳0` คงที่ ไม่ใช่จาก turn stats จริง  เสร็จ (023ff08) |
+| 11.3 | ✅ มี | `MTD` แสดงค่า `weekly_target_pct` (bug) | **TradeDeskDashboard.tsx:70** — `F.pct(team.weekly_target_pct,false)` ใช้ weekly เป็น MTD  เสร็จ (023ff08) |
+| 11.4 | ✅ มี | กราฟ equity ทุกโหมด (24h/7d/30d/All) + time toggle | ref: `tdChart`, `tdChartEmpty` · เรา: ไม่พบใน TradeDeskDashboard — TeamDetailPage มี SVG 30d เฉพาะ detail page  เสร็จ (c660289) |
+| 11.5 | ✅ มี | สวิตช์หลัก (master on/off) | ref: `tdPause`/`tdResume` · เรา: ไม่พบในโค้ด  เสร็จ (caf7027) |
+| 11.6 | ✅ มี | โควตาเทิร์นรายวัน + ตัวนับถัดไป | ref: `tdNextTurn`, `tdForceTurn` · เรา: ไม่พบในโค้ด (TeamDetailPage มีปุ่ม Force Turn แต่ไม่มี countdown จริง)  เสร็จ (c660289) |
+| 11.7 | ✅ มี | ออเดอร์ที่ตั้งไว้ (pending LIMIT/STOP) ในหน้า main | เรา: `TradePendingOrder` table มีแล้ว · แต่ **ไม่แสดงใน TradeDeskDashboard** — แสดงเฉพาะ TeamDetailPage  เสร็จ (caf7027) |
+| 11.8 | ✅ มี | สรุปประจำวัน/รายเดือน (daily/weekly summary) | เรา: ไม่พบในโค้ด  เสร็จ (e22829b) |
+| 11.9 | ✅ มี | คำสั่งโต๊ะกลาง (directive) ในหน้า main | เรา: `POST /directive` API มี · แต่ **ไม่แสดงใน TradeDeskDashboard**  เสร็จ (c660289) |
 | 11.10 | ✅ มี | Team card (equity/P&L/margin/cash) | **TradeDeskDashboard.tsx:56-77** |
 | 11.11 | ✅ มี | ตารางไม้เปิด (open positions) | **TradeDeskDashboard.tsx:79-94** |
 | 11.12 | ✅ มี | ประวัติเทิร์น (turn history) | **TradeDeskDashboard.tsx:97-113** |

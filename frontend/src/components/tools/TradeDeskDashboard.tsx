@@ -3,199 +3,13 @@ import { getTradeDeskState, triggerTradeDeskTurn, getHyperliquidMarkets } from '
 import type { TradeDeskState, HyperliquidMarket } from '../../api/types';
 import { TeamDetailPage } from './TeamDetailPage';
 
-// ── Ink palette (inline style — NO Tailwind) ────────────────────────────────
-const INK = {
-  bg: '#0d1220',
-  panel: '#131a2b',
-  panelBorder: '#1e2940',
-  text: '#e6ecf5',
-  textDim: '#c0c8d8',
-  inkDim: '#8a97ad',
-  inkFaint: '#5a6b85',
-  green: '#10b981',
-  red: '#ef4444',
-  amber: '#f59e0b',
-  sky: '#38bdf8',
-  gold: '#f5c542',
+const INK = { bg:'#0d1220',panel:'#131a2b',panelBorder:'#1e2940',card:'#161e30',text:'#e6ecf5',dim:'#8a97ad',faint:'#5a6b85',green:'#10b981',red:'#ef4444',amber:'#f59e0b',sky:'#38bdf8',gold:'#f5c542' };
+const NUM: React.CSSProperties = { fontVariantNumeric:'tabular-nums' };
+const F = {
+  price:(v:number|null)=>v!=null?`$${v.toLocaleString('en-US',{minimumFractionDigits:v>=1?2:4,maximumFractionDigits:v>=1?2:4})}`:'—',
+  pct:(v:number|null,p=true)=>v!=null?`${p&&v>0?'+':''}${v.toFixed(2)}%`:'—',
+  num:(v:number|null,d=2)=>v!=null?v.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}):'—',
 };
-const NUM: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
-const fmtPrice = (v: number | null | undefined) =>
-  v != null && Number.isFinite(v) ? `$${v.toLocaleString('en-US', { minimumFractionDigits: v >= 1 ? 2 : 4, maximumFractionDigits: v >= 1 ? 2 : 4 })}` : '—';
-const fmtPct = (v: number | null | undefined, plus = true) =>
-  v != null && Number.isFinite(v) ? `${plus && v > 0 ? '+' : ''}${v.toFixed(2)}%` : '—';
-const fmtNum = (v: number | null | undefined, decimals = 2) =>
-  v != null && Number.isFinite(v) ? v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) : '—';
-
-const freshness = (iso: string | null) => {
-  if (!iso) return { label: '—', color: INK.inkFaint };
-  const min = (Date.now() - new Date(iso).getTime()) / 60000;
-  if (min < 5) return { label: 'สด', color: INK.green };
-  if (min < 30) return { label: `${Math.round(min)}m`, color: INK.amber };
-  return { label: `${Math.round(min / 60)}h`, color: INK.inkFaint };
-};
-
-// ── Sub-components ──────────────────────────────────────────────────────────
-
-function TeamCard({ team, onDetail }: { team: TradeDeskState['teams'][0]; onDetail: () => void }) {
-  const pnlColor = (team.pnl_pct ?? 0) >= 0 ? INK.green : INK.red;
-  return (
-    <div style={{ background: INK.panel, border: `1px solid ${INK.panelBorder}`, borderRadius: 12, padding: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <div>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: INK.text }}>{team.name_th}</h3>
-          <span style={{ fontSize: 11, color: INK.inkFaint }}>{team.name_en} · {team.code}</span>
-        </div>
-        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: '#10b98115', color: INK.green, fontWeight: 600 }}>
-          {team.status}
-        </span>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-        {[
-          ['Equity', fmtPrice(team.equity), pnlColor],
-          ['P&L', `${fmtPct(team.pnl_pct)}`, pnlColor],
-          ['Margin', fmtPrice(team.margin_used), INK.inkDim],
-          ['Cash', fmtPrice(team.balance), INK.inkDim],
-        ].map(([label, value, color]) => (
-          <div key={label as string}>
-            <div style={{ fontSize: 10, color: INK.inkFaint }}>{label}</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color, ...NUM }}>{value}</div>
-          </div>
-        ))}
-      </div>
-      <div style={{ display: 'flex', gap: 16, marginTop: 12, borderTop: `1px solid ${INK.panelBorder}`, paddingTop: 10 }}>
-        <span style={{ fontSize: 11, color: INK.inkDim }}>MTD: <b style={{ color: INK.text }}>{fmtPct(team.weekly_target_pct, false)}</b></span>
-        <span style={{ fontSize: 11, color: INK.inkDim }}>Turns today: <b style={{ color: INK.text }}>{team.turns_today}</b></span>
-        <span style={{ fontSize: 11, color: INK.inkDim }}>Cost: <b style={{ color: INK.text }}>${fmtNum(team.cost_today_usd, 4)}</b></span>
-        <button onClick={onDetail} style={{
-          padding: '4px 14px', borderRadius: 999, border: `1px solid ${INK.sky}`,
-          background: 'transparent', color: INK.sky, fontWeight: 600, fontSize: 11, cursor: 'pointer',
-          marginLeft: 'auto',
-        }}>ดูรายละเอียดทีม →</button>
-        {team.next_turn_at && (
-          <span style={{ fontSize: 11, color: INK.inkDim }}>
-            Next: <b style={{ color: freshness(team.next_turn_at).color }}>{freshness(team.next_turn_at).label}</b>
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function OpenPositionsTable({ positions }: { positions: TradeDeskState['positions']['open'] }) {
-  if (!positions.length) return <p style={{ color: INK.inkFaint, fontSize: 13, padding: 12 }}>ไม่มีไม้ที่เปิดอยู่</p>;
-  return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-        <thead>
-          <tr style={{ borderBottom: `1px solid ${INK.panelBorder}` }}>
-            {['Symbol','Side','Entry','Size','SL','TP','P&L','Age'].map(h => (
-              <th key={h} style={{ padding: '6px 10px', textAlign: 'left', color: INK.inkFaint, fontWeight: 500, fontSize: 11 }}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {positions.map(p => {
-            const pnlColor = (p.live_pnl ?? 0) >= 0 ? INK.green : INK.red;
-            const age = p.opened_at ? freshness(p.opened_at).label : '—';
-            return (
-              <tr key={p.id} style={{ borderBottom: `1px solid ${INK.panelBorder}15` }}>
-                <td style={{ padding: '6px 10px', color: INK.text, fontWeight: 600 }}>{p.symbol}</td>
-                <td style={{ padding: '6px 10px', color: p.side === 'long' ? INK.green : INK.red, fontWeight: 600 }}>{p.side.toUpperCase()}</td>
-                <td style={{ padding: '6px 10px', color: INK.text, ...NUM }}>{fmtPrice(p.entry_price)}</td>
-                <td style={{ padding: '6px 10px', color: INK.inkDim, ...NUM }}>{fmtPct(p.size_pct, false)}</td>
-                <td style={{ padding: '6px 10px', color: INK.inkDim, ...NUM }}>{p.sl_pct ? `${p.sl_pct}%` : '—'}</td>
-                <td style={{ padding: '6px 10px', color: INK.inkDim, ...NUM }}>{p.tp_pct ? `${p.tp_pct}%` : '—'}</td>
-                <td style={{ padding: '6px 10px', color: pnlColor, fontWeight: 700, ...NUM }}>{fmtPct(p.live_pnl)}</td>
-                <td style={{ padding: '6px 10px', color: INK.inkFaint, fontSize: 11 }}>{age}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function TurnHistory({ turns }: { turns: TradeDeskState['turns'] }) {
-  if (!turns.length) return <p style={{ color: INK.inkFaint, fontSize: 13, padding: 12 }}>ยังไม่มีประวัติเทิร์น</p>;
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {turns.slice(0, 8).map(t => {
-        const d = t.lead_decision;
-        const consensusColor = t.consensus === 'consensus' ? INK.green : t.consensus === 'dissent' ? INK.amber : INK.inkDim;
-        return (
-          <div key={t.id} style={{ background: '#0d1220', border: `1px solid ${INK.panelBorder}`, borderRadius: 8, padding: '8px 12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: INK.text }}>
-                {(d as any)?.action?.toUpperCase?.() || '?'} {(d as any)?.side?.toUpperCase?.() || ''} {(d as any)?.market || ''}
-              </span>
-              <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 999, color: consensusColor, background: `${consensusColor}15`, fontWeight: 600 }}>
-                {t.consensus}
-              </span>
-            </div>
-            <div style={{ fontSize: 11, color: INK.inkDim, marginTop: 4 }}>{(d as any)?.rationale || t.agenda}</div>
-            <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: 10, color: INK.inkFaint }}>
-              <span>{t.tokens_in}+{t.tokens_out}t</span>
-              <span>${fmtNum(t.cost_usd, 4)}</span>
-              <span>{freshness(t.started_at).label}</span>
-              <span style={{ color: INK.amber }}>{t.trigger}</span>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function MarketTable({ markets }: { markets: HyperliquidMarket[] }) {
-  const [cat, setCat] = useState<string>('all');
-  const filtered = cat === 'all' ? markets : markets.filter(m => m.category === cat);
-  const cats = ['all', ...new Set(markets.map(m => m.category))];
-
-  return (
-    <div>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-        {cats.map(c => (
-          <button key={c} onClick={() => setCat(c)}
-            style={{
-              padding: '3px 10px', borderRadius: 999, border: `1px solid ${INK.panelBorder}`,
-              background: cat === c ? INK.sky + '20' : 'transparent',
-              color: cat === c ? INK.sky : INK.inkDim, fontSize: 11, fontWeight: 600, cursor: 'pointer',
-            }}>
-            {c.toUpperCase()}
-          </button>
-        ))}
-      </div>
-      <div style={{ overflowX: 'auto', maxHeight: 360, overflowY: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
-          <thead>
-            <tr style={{ borderBottom: `1px solid ${INK.panelBorder}`, position: 'sticky', top: 0, background: INK.panel }}>
-              {['Symbol','Price','24h','Funding','Vol $M','OI'].map(h => (
-                <th key={h} style={{ padding: '4px 8px', textAlign: h === 'Symbol' ? 'left' : 'right', color: INK.inkFaint, fontWeight: 500, fontSize: 10 }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.slice(0, 100).map(m => (
-              <tr key={m.symbol} style={{ borderBottom: `1px solid ${INK.panelBorder}10` }}>
-                <td style={{ padding: '4px 8px', color: INK.text, fontWeight: 600 }}>{m.symbol}</td>
-                <td style={{ padding: '4px 8px', textAlign: 'right', color: INK.text, ...NUM }}>{fmtPrice(m.mark_price)}</td>
-                <td style={{ padding: '4px 8px', textAlign: 'right', color: (m.change_24h_pct ?? 0) >= 0 ? INK.green : INK.red, fontWeight: 600, ...NUM }}>{fmtPct(m.change_24h_pct)}</td>
-                <td style={{ padding: '4px 8px', textAlign: 'right', color: INK.inkDim, ...NUM }}>{m.funding_rate != null ? `${m.funding_rate}%` : '—'}</td>
-                <td style={{ padding: '4px 8px', textAlign: 'right', color: INK.inkDim, ...NUM }}>{fmtNum(m.volume_24h, 1)}</td>
-                <td style={{ padding: '4px 8px', textAlign: 'right', color: INK.inkFaint, ...NUM }}>{fmtNum(m.open_interest, 1)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-// ── Main Component ──────────────────────────────────────────────────────────
 
 export function TradeDeskDashboard() {
   const [state, setState] = useState<TradeDeskState | null>(null);
@@ -204,89 +18,128 @@ export function TradeDeskDashboard() {
   const [turning, setTurning] = useState(false);
   const [msg, setMsg] = useState('');
   const [detailTeam, setDetailTeam] = useState<string | null>(null);
+  const [mktCat, setMktCat] = useState('all');
 
-  const fetchData = useCallback(async () => {
-    try {
-      const [s, m] = await Promise.all([getTradeDeskState(), getHyperliquidMarkets()]);
-      setState(s);
-      setMarkets(m.markets || []);
-    } catch (e) { setMsg('โหลดข้อมูลล้มเหลว'); }
-    finally { setLoading(false); }
+  const fetch = useCallback(async () => {
+    try { const [s,m] = await Promise.all([getTradeDeskState(), getHyperliquidMarkets()]); setState(s); setMarkets(m.markets||[]); } catch {}
+    setLoading(false);
   }, []);
+  useEffect(() => { fetch(); }, [fetch]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const doTurn = async () => { setTurning(true);setMsg(''); try { const r = await triggerTradeDeskTurn('DEEPSEEK'); setMsg(`${(r as any)?.action?.toUpperCase?.()||'?'} ${(r as any)?.market||''} — ${(r as any)?.rationale?.slice(0,80)||''}`); await fetch(); } catch(e:any){ setMsg(e?.message||'fail'); } setTurning(false); };
 
-  const doTurn = async () => {
-    setTurning(true); setMsg('');
-    try {
-      const r = await triggerTradeDeskTurn('DEEPSEEK');
-      setMsg(`${(r as any)?.action?.toUpperCase?.() || '?'} ${(r as any)?.side?.toUpperCase?.() || ''} ${(r as any)?.market || ''} — ${(r as any)?.rationale?.slice(0, 80) || ''}`);
-      await fetchData();
-    } catch (e: any) { setMsg(e?.message || 'เทิร์นล้มเหลว'); }
-    finally { setTurning(false); }
-  };
-
-  if (loading) return <div style={{ padding: 40, color: INK.inkFaint, textAlign: 'center' }}>⏳ กำลังโหลด...</div>;
-
-  if (detailTeam) {
-    return <TeamDetailPage teamCode={detailTeam} onBack={() => setDetailTeam(null)} />;
-  }
+  if (loading) return <div style={{padding:40,color:INK.faint,textAlign:'center'}}>⏳</div>;
+  if (detailTeam) return <TeamDetailPage teamCode={detailTeam} onBack={()=>setDetailTeam(null)} />;
 
   const team = state?.teams?.[0];
+  const openPos = state?.positions?.open || [];
+  const turns = state?.turns || [];
+  const cats = ['all',...new Set(markets.map(m=>m.category))];
+  const filtered = mktCat==='all'?markets:markets.filter(m=>m.category===mktCat);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{display:'flex',flexDirection:'column',gap:14}}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:8}}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: INK.text }}>🏢 ทีมเทรด</h2>
-          <p style={{ margin: '4px 0 0', fontSize: 12, color: INK.inkFaint }}>
-            ห้องเทรดจำลอง 1 ทีม AI (DeepSeek) — พอร์ตเริ่ม $10,000 ราคาจริง · Multi-agent: lead + 4 analysts
-          </p>
+          <h2 style={{margin:0,fontSize:20,fontWeight:800,color:INK.text}}>🏢 ทีมเทรด</h2>
+          <p style={{margin:'4px 0 0',fontSize:11,color:INK.faint}}>ห้องเทรดจำลอง 1 ทีม AI (DeepSeek) · พอร์ตเริ่ม $10,000 · ราคาจริง Hyperliquid · Multi-agent: lead + 6 analysts</p>
         </div>
         <button onClick={doTurn} disabled={turning}
-          style={{
-            padding: '8px 18px', borderRadius: 8, border: 'none', cursor: turning ? 'not-allowed' : 'pointer',
-            background: INK.sky, color: '#000', fontWeight: 700, fontSize: 13, opacity: turning ? 0.6 : 1,
-          }}>
-          {turning ? '⏳ กำลังประชุม...' : '⚡ สั่งเทิร์นเอง'}
+          style={{padding:'8px 18px',borderRadius:8,border:'none',cursor:turning?'not-allowed':'pointer',background:INK.sky,color:'#000',fontWeight:700,fontSize:13,opacity:turning?.6:1}}>
+          {turning?'⏳':'⚡ สั่งเทิร์นเอง'}
         </button>
       </div>
-      {msg && <div style={{ padding: '8px 12px', borderRadius: 8, background: INK.sky + '15', color: INK.sky, fontSize: 12 }}>{msg}</div>}
+      {msg && <div style={{padding:'8px 12px',borderRadius:8,background:INK.sky+'15',color:INK.sky,fontSize:12}}>{msg}</div>}
 
       {/* Team Card */}
-      {team && <TeamCard team={team} onDetail={() => setDetailTeam(team.code)} />}
+      {team && (
+        <div style={{background:INK.panel,border:`1px solid ${INK.panelBorder}`,borderRadius:12,padding:18}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12,flexWrap:'wrap'}}>
+            <span style={{fontSize:12,padding:'2px 10px',borderRadius:999,background:INK.gold+'20',color:INK.gold,fontWeight:700}}>#1</span>
+            <div>
+              <h3 style={{margin:0,fontSize:16,fontWeight:700,color:INK.text}}>{team.name_th}</h3>
+              <span style={{fontSize:10,color:INK.faint}}>{team.name_en} · {team.code}</span>
+            </div>
+            <span style={{fontSize:11,padding:'2px 8px',borderRadius:999,background:INK.green+'15',color:INK.green,fontWeight:600,marginLeft:'auto'}}>{team.status}</span>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10}}>
+            {[[F.price(team.equity),'Equity',(team.pnl_pct??0)>=0?INK.green:INK.red],[F.pct(team.pnl_pct),'P&L',(team.pnl_pct??0)>=0?INK.green:INK.red],[F.price(team.margin_used),'Margin',INK.dim],[F.price(team.balance),'Cash',INK.dim]].map(([v,l,c],i)=><div key={i}><div style={{fontSize:10,color:INK.faint}}>{l as string}</div><div style={{fontSize:15,fontWeight:700,color:c as string,...NUM}}>{v as string}</div></div>)}
+          </div>
+          <div style={{display:'flex',gap:14,marginTop:10,borderTop:`1px solid ${INK.panelBorder}`,paddingTop:10,flexWrap:'wrap',alignItems:'center'}}>
+            <span style={{fontSize:11,color:INK.dim}}>MTD: <b style={{color:INK.text}}>{F.pct(team.weekly_target_pct,false)}</b> / 5–20%</span>
+            <span style={{fontSize:11,color:INK.dim}}>สัปดาห์นี้: <b style={{color:INK.text}}>{F.pct(team.weekly_kpi_pct,false)}</b> / เป้า {F.pct(team.weekly_target_pct,false)}</span>
+            <span style={{fontSize:11,color:INK.dim}}>เทิร์น: <b style={{color:INK.green}}>✓{team.turns_today}</b> <b style={{color:INK.red}}>✗0</b> <b style={{color:INK.amber}}>⏳0</b></span>
+            <span style={{fontSize:11,color:INK.dim}}>Cost: <b style={{color:INK.text}}>${F.num(team.cost_today_usd,4)}</b></span>
+            <button onClick={()=>setDetailTeam(team.code)} style={{padding:'4px 14px',borderRadius:999,border:`1px solid ${INK.sky}`,background:'transparent',color:INK.sky,fontWeight:600,fontSize:11,cursor:'pointer',marginLeft:'auto'}}>ดูรายละเอียดทีม →</button>
+          </div>
+        </div>
+      )}
 
-      {/* Open Positions */}
-      <Section title="ไม้ที่เปิดอยู่" count={state?.positions?.open?.length}>
-        <OpenPositionsTable positions={state?.positions?.open || []} />
+      {/* Open Positions All Teams */}
+      <Section title={`ไม้ที่เปิดอยู่ (${openPos.length})`}>
+        {!openPos.length ? <Empty/> : <div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',fontSize:11}}>
+          <thead><tr style={{borderBottom:`1px solid ${INK.panelBorder}`}}>{['Symbol','Side','Entry','Size','SL','TP','P&L'].map(h=><th key={h} style={{padding:'4px 6px',textAlign:'left',color:INK.faint,fontWeight:500,fontSize:10}}>{h}</th>)}</tr></thead>
+          <tbody>{openPos.map(p=><tr key={p.id} style={{borderBottom:`1px solid ${INK.panelBorder}10`}}>
+            <td style={{padding:'4px 6px',color:INK.text,fontWeight:600}}>{p.symbol}</td>
+            <td style={{padding:'4px 6px',color:p.side==='long'?INK.green:INK.red,fontWeight:600}}>{p.side.toUpperCase()}</td>
+            <td style={{padding:'4px 6px',color:INK.text,...NUM}}>{F.price(p.entry_price)}</td>
+            <td style={{padding:'4px 6px',color:INK.dim,...NUM}}>{F.pct(p.size_pct,false)}</td>
+            <td style={{padding:'4px 6px',color:INK.dim}}>{p.sl_pct?`${p.sl_pct}%`:'—'}</td>
+            <td style={{padding:'4px 6px',color:INK.dim}}>{p.tp_pct?`${p.tp_pct}%`:'—'}</td>
+            <td style={{padding:'4px 6px',color:(p.live_pnl??0)>=0?INK.green:INK.red,fontWeight:700,...NUM}}>{F.pct(p.live_pnl)}</td>
+          </tr>)}</tbody>
+        </table></div>}
       </Section>
 
       {/* Turn History */}
-      <Section title="ประวัติเทิร์น" count={state?.turns?.length}>
-        <TurnHistory turns={state?.turns || []} />
+      <Section title={`ประวัติเทิร์น (${turns.length})`}>
+        {!turns.length?<Empty/>:turns.slice(0,8).map(t=>{const d=t.lead_decision as any; const cc=t.consensus==='consensus'?INK.green:t.consensus==='dissent'?INK.amber:INK.dim;
+          return <div key={t.id} style={{background:INK.card,border:`1px solid ${INK.panelBorder}`,borderRadius:8,padding:'6px 10px',marginBottom:6}}>
+            <div style={{display:'flex',justifyContent:'space-between'}}>
+              <span style={{fontSize:12,fontWeight:600,color:INK.text}}>{(d?.action||'?').toUpperCase()} {(d?.side||'').toUpperCase()} {d?.market||''}</span>
+              <span style={{fontSize:10,padding:'1px 6px',borderRadius:999,color:cc,background:`${cc}15`,fontWeight:600}}>{t.consensus}</span>
+            </div>
+            <div style={{fontSize:10,color:INK.dim,marginTop:2}}>{d?.rationale||t.agenda}</div>
+            <div style={{display:'flex',gap:10,marginTop:3,fontSize:10,color:INK.faint}}>
+              <span>{t.tokens_in}+{t.tokens_out}t</span><span>${F.num(t.cost_usd,4)}</span><span>{t.trigger}</span>
+            </div>
+          </div>;
+        })}
       </Section>
 
-      {/* Market Table */}
-      <Section title="ตลาดที่เปิดให้เทรด" count={markets.length}>
-        <MarketTable markets={markets} />
+      {/* Market Table with TA/TIER */}
+      <Section title={`ตลาดที่เปิดให้เทรด (${filtered.length}/${markets.length})`}>
+        <div style={{display:'flex',gap:6,marginBottom:8}}>{cats.map(c=><button key={c} onClick={()=>setMktCat(c)} style={{padding:'3px 10px',borderRadius:999,border:`1px solid ${INK.panelBorder}`,background:mktCat===c?INK.sky+'20':'transparent',color:mktCat===c?INK.sky:INK.dim,fontSize:10,fontWeight:600,cursor:'pointer',textTransform:'uppercase'}}>{c}</button>)}</div>
+        <div style={{overflowX:'auto',maxHeight:400,overflowY:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',fontSize:10}}>
+          <thead><tr style={{borderBottom:`1px solid ${INK.panelBorder}`,position:'sticky',top:0,background:INK.panel}}>
+            {['Symbol','Price','24h','Funding','Vol $M','TA','TIER'].map(h=><th key={h} style={{padding:'3px 6px',textAlign:h==='Symbol'?'left':'right',color:INK.faint,fontWeight:500,fontSize:9}}>{h}</th>)}
+          </tr></thead>
+          <tbody>{filtered.slice(0,120).map(m=>{
+            const ta = (m as any).ta_signals || [];
+            const arrow = (m as any).ta_arrow || '·';
+            const tier = (m as any).tier || 3;
+            const tierColor = tier===1?INK.gold:tier===2?INK.sky:INK.faint;
+            return <tr key={m.symbol} style={{borderBottom:`1px solid ${INK.panelBorder}10`}}>
+              <td style={{padding:'3px 6px',color:INK.text,fontWeight:600}}>{m.symbol}</td>
+              <td style={{padding:'3px 6px',textAlign:'right',color:INK.text,...NUM}}>{F.price(m.mark_price)}</td>
+              <td style={{padding:'3px 6px',textAlign:'right',color:(m.change_24h_pct??0)>=0?INK.green:INK.red,fontWeight:600,...NUM}}>{F.pct(m.change_24h_pct)}</td>
+              <td style={{padding:'3px 6px',textAlign:'right',color:INK.dim,...NUM}}>{m.funding_rate!=null?`${m.funding_rate}%`:'—'}</td>
+              <td style={{padding:'3px 6px',textAlign:'right',color:INK.dim,...NUM}}>{F.num(m.volume_24h,1)}</td>
+              <td style={{padding:'3px 6px',textAlign:'right'}}>{arrow} {ta.slice(0,2).map((s:string,i:number)=><span key={i} style={{color:INK.dim,fontSize:9}}>{s.split('+')[0].split('-')[0].slice(0,6)}{i<ta.length-1?',':''}</span>)}</td>
+              <td style={{padding:'3px 6px',textAlign:'right',color:tierColor,fontWeight:700}}>{tier}</td>
+            </tr>;
+          })}</tbody>
+        </table></div>
       </Section>
 
-      {/* Footer */}
-      <div style={{ fontSize: 10, color: INK.inkFaint, textAlign: 'right', padding: '8px 0' }}>
-        อัปเดตล่าสุด: {state?.updated_at ? new Date(state.updated_at).toLocaleString('th-TH') : '—'}
-      </div>
+      <div style={{fontSize:10,color:INK.faint,textAlign:'right',padding:'8px 0'}}>อัปเดต: {state?.updated_at?new Date(state.updated_at).toLocaleString('th-TH'):'—'}</div>
     </div>
   );
 }
 
-function Section({ title, count, children }: { title: string; count?: number; children: React.ReactNode }) {
-  return (
-    <div style={{ background: INK.panel, border: `1px solid ${INK.panelBorder}`, borderRadius: 12, padding: 16 }}>
-      <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 600, color: INK.inkDim }}>
-        {title} {count != null && <span style={{ color: INK.inkFaint, fontWeight: 400 }}>({count})</span>}
-      </h4>
-      {children}
-    </div>
-  );
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return <div style={{background:INK.panel,border:`1px solid ${INK.panelBorder}`,borderRadius:10,padding:12}}>
+    <h4 style={{margin:'0 0 8px',fontSize:12,fontWeight:600,color:INK.dim}}>{title}</h4>{children}</div>;
 }
+function Empty() { return <div style={{color:INK.faint,fontSize:11,padding:8}}>—</div>; }

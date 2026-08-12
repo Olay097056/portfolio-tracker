@@ -52,6 +52,14 @@ export function TradeDeskDashboard() {
       </div>
       {msg && <div style={{padding:'8px 12px',borderRadius:8,background:INK.sky+'15',color:INK.sky,fontSize:12}}>{msg}</div>}
 
+      {/* 🚫 Disclaimer — พอร์ตจำลอง (guard rail ตั๋ว 02 reference-parity) */}
+      <div style={{background:INK.amber+'10',border:`1px solid ${INK.amber}33`,borderRadius:8,padding:'8px 14px',display:'flex',alignItems:'center',gap:8}}>
+        <span style={{fontSize:16}}>🚫</span>
+        <span style={{fontSize:11,color:INK.amber,fontWeight:600}}>
+          พอร์ตจำลอง — ไม่ใช่การเทรดจริง ไม่มีการส่งคำสั่งไปตลาดใดๆ และไม่ใช่คำแนะนำการลงทุน
+        </span>
+      </div>
+
       {/* Team Card */}
       {team && (
         <div style={{background:INK.panel,border:`1px solid ${INK.panelBorder}`,borderRadius:12,padding:18}}>

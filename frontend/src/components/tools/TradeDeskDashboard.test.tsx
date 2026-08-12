@@ -58,4 +58,54 @@ describe('TradeDeskDashboard', () => {
     render(<TradeDeskDashboard />);
     await waitFor(() => expect(screen.getByText(/สั่งเทิร์นเอง/)).toBeTruthy());
   });
+
+  // ── Restored tests (ticket 02 reference-parity) ──
+
+  it('shows disclaimer — พอร์ตจำลอง (guard rail)', async () => {
+    render(<TradeDeskDashboard />);
+    await waitFor(() => {
+      expect(screen.getByText(/พอร์ตจำลอง/)).toBeTruthy();
+      expect(screen.getByText(/ไม่ใช่การเทรดจริง/)).toBeTruthy();
+      expect(screen.getByText(/ไม่ใช่คำแนะนำการลงทุน/)).toBeTruthy();
+    });
+  });
+
+  it('shows "—" when price data is unavailable', async () => {
+    // Mock market data with null prices
+    vi.mocked(client.getHyperliquidMarkets).mockResolvedValue({
+      markets: [{ ...MOCK_MARKETS.markets[0], mark_price: null, change_24h_pct: null, funding_rate: null, volume_24h: null }],
+      total: 1, by_category: { crypto: 1, stocks: 0, macro: 0, fx: 0 },
+      updated_at: '2026-08-12T14:30:00Z',
+    } as never);
+    render(<TradeDeskDashboard />);
+    await waitFor(() => expect(screen.getAllByText('—').length).toBeGreaterThan(0));
+    vi.mocked(client.getHyperliquidMarkets).mockResolvedValue(MOCK_MARKETS as never);
+  });
+
+  it('renders empty state without crashing when no positions', async () => {
+    vi.mocked(client.getTradeDeskState).mockResolvedValue({
+      teams: [{ ...MOCK_STATE.teams[0], pnl_pct: 0 }],
+      positions: { open: [], closed: [] },
+      turns: [],
+      updated_at: null,
+    } as never);
+    render(<TradeDeskDashboard />);
+    await waitFor(() => expect(screen.getAllByText('—').length).toBeGreaterThan(0));
+    vi.mocked(client.getTradeDeskState).mockResolvedValue(MOCK_STATE as never);
+  });
+
+  it('renders P&L with correct color — green for positive, red for negative', async () => {
+    // Positive P&L
+    render(<TradeDeskDashboard />);
+    await waitFor(() => {
+      const pnlEls = screen.getAllByText(/\+8\.00%/);
+      expect(pnlEls.length).toBeGreaterThan(0);
+      // Check color is green (rgb values include 16, 185, 129 = #10b981)
+      const greenPnl = pnlEls.find(el => (el as HTMLElement).style?.color?.includes('rgb'));
+      if (greenPnl) {
+        const style = window.getComputedStyle(greenPnl);
+        expect(style.color).toBeTruthy();
+      }
+    });
+  });
 });

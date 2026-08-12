@@ -55,6 +55,12 @@ export function TeamDetailPage({ teamCode, onBack }: Props) {
       {/* Back */}
       <button onClick={onBack} style={{alignSelf:'flex-start',background:'none',border:`1px solid ${INK.panelBorder}`,color:INK.dim,borderRadius:8,padding:'5px 12px',cursor:'pointer',fontSize:11}}>← กลับหน้ารวม</button>
 
+      {/* 🚫 Disclaimer — (guard rail ตั๋ว 02 reference-parity) */}
+      <div style={{background:INK.amber+'10',border:`1px solid ${INK.amber}33`,borderRadius:8,padding:'6px 12px',display:'flex',alignItems:'center',gap:8}}>
+        <span style={{fontSize:16}}>🚫</span>
+        <span style={{fontSize:11,color:INK.amber,fontWeight:600}}>พอร์ตจำลอง — ไม่ใช่การเทรดจริง ไม่มีการส่งคำสั่งไปตลาดใดๆ และไม่ใช่คำแนะนำการลงทุน</span>
+      </div>
+
       {/* Header */}
       <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
         <h2 style={{margin:0,fontSize:20,fontWeight:800,color:INK.text}}>{t.name_th}</h2>

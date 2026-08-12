@@ -9,6 +9,7 @@ vi.mock('../../api/client', () => ({
   triggerTradeDeskTurn: vi.fn(),
   getTeamEquity: vi.fn(),
   setTeamDirective: vi.fn(),
+  setTeamMaster: vi.fn(),
 }));
 
 const MOCK_STATE = {
@@ -157,5 +158,31 @@ describe('TradeDeskDashboard', () => {
   it('shows next turn countdown (11.6)', async () => {
     render(<TradeDeskDashboard />);
     await waitFor(() => expect(screen.getByTestId('next-turn-countdown')).toBeTruthy());
+  });
+
+  // ── Ticket 08 guard rails ──
+
+  it('shows master switch toggle (11.5)', async () => {
+    render(<TradeDeskDashboard />);
+    await waitFor(() => expect(screen.getByTestId('master-toggle')).toBeTruthy());
+    expect(screen.getByText('เปิด')).toBeTruthy();
+  });
+
+  it('shows pending orders table with status badges (11.7)', async () => {
+    const stateWithOrders = {
+      ...MOCK_STATE,
+      pending_orders: [{
+        id: 'p1', symbol: 'BTC-USD', side: 'long', order_type: 'LIMIT',
+        target_price: 50000, size_notional: 1000,
+        sl_price: 5, tp_price: 10, status: 'pending',
+        expires_at: '2026-08-20T00:00:00Z', created_at: '2026-08-12T00:00:00Z',
+      }],
+    };
+    vi.mocked(client.getTradeDeskState).mockResolvedValue(stateWithOrders as never);
+    render(<TradeDeskDashboard />);
+    await waitFor(() => expect(screen.getByText(/ออเดอร์ที่ตั้งไว้/)).toBeTruthy());
+    expect(screen.getByText('LIMIT')).toBeTruthy();
+    expect(screen.getByText('⏳ รอเข้า')).toBeTruthy();
+    vi.mocked(client.getTradeDeskState).mockResolvedValue(MOCK_STATE as never);
   });
 });

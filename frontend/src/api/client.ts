@@ -653,3 +653,7 @@ export function getTeamEquity(teamCode: string, days?: number): Promise<{points:
 export function setTeamDirective(teamCode: string, directive: string): Promise<{ok:boolean}> {
   return request(`/api/trade-desk/team/${teamCode}/directive?directive=${encodeURIComponent(directive)}`, {method:'POST'});
 }
+
+export function setTeamMaster(teamCode: string, on: boolean): Promise<{ok:boolean; master_on:boolean}> {
+  return request(`/api/trade-desk/team/${teamCode}/master?on=${on}`, {method:'POST'});
+}

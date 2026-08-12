@@ -140,14 +140,22 @@ def run_due_turns(db: Session) -> dict:
         except Exception as exc:
             detail["boardroom"] = {"error": str(exc)[:200]}
 
-        # 3. Trade-desk: run due turns for the DEEPSEEK team.
+        # 3. Trade-desk: settle pending orders (never calls LLM), then run due turns.
         from app import trade_desk_service as td
 
         try:
             td.seed_team(db)
+            team = db.query(td.TradeTeam).filter(
+                td.TradeTeam.code == "DEEPSEEK").first()
+            settled = []
+            if team is not None:
+                settled = td.settle_pending_orders(db, team)
             due = td.run_due_turns(db)
-            detail["trade_desk"] = [r.get("skipped") or r.get("action")
-                                    for r in due if isinstance(r, dict)]
+            detail["trade_desk"] = {
+                "settled": len(settled),
+                "result": [r.get("skipped") or r.get("action")
+                           for r in due if isinstance(r, dict)],
+            }
         except Exception as exc:
             detail["trade_desk"] = {"error": str(exc)[:200]}
 

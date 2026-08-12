@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getTradeDeskState, triggerTradeDeskTurn, getHyperliquidMarkets, setTeamDirective } from '../../api/client';
-import type { TradeDeskState, HyperliquidMarket } from '../../api/types';
+import { getTradeDeskState, triggerTradeDeskTurn, getHyperliquidMarkets, setTeamDirective, setTeamMaster } from '../../api/client';
+import type { TradeDeskState, HyperliquidMarket, TradePendingOrder } from '../../api/types';
 import { TeamDetailPage } from './TeamDetailPage';
 import { EquityChart, NextTurnCountdown } from './TradeDeskCharts';
 
@@ -23,9 +23,11 @@ export function TradeDeskDashboard() {
   const [directive, setDirective] = useState('');
   const [directiveDraft, setDirectiveDraft] = useState('');
   const [editingDirective, setEditingDirective] = useState(false);
+  const [masterOn, setMasterOn] = useState(true);
+  const [pendingOrders, setPendingOrders] = useState<TradePendingOrder[]>([]);
 
   const fetch = useCallback(async () => {
-    try { const [s,m] = await Promise.all([getTradeDeskState(), getHyperliquidMarkets()]); setState(s); setMarkets(m.markets||[]); } catch {}
+    try { const [s,m] = await Promise.all([getTradeDeskState(), getHyperliquidMarkets()]); setState(s); setMarkets(m.markets||[]); setPendingOrders((s as any)?.pending_orders || []); setMasterOn((s as any)?.teams?.[0]?.master_on ?? true); } catch {}
     setLoading(false);
   }, []);
   useEffect(() => { fetch(); }, [fetch]);
@@ -39,6 +41,12 @@ export function TradeDeskDashboard() {
   const saveDirective = async () => {
     try { await setTeamDirective('DEEPSEEK', directiveDraft); setDirective(directiveDraft); setEditingDirective(false); setMsg('📌 directive อัปเดตแล้ว'); await fetch(); }
     catch (e: any) { setMsg(e?.message || 'บันทึก failed'); }
+  };
+
+  const toggleMaster = async () => {
+    const next = !masterOn;
+    try { await setTeamMaster('DEEPSEEK', next); setMasterOn(next); setMsg(next ? '🟢 สวิตช์หลักเปิด — ทีมเทิร์นได้' : '🔴 สวิตช์หลักปิด — หยุดเทิร์นใหม่ แต่ SL/TP + settle ยังทำงาน'); await fetch(); }
+    catch (e: any) { setMsg(e?.message || 'toggle failed'); }
   };
 
   const doTurn = async () => { setTurning(true);setMsg(''); try { const r = await triggerTradeDeskTurn('DEEPSEEK'); setMsg(`${(r as any)?.action?.toUpperCase?.()||'?'} ${(r as any)?.market||''} — ${(r as any)?.rationale?.slice(0,80)||''}`); await fetch(); } catch(e:any){ setMsg(e?.message||'fail'); } setTurning(false); };
@@ -84,6 +92,12 @@ export function TradeDeskDashboard() {
               <span style={{fontSize:10,color:INK.faint}}>{team.name_en} · {team.code}</span>
             </div>
             <span style={{fontSize:11,padding:'2px 8px',borderRadius:999,background:INK.green+'15',color:INK.green,fontWeight:600,marginLeft:'auto'}}>{team.status}</span>
+            {/* Master switch (11.5) */}
+            <button onClick={toggleMaster} title="สวิตช์หลัก — ปิด = หยุดเทิร์นใหม่ แต่ SL/TP + settle ยังทำงาน"
+              style={{display:'flex',alignItems:'center',gap:6,padding:'3px 10px',borderRadius:999,border:`1px solid ${masterOn?INK.green:INK.red}55`,background:masterOn?INK.green+'15':'transparent',color:masterOn?INK.green:INK.red,fontWeight:700,fontSize:11,cursor:'pointer'}} data-testid="master-toggle">
+              <span style={{width:8,height:8,borderRadius:999,background:masterOn?INK.green:INK.red,display:'inline-block'}}/>
+              {masterOn ? 'เปิด' : 'ปิด'}
+            </button>
           </div>
           <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10}}>
             {[[F.price(team.equity),'Equity',(team.pnl_pct??0)>=0?INK.green:INK.red],[F.pct(team.pnl_pct),'P&L',(team.pnl_pct??0)>=0?INK.green:INK.red],[F.price(team.margin_used),'Margin',INK.dim],[F.price(team.balance),'Cash',INK.dim]].map(([v,l,c],i)=><div key={i}><div style={{fontSize:10,color:INK.faint}}>{l as string}</div><div style={{fontSize:15,fontWeight:700,color:c as string,...NUM}}>{v as string}</div></div>)}
@@ -133,6 +147,28 @@ export function TradeDeskDashboard() {
           )}
         </div>
       )}
+
+      {/* Pending orders (11.7) */}
+      <Section title={`ออเดอร์ที่ตั้งไว้ (${pendingOrders.filter(o=>o.status==='pending').length} รอเข้า)`}>
+        {!pendingOrders.length ? <Empty/> : (
+          <div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',fontSize:11}}>
+            <thead><tr style={{borderBottom:`1px solid ${INK.panelBorder}`}}>{['Symbol','Side','Type','Target','Size','SL/TP','Status','หมดอายุ'].map(h=><th key={h} style={{padding:'4px 6px',textAlign:'left',color:INK.faint,fontWeight:500,fontSize:10}}>{h}</th>)}</tr></thead>
+            <tbody>{pendingOrders.map(o=>{
+              const st = o.status==='pending' ? {t:'⏳ รอเข้า',c:INK.amber} : o.status==='filled' ? {t:'✓ เข้าแล้ว',c:INK.green} : {t:'✕ ยกเลิก/หมดอายุ',c:INK.red};
+              return <tr key={o.id} style={{borderBottom:`1px solid ${INK.panelBorder}10`}}>
+                <td style={{padding:'4px 6px',color:INK.text,fontWeight:600}}>{o.symbol}</td>
+                <td style={{padding:'4px 6px',color:o.side==='long'?INK.green:INK.red,fontWeight:600}}>{o.side.toUpperCase()}</td>
+                <td style={{padding:'4px 6px',color:INK.dim,fontWeight:600}}>{o.order_type}</td>
+                <td style={{padding:'4px 6px',color:INK.text,...NUM}}>{F.price(o.target_price)}</td>
+                <td style={{padding:'4px 6px',color:INK.dim,...NUM}}>${F.num(o.size_notional,0)}</td>
+                <td style={{padding:'4px 6px',color:INK.dim}}>{o.sl_price?`SL ${o.sl_price}%`:''}{o.sl_price&&o.tp_price?' / ':''}{o.tp_price?`TP ${o.tp_price}%`:''}</td>
+                <td style={{padding:'4px 6px',color:st.c,fontWeight:700}}>{st.t}</td>
+                <td style={{padding:'4px 6px',color:INK.faint}}>{o.expires_at?new Date(o.expires_at).toLocaleDateString():'—'}</td>
+              </tr>;
+            })}</tbody>
+          </table></div>
+        )}
+      </Section>
 
       {/* Open Positions All Teams */}
       <Section title={`ไม้ที่เปิดอยู่ (${openPos.length})`}>

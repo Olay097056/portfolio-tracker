@@ -1138,3 +1138,11 @@ export interface TeamDetail {
     profit: { symbol: string; side: string; pnl_pct: number }[];
   };
 }
+
+// ── Pending orders (ticket 08) ──
+export interface TradePendingOrder {
+  id: string; symbol: string; side: string; order_type: string;
+  target_price: number | null; size_notional: number | null;
+  sl_price: number | null; tp_price: number | null;
+  status: string; expires_at: string | null; created_at: string | null;
+}

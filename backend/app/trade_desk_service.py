@@ -72,6 +72,7 @@ class TradeTeam(Base):
     team_directive_at = Column(DateTime(timezone=True), nullable=True)
     gen = Column(Integer, default=1)                     # team generation/version
     paused = Column(Integer, default=0)                  # 0=active, 1=paused
+    master_on = Column(Integer, default=1)               # master switch (11.5): 1=on, 0=off — off stops NEW turns, SL/TP+settle keep working
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
@@ -275,7 +276,11 @@ _DEFAULT_LEAD_PROMPT = (
     "ตอบ JSON เท่านั้น: "
     '{"action": "open|close|hold", "market": "BTC-USD", '
     '"side": "long|short", "size_pct": 5, "sl_pct": 5, "tp_pct": 10, '
-    '"rationale": "เหตุผลสั้นๆ"}'
+    '"order_type": "MARKET|LIMIT|STOP", "trigger_price": 60000, '
+    '"rationale": "เหตุผลสั้นๆ"}\n'
+    "order_type: MARKET = เปิดทันที · LIMIT = รอราคาแตะ trigger_price แล้วเปิด (buy long: ราคาต่ำกว่า trigger · sell short: สูงกว่า) · "
+    "STOP = รอราคาแตะ trigger_price แบบทะลุ (buy long: ราคาสูงกว่า · sell short: ต่ำกว่า) · "
+    "ไม่ระบุ = MARKET"
 )
 
 _DEFAULT_TREND_PROMPT = (
@@ -533,9 +538,121 @@ def run_turn(db: Session, team: TradeTeam, trigger: str = "manual",
     team.cost_today_usd = (team.cost_today_usd or 0) + cost
     team.cost_total_usd = (team.cost_total_usd or 0) + cost
     team.next_turn_at = datetime.now(timezone.utc) + timedelta(hours=team.turn_interval_hours or 4)
+
+    # Execute the lead's order: MARKET → open position now ·
+    # LIMIT/STOP → create pending order (settled by the 10-min tick)
+    action = (lead_parsed or {}).get("action")
+    market = (lead_parsed or {}).get("market")
+    side = (lead_parsed or {}).get("side")
+    if action == "open" and market and side:
+        otype = str((lead_parsed or {}).get("order_type") or "MARKET").upper()
+        trigger = (lead_parsed or {}).get("trigger_price")
+        size_pct = float((lead_parsed or {}).get("size_pct") or 0)
+        sl_pct = (lead_parsed or {}).get("sl_pct")
+        tp_pct = (lead_parsed or {}).get("tp_pct")
+        size_notional = team.capital * size_pct / 100 if size_pct else 0
+        if otype in ("LIMIT", "STOP") and trigger:
+            # pending order — settled later by settle_pending_orders
+            db.add(TradePendingOrder(
+                team_id=team.id, symbol=market, side=side,
+                order_type=otype, target_price=float(trigger),
+                size_notional=size_notional,
+                sl_price=float(sl_pct) if sl_pct else None,
+                tp_price=float(tp_pct) if tp_pct else None,
+                status="pending",
+                expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+            ))
+        elif size_notional > 0:
+            # market order — open immediately at current mark price
+            mark = None
+            try:
+                from app import hyperliquid_service
+                px = hyperliquid_service.get_prices_for_symbols([market]) or {}
+                if px.get(market) and px[market].get("mark_price") is not None:
+                    mark = float(px[market]["mark_price"])
+            except Exception:
+                mark = None
+            if mark:
+                db.add(TradePosition(
+                    team_id=team.id, symbol=market, side=side,
+                    size_pct=size_pct, entry_price=mark,
+                    sl_pct=float(sl_pct) if sl_pct else None,
+                    tp_pct=float(tp_pct) if tp_pct else None,
+                    status="open",
+                    opened_at=datetime.now(timezone.utc),
+                ))
+
     db.commit()
     db.refresh(turn)
     return turn
+
+
+def settle_pending_orders(db: Session, team: TradeTeam) -> list[dict]:
+    """Settle pending LIMIT/STOP orders against current Hyperliquid prices.
+
+    Runs inside the 10-min job tick. **NEVER calls the LLM** — it only
+    compares prices and fills/expires. Fill price = the order's target price
+    (limit) or the current price (stop), NOT whatever price we see at settle
+    time — otherwise results would randomly be better/worse than reality.
+    """
+    out: list[dict] = []
+    orders = db.query(TradePendingOrder).filter(
+        TradePendingOrder.team_id == team.id,
+        TradePendingOrder.status == "pending",
+    ).all()
+    if not orders:
+        return out
+
+    from app import hyperliquid_service
+    syms = list({o.symbol for o in orders})
+    prices = {}
+    try:
+        prices = hyperliquid_service.get_prices_for_symbols(syms) or {}
+    except Exception:
+        prices = {}
+
+    now = datetime.now(timezone.utc)
+
+    def _aware(dt):
+        return dt.replace(tzinfo=timezone.utc) if dt and dt.tzinfo is None else dt
+
+    for o in orders:
+        # expiry check
+        if _aware(o.expires_at) and _aware(o.expires_at) <= now:
+            o.status = "cancelled"  # expired → cancel (no fill)
+            out.append({"symbol": o.symbol, "order_type": o.order_type, "status": "expired"})
+            continue
+
+        cur = prices.get(o.symbol)
+        if not cur or cur.get("mark_price") is None:
+            out.append({"symbol": o.symbol, "order_type": o.order_type, "status": "no_price"})
+            continue
+
+        mark = float(cur["mark_price"])
+        hit = False
+        if o.order_type == "LIMIT":
+            # buy limit: fill when price <= target · sell limit: price >= target
+            hit = mark <= o.target_price if o.side == "long" else mark >= o.target_price
+        elif o.order_type == "STOP":
+            hit = mark >= o.target_price if o.side == "long" else mark <= o.target_price
+
+        if hit:
+            fill_px = o.target_price if o.order_type == "LIMIT" else mark
+            pos = TradePosition(
+                team_id=team.id, symbol=o.symbol, side=o.side,
+                size_pct=o.size_notional / team.capital * 100 if team.capital else 0,
+                entry_price=fill_px, sl_pct=o.sl_price, tp_pct=o.tp_price,
+                status="open",
+                opened_at=now,
+            )
+            db.add(pos)
+            o.status = "filled"
+            out.append({"symbol": o.symbol, "order_type": o.order_type, "status": "filled", "fill_px": fill_px})
+        else:
+            out.append({"symbol": o.symbol, "order_type": o.order_type, "status": "waiting"})
+
+    db.commit()
+    return out
 
 
 def run_due_turns(db: Session) -> list[dict]:
@@ -544,9 +661,18 @@ def run_due_turns(db: Session) -> list[dict]:
         TradeTeam.code == "DEEPSEEK", TradeTeam.status == "active").first()
     if team is None:
         return [{"skipped": "no_team"}]
+
+    # 0. Master switch OFF → no NEW turns, but SL/TP + settle keep working
+    if not team.master_on:
+        settled = settle_pending_orders(db, team)
+        return [{"skipped": "master_off", "settled": len(settled)}]
+
     now = datetime.now(timezone.utc)
-    if team.next_turn_at and team.next_turn_at > now:
-        return [{"skipped": "not_due", "next": team.next_turn_at.isoformat()}]
+    next_at = team.next_turn_at
+    if next_at is not None and next_at.tzinfo is None:
+        next_at = next_at.replace(tzinfo=timezone.utc)
+    if next_at and next_at > now:
+        return [{"skipped": "not_due", "next": next_at.isoformat()}]
     today_count = db.query(TradeTurn).filter(
         TradeTurn.team_id == team.id,
         TradeTurn.started_at >= now.date().isoformat()).count()
@@ -582,6 +708,8 @@ def get_state(db: Session) -> dict:
     mtd_pnl_pct = round((team.equity - equity_start) / equity_start * 100, 2) if equity_start else None
     turns = db.query(TradeTurn).filter(
         TradeTurn.team_id == team.id).order_by(TradeTurn.started_at.desc()).limit(10).all()
+    pending = db.query(TradePendingOrder).filter(
+        TradePendingOrder.team_id == team.id).order_by(TradePendingOrder.created_at.desc()).limit(20).all()
     return {
         "teams": [{
             "code": team.code, "name_th": team.name_th, "name_en": team.name_en,
@@ -596,7 +724,17 @@ def get_state(db: Session) -> dict:
             "turns_today": team.turns_today,
             "cost_today_usd": team.cost_today_usd,
             "cost_total_usd": team.cost_total_usd,
+            "master_on": bool(team.master_on),
         }],
+        "pending_orders": [{
+            "id": o.id, "symbol": o.symbol, "side": o.side,
+            "order_type": o.order_type, "target_price": o.target_price,
+            "size_notional": o.size_notional,
+            "sl_price": o.sl_price, "tp_price": o.tp_price,
+            "status": o.status,
+            "expires_at": o.expires_at.isoformat() if o.expires_at else None,
+            "created_at": o.created_at.isoformat() if o.created_at else None,
+        } for o in pending],
         "positions": {
             "open": [{
                 "id": p.id, "symbol": p.symbol, "side": p.side,

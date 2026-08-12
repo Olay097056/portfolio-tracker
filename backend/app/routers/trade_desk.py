@@ -176,6 +176,18 @@ def set_directive(team_code: str, directive: str = Query(...), db: Session = Dep
     return {"ok": True, "directive": directive}
 
 
+@router.post("/team/{team_code}/master")
+def set_master(team_code: str, on: bool = Query(True), db: Session = Depends(get_db)):
+    """Master switch (11.5) — off stops NEW turns; SL/TP + settle keep working."""
+    seed_team(db)
+    team = db.query(TradeTeam).filter(TradeTeam.code == team_code.upper()).first()
+    if team is None:
+        raise HTTPException(status_code=404, detail=f"Team '{team_code}' not found")
+    team.master_on = 1 if on else 0
+    db.commit()
+    return {"ok": True, "master_on": bool(team.master_on)}
+
+
 def _compute_team_stats(team, open_pos_q, closed_pos, db) -> dict:
     """Compute all derived stats the reference UI needs."""
     wins = [p for p in closed_pos if (p.realized_pnl or 0) > 0]

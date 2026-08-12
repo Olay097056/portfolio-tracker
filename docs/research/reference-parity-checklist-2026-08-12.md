@@ -32,18 +32,18 @@
 | D5 | ✅ มี | **ForecastDashboard.tsx:293** — `การจำลองเป็นค่าประมาณทิศทาง...ไม่ใช่คำแนะนำการลงทุน`   ✅ |
 | D6 | ✅ มี | **BoardroomDashboard.tsx:65** — `disclaimer: 'ข้อมูลเพื่อการศึกษาเท่านั้น ไม่ใช่คำแนะนำการลงทุน'`   ✅ |
 | D7 | ✅ มี | **BoardroomSignalsDashboard.tsx:66** — `มุมมอง (ไม่เข้าบัญชี) — ข้อมูลเพื่อการศึกษาเท่านั้น ไม่ใช่คำแนะนำการลงทุน`   ✅ |
-| D8 | ❌ ขาด | **SignalsDashboard.tsx** — grep `disclaimer\|ไม่ใช่คำ\|คำเตือน` = **0 hits** · สัญญาณเทรดเป็นหน้าที่ชี้นำการลงทุนตรงที่สุด ควรมีคำเตือนความแม่นยำ   เอา |
-| D9 | ❌ ขาด | **ModelsDashboard.tsx** — grep = **0 hits** · หน้าแสดงคะแนนโมเดลทำกำไร ไม่มีคำเตือนใดๆ   เอา |
-| D10 | ❌ ขาด | **OverviewDashboard.tsx** — grep = **0 hits**   เอา |
-| D11 | ❌ ขาด | **SentimentDashboard.tsx** — grep = **0 hits** · `FearGreedIndex.tsx:362` มีแต่ `SentimentDashboard` ไม่ดึงเข้ามา   เอา |
-| D12 | ❌ ขาด | **CmeDashboard.tsx** — grep = **0 hits**   เอา |
-| D13 | ❌ ขาด | **BankingDashboard.tsx** — grep = **0 hits**   เอา |
-| D14 | ❌ ขาด | **CountriesDashboard.tsx** — grep = **0 hits**   เอา |
-| D15 | ❌ ขาด | **NewsDashboard.tsx** — grep = **0 hits**   เอา |
-| D16 | ❌ ขาด | **LearnDashboard.tsx:58** — `ข้อควรจำ:` — **ไม่ใช่ disclaimer** (เป็นบทเรียน)   เอา |
-| D17 | ❌ ขาด | **OfficeDashboard.tsx** — grep = **0 hits**   เอา |
-| D18 | ❌ ขาด | **SettingsDashboard.tsx** — grep = **0 hits**   เอา |
-| D19 | ❌ ขาด | **SignalsDashboard.tsx** — คำเตือน "แม่นยำในอดีตประมาณ 62-63%" · user อนุมัติแล้วในแผน ai-signal-investor-upgrades (2026-08-06) · **หายระหว่างการเขียนใหม่** — grep ทั้งไฟล์ = 0 hits   เอา |
+| D8 | ❌ ขาด | **SignalsDashboard.tsx** — grep `disclaimer\|ไม่ใช่คำ\|คำเตือน` = **0 hits** · สัญญาณเทรดเป็นหน้าที่ชี้นำการลงทุนตรงที่สุด ควรมีคำเตือนความแม่นยำ   เสร็จ (8e60611) |
+| D9 | ❌ ขาด | **ModelsDashboard.tsx** — grep = **0 hits** · หน้าแสดงคะแนนโมเดลทำกำไร ไม่มีคำเตือนใดๆ   เสร็จ (8e60611) |
+| D10 | ❌ ขาด | **OverviewDashboard.tsx** — grep = **0 hits**   เสร็จ (8e60611) |
+| D11 | ❌ ขาด | **SentimentDashboard.tsx** — grep = **0 hits** · `FearGreedIndex.tsx:362` มีแต่ `SentimentDashboard` ไม่ดึงเข้ามา   เสร็จ (8e60611) |
+| D12 | ❌ ขาด | **CmeDashboard.tsx** — grep = **0 hits**   เสร็จ (8e60611) |
+| D13 | ❌ ขาด | **BankingDashboard.tsx** — grep = **0 hits**   เสร็จ (8e60611) |
+| D14 | ❌ ขาด | **CountriesDashboard.tsx** — grep = **0 hits**   เสร็จ (8e60611) |
+| D15 | ❌ ขาด | **NewsDashboard.tsx** — grep = **0 hits**   เสร็จ (8e60611) |
+| D16 | ❌ ขาด | **LearnDashboard.tsx:58** — `ข้อควรจำ:` — **ไม่ใช่ disclaimer** (เป็นบทเรียน)   เสร็จ (8e60611) |
+| D17 | ❌ ขาด | **OfficeDashboard.tsx** — grep = **0 hits**   เสร็จ (8e60611) |
+| D18 | ❌ ขาด | **SettingsDashboard.tsx** — grep = **0 hits**   เสร็จ (8e60611) |
+| D19 | ❌ ขาด | **SignalsDashboard.tsx** — คำเตือน "แม่นยำในอดีตประมาณ 62-63%" · user อนุมัติแล้วในแผน ai-signal-investor-upgrades (2026-08-06) · **หายระหว่างการเขียนใหม่** — grep ทั้งไฟล์ = 0 hits   เสร็จ (8e60611) |
 | **สรุป** | | **7 มี · 12 ขาด** (นับ D3+D4+D5 เป็นรายการ 5/16 แท็บ) |
 
 ---

@@ -55,6 +55,7 @@
 - [01 research parity checklist](issues/01-research-parity-checklist.md) — 86 รายการ 16 หน้า · 47 มี / 27 ขาด / 12 ต่าง · คำเตือนความเสี่ยง 5/16 แท็บมี · gap ใหญ่สุด: ทีมเทรด (6+3) / มหภาค (6) / สัญญาณ (3) — deliverable `docs/research/reference-parity-checklist-2026-08-12.md`
 - [02 restore deleted guardrails](issues/02-task-restore-deleted-guardrails.md) — disclaimer กู้กลับ 2 ไฟล์ (TradeDeskDashboard + TeamDetailPage) · เทสต์ 4→8 · audit 5/16 แท็บมี disclaimer (แก้ตารางเป็น 5 มี · 11 ขาด ตรง grep จริง) · commit `afe792b` + `65fcd97`
 - [03 fix known display bugs](issues/03-task-fix-known-display-bugs.md) — 11.1 เอาป้าย #1 ออก (1 ทีม ไม่แข่ง) · 11.2 เปลี่ยน ✗0 ⏳0 ปลอมเป็น turns_today จริง · 11.3 MTD คำนวณจาก trade_snapshots (equity ต้นเดือน) ไม่ใช่ pnl_pct — null → "—" · เทสต์ MTD 3 ตัว (8.0 ≠ 20.0 พิสูจน์ใช้ snapshot) · suite 541 · commit `023ff08`
+- [06 risk warnings](issues/06-task-risk-warnings.md) — RiskBanner 12 จุด (D8+D19 รวมก้อนเดียวที่สัญญาณเทรด, D9-D18 แยกข้อความตามแท็บ) · D19 ไม่มีเลขปลอม — "ความแม่นยำอยู่ระหว่างการวัดผล" · เทสต์เฝ้า 13 ตัว (ล้มถ้าลบข้อความ) · vitest 578 · commit `8e60611`
 
 ## Not yet specified
 

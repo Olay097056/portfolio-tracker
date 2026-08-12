@@ -646,3 +646,10 @@ export function getTeamDetail(teamCode: string, page?: number): Promise<TeamDeta
   const params = page ? `?page=${page}` : '';
   return request<TeamDetail>(`/api/trade-desk/team/${teamCode}${params}`);
 }
+
+export function getTeamEquity(teamCode: string, days?: number): Promise<{points: {date:string;equity:number}[]}> {
+  return request(`/api/trade-desk/team/${teamCode}/equity?days=${days||30}`);
+}
+export function setTeamDirective(teamCode: string, directive: string): Promise<{ok:boolean}> {
+  return request(`/api/trade-desk/team/${teamCode}/directive?directive=${encodeURIComponent(directive)}`, {method:'POST'});
+}

@@ -236,6 +236,30 @@ class TradeSnapshot(Base):
     snapped_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
 
 
+class TradeSummary(Base):
+    """AI-written summary / weekly target record.
+
+    UNIQUE (team_id, kind, period) is the idempotence guard — the job tick
+    runs 144x/day; without it each summary would cost 144 LLM calls/day.
+    kind: daily | monthly | weekly_target · period: "2026-08-12" | "2026-08" | "2026-W33"
+    """
+
+    __tablename__ = "trade_summaries"
+    __table_args__ = (
+        UniqueConstraint("team_id", "kind", "period", name="uq_trade_summaries_period"),
+    )
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    team_id = Column(String(36), ForeignKey("trade_teams.id"), nullable=False, index=True)
+    kind = Column(String(16), nullable=False)
+    period = Column(String(16), nullable=False)
+    summary_th = Column(Text, nullable=False)
+    tokens_in = Column(Integer, default=0)
+    tokens_out = Column(Integer, default=0)
+    cost_usd = Column(Float, default=0.0)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
 # ── Seed ─────────────────────────────────────────────────────────────────────
 
 def seed_team(db: Session) -> TradeTeam:
@@ -655,6 +679,174 @@ def settle_pending_orders(db: Session, team: TradeTeam) -> list[dict]:
     return out
 
 
+# ── Weekly target + daily/monthly summaries (ticket 09) ─────────────────────
+# Idempotence: UNIQUE (team_id, kind, period) + pre-check → 1 LLM call per
+# period even though the tick runs 144x/day. Server-side tick: this works
+# whether or not anyone opened the app.
+
+def _period_key(kind: str, now: datetime) -> str:
+    if kind == "daily":
+        return now.strftime("%Y-%m-%d")
+    if kind == "monthly":
+        return now.strftime("%Y-%m")
+    if kind == "weekly_target":
+        iso = now.isocalendar()
+        return f"{iso[0]}-W{iso[1]:02d}"
+    return now.strftime("%Y-%m-%d")
+
+
+def _summary_exists(db: Session, team_id: str, kind: str, period: str) -> bool:
+    return db.query(TradeSummary).filter(
+        TradeSummary.team_id == team_id,
+        TradeSummary.kind == kind,
+        TradeSummary.period == period,
+    ).first() is not None
+
+
+def _charge(db: Session, team: TradeTeam, tokens_in: int, tokens_out: int, cost: float):
+    """Include summary/target LLM cost in the team's cost counters (UI shows real spend)."""
+    team.cost_today_usd = (team.cost_today_usd or 0) + cost
+    team.cost_total_usd = (team.cost_total_usd or 0) + cost
+
+
+def ensure_weekly_target(db: Session, team: TradeTeam,
+                         now: datetime | None = None) -> dict:
+    """First tick of the week: lead sets the weekly target (1 LLM call/week).
+
+    Runs ONLY when master_on=1 AND status=active — a closed master switch
+    must not leak LLM calls (user decision, ticket 09). Directive (user)
+    has priority over the AI-set target — asserted in the prompt and tested.
+    """
+    now = now or datetime.now(timezone.utc)
+    period = _period_key("weekly_target", now)
+    if _summary_exists(db, team.id, "weekly_target", period):
+        return {"skipped": "already_set", "period": period}
+    if not team.master_on or team.status != "active":
+        return {"skipped": "master_off_or_inactive", "period": period}
+
+    base = _build_base_context(db, team)
+    system = (
+        "คุณเป็นหัวหน้าทีมเทรด AI บริหารพอร์ต $10,000 — ตั้งเป้ากำไรประจำสัปดาห์ "
+        "จากสภาพตลาดจริง (context ด้านล่าง) และเป้าหมายรายเดือน (floor/stretch)\n"
+        "ถ้ามี 'คำสั่งโต๊ะกลาง (directive)' ให้ปฏิบัติตาม directive นั้นเป็นหลัก "
+        "แล้วตั้งเป้าภายใต้กรอบที่ directive กำหนด — directive ของ user มีน้ำหนักเหนือเป้าของ AI เสมอ\n"
+        "ตอบ JSON เท่านั้น: {\"weekly_target_pct\": 2.5, \"monthly_floor_pct\": 5.0, "
+        "\"monthly_stretch_pct\": 20.0, \"rationale\": \"เหตุผลสั้นๆ ไทย\"}"
+    )
+    try:
+        content, usage, _ = llm_call(system, base, temperature=0.4, max_tokens=250)
+    except Exception as exc:
+        return {"error": str(exc)[:150], "period": period}
+    import re as _re
+    import json as _json
+    m = _re.search(r"\{.*\}", content, _re.S)
+    try:
+        parsed = _json.loads(m.group()) if m else {}
+    except Exception:
+        parsed = {}
+    tgt = parsed.get("weekly_target_pct")
+    if isinstance(tgt, (int, float)) and 0 < tgt < 100:
+        team.weekly_target_pct = float(tgt)
+        team.monthly_floor_pct = float(parsed.get("monthly_floor_pct") or 5.0)
+        team.monthly_stretch_pct = float(parsed.get("monthly_stretch_pct") or 20.0)
+        tokens_in = usage.get("prompt_tokens", 0)
+        tokens_out = usage.get("completion_tokens", 0)
+        cost = tokens_in * COST_IN_PER_TOKEN + tokens_out * COST_OUT_PER_TOKEN
+        db.add(TradeSummary(
+            team_id=team.id, kind="weekly_target", period=period,
+            summary_th=str(parsed.get("rationale") or content)[:500],
+            tokens_in=tokens_in, tokens_out=tokens_out, cost_usd=round(cost, 6),
+        ))
+        _charge(db, team, tokens_in, tokens_out, cost)
+        db.commit()
+        return {"set": True, "period": period, "weekly_target_pct": team.weekly_target_pct}
+    return {"error": "unparseable_target", "raw": content[:150], "period": period}
+
+
+def ensure_daily_summary(db: Session, team: TradeTeam,
+                         now: datetime | None = None) -> dict:
+    """1 LLM call/day — recap of today's turns, decisions, results."""
+    now = now or datetime.now(timezone.utc)
+    period = _period_key("daily", now)
+    if _summary_exists(db, team.id, "daily", period):
+        return {"skipped": "already_written", "period": period}
+    if not team.master_on or team.status != "active":
+        return {"skipped": "master_off_or_inactive", "period": period}
+
+    turns = db.query(TradeTurn).filter(
+        TradeTurn.team_id == team.id,
+        TradeTurn.started_at >= now.replace(hour=0, minute=0, second=0, microsecond=0),
+    ).order_by(TradeTurn.started_at.desc()).limit(20).all()
+    if not turns:
+        # no activity today — record a cheap note, NO LLM call
+        db.add(TradeSummary(team_id=team.id, kind="daily", period=period,
+                            summary_th="ยังไม่มีการเทิร์นในวันนี้"))
+        db.commit()
+        return {"skipped": "no_activity", "period": period}
+
+    lines = "\n".join(
+        f"• {t.trigger}: {t.consensus} → {str(t.lead_decision)[:120]}" for t in turns)
+    system = ("คุณคือผู้ช่วยสรุปทีมเทรด — สรุปกิจกรรมวันนี้ของทีมเป็นภาษาไทย กระชับ 2-3 บรรทัด "
+              "(เทิร์นกี่ครั้ง · ทิศทาง · ผล) ไม่ใช่คำแนะนำการลงทุน")
+    try:
+        content, usage, _ = llm_call(system, f"กิจกรรมวันนี้:\n{lines}", temperature=0.5, max_tokens=200)
+    except Exception as exc:
+        return {"error": str(exc)[:150], "period": period}
+    tokens_in = usage.get("prompt_tokens", 0)
+    tokens_out = usage.get("completion_tokens", 0)
+    cost = tokens_in * COST_IN_PER_TOKEN + tokens_out * COST_OUT_PER_TOKEN
+    db.add(TradeSummary(
+        team_id=team.id, kind="daily", period=period, summary_th=content.strip()[:800],
+        tokens_in=tokens_in, tokens_out=tokens_out, cost_usd=round(cost, 6),
+    ))
+    _charge(db, team, tokens_in, tokens_out, cost)
+    db.commit()
+    return {"written": True, "period": period}
+
+
+def ensure_monthly_summary(db: Session, team: TradeTeam,
+                           now: datetime | None = None) -> dict:
+    """1 LLM call/month — month recap. Runs on the first tick of a new month."""
+    now = now or datetime.now(timezone.utc)
+    period = _period_key("monthly", now)
+    if _summary_exists(db, team.id, "monthly", period):
+        return {"skipped": "already_written", "period": period}
+    if not team.master_on or team.status != "active":
+        return {"skipped": "master_off_or_inactive", "period": period}
+
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    turns = db.query(TradeTurn).filter(
+        TradeTurn.team_id == team.id,
+        TradeTurn.started_at >= month_start,
+    ).order_by(TradeTurn.started_at.desc()).limit(50).all()
+    if not turns:
+        db.add(TradeSummary(team_id=team.id, kind="monthly", period=period,
+                            summary_th="ยังไม่มีการเทิร์นในเดือนนี้"))
+        db.commit()
+        return {"skipped": "no_activity", "period": period}
+
+    wins = sum(1 for t in turns if (t.lead_decision or {}).get("action") == "open")
+    lines = "\n".join(
+        f"• {t.trigger}: {t.consensus} → {str(t.lead_decision)[:120]}" for t in turns[:30])
+    system = ("คุณคือผู้ช่วยสรุปทีมเทรด — สรุปผลประจำเดือนของทีมเป็นภาษาไทย 3-4 บรรทัด "
+              "(เทิร์นรวม · แนวโน้มการตัดสินใจ · จุดที่ควรทบทวน) ไม่ใช่คำแนะนำการลงทุน")
+    try:
+        content, usage, _ = llm_call(system, f"เดือนนี้ ({period}) มี {len(turns)} เทิร์น, เปิดไม้ {wins} ครั้ง:\n{lines}",
+                                     temperature=0.5, max_tokens=250)
+    except Exception as exc:
+        return {"error": str(exc)[:150], "period": period}
+    tokens_in = usage.get("prompt_tokens", 0)
+    tokens_out = usage.get("completion_tokens", 0)
+    cost = tokens_in * COST_IN_PER_TOKEN + tokens_out * COST_OUT_PER_TOKEN
+    db.add(TradeSummary(
+        team_id=team.id, kind="monthly", period=period, summary_th=content.strip()[:1200],
+        tokens_in=tokens_in, tokens_out=tokens_out, cost_usd=round(cost, 6),
+    ))
+    _charge(db, team, tokens_in, tokens_out, cost)
+    db.commit()
+    return {"written": True, "period": period}
+
+
 def run_due_turns(db: Session) -> list[dict]:
     """Check DEEPSEEK team — run if due (called by cron)."""
     team = db.query(TradeTeam).filter(
@@ -710,6 +902,8 @@ def get_state(db: Session) -> dict:
         TradeTurn.team_id == team.id).order_by(TradeTurn.started_at.desc()).limit(10).all()
     pending = db.query(TradePendingOrder).filter(
         TradePendingOrder.team_id == team.id).order_by(TradePendingOrder.created_at.desc()).limit(20).all()
+    summaries = db.query(TradeSummary).filter(
+        TradeSummary.team_id == team.id).order_by(TradeSummary.created_at.desc()).limit(5).all()
     return {
         "teams": [{
             "code": team.code, "name_th": team.name_th, "name_en": team.name_en,
@@ -735,6 +929,12 @@ def get_state(db: Session) -> dict:
             "expires_at": o.expires_at.isoformat() if o.expires_at else None,
             "created_at": o.created_at.isoformat() if o.created_at else None,
         } for o in pending],
+        "summaries": [{
+            "kind": s.kind, "period": s.period, "summary_th": s.summary_th,
+            "tokens_in": s.tokens_in, "tokens_out": s.tokens_out,
+            "cost_usd": s.cost_usd,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+        } for s in summaries],
         "positions": {
             "open": [{
                 "id": p.id, "symbol": p.symbol, "side": p.side,

@@ -110,7 +110,7 @@ def run_due_turns(db: Session) -> dict:
     if run is None:
         return {"skipped": "job_already_running"}
 
-    detail: dict = {"prewarm": None, "boardroom": None, "trade_desk": None, "news": None}
+    detail: dict = {"prewarm": None, "boardroom": None, "trade_desk": None, "summaries": None, "news": None}
     try:
         # 1. Pre-warm macro/market caches (Postgres cache_entries, ticket 06) so
         #    the dashboard is warm even on a cold function. Cheap when fresh.
@@ -158,6 +158,21 @@ def run_due_turns(db: Session) -> dict:
             }
         except Exception as exc:
             detail["trade_desk"] = {"error": str(exc)[:200]}
+
+        # 3.5 Trade-desk: weekly target + daily/monthly summaries (1 LLM call/period
+        #     each — idempotent via UNIQUE(team_id, kind, period); master-off skips all).
+        try:
+            team = db.query(td.TradeTeam).filter(
+                td.TradeTeam.code == "DEEPSEEK").first()
+            if team is not None:
+                wk = td.ensure_weekly_target(db, team)
+                day = td.ensure_daily_summary(db, team)
+                mon = td.ensure_monthly_summary(db, team)
+                detail["summaries"] = {"weekly": wk, "daily": day, "monthly": mon}
+            else:
+                detail["summaries"] = {"skipped": "no_team"}
+        except Exception as exc:
+            detail["summaries"] = {"error": str(exc)[:200]}
 
         # 4. News: enrich pending (<=40) — refresh happens on-demand via the
         #    news endpoint (fast fetch), enrichment is the slow LLM part.

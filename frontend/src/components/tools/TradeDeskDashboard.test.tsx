@@ -185,4 +185,20 @@ describe('TradeDeskDashboard', () => {
     expect(screen.getByText('⏳ รอเข้า')).toBeTruthy();
     vi.mocked(client.getTradeDeskState).mockResolvedValue(MOCK_STATE as never);
   });
+
+  it('shows AI summaries (11.8)', async () => {
+    const stateWithSummaries = {
+      ...MOCK_STATE,
+      summaries: [{
+        kind: 'weekly_target', period: '2026-W33',
+        summary_th: 'ตลาดผันผวน ตั้งเป้า 2.5%', tokens_in: 100, tokens_out: 50,
+        cost_usd: 0.00003, created_at: '2026-08-12T00:00:00Z',
+      }],
+    };
+    vi.mocked(client.getTradeDeskState).mockResolvedValue(stateWithSummaries as never);
+    render(<TradeDeskDashboard />);
+    await waitFor(() => expect(screen.getByText(/สรุปโดย AI/)).toBeTruthy());
+    expect(screen.getByText(/เป้ารายสัปดาห์/)).toBeTruthy();
+    vi.mocked(client.getTradeDeskState).mockResolvedValue(MOCK_STATE as never);
+  });
 });

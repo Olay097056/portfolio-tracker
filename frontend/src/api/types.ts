@@ -1146,3 +1146,11 @@ export interface TradePendingOrder {
   sl_price: number | null; tp_price: number | null;
   status: string; expires_at: string | null; created_at: string | null;
 }
+
+// ── Summaries (ticket 09) ──
+export interface TradeSummary {
+  kind: 'daily' | 'monthly' | 'weekly_target';
+  period: string; summary_th: string;
+  tokens_in: number; tokens_out: number; cost_usd: number;
+  created_at: string | null;
+}

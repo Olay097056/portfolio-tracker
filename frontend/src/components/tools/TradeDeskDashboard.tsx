@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getTradeDeskState, triggerTradeDeskTurn, getHyperliquidMarkets, setTeamDirective, setTeamMaster } from '../../api/client';
-import type { TradeDeskState, HyperliquidMarket, TradePendingOrder } from '../../api/types';
+import type { TradeDeskState, HyperliquidMarket, TradePendingOrder, TradeSummary } from '../../api/types';
 import { TeamDetailPage } from './TeamDetailPage';
 import { EquityChart, NextTurnCountdown } from './TradeDeskCharts';
 
@@ -25,9 +25,10 @@ export function TradeDeskDashboard() {
   const [editingDirective, setEditingDirective] = useState(false);
   const [masterOn, setMasterOn] = useState(true);
   const [pendingOrders, setPendingOrders] = useState<TradePendingOrder[]>([]);
+  const [summaries, setSummaries] = useState<TradeSummary[]>([]);
 
   const fetch = useCallback(async () => {
-    try { const [s,m] = await Promise.all([getTradeDeskState(), getHyperliquidMarkets()]); setState(s); setMarkets(m.markets||[]); setPendingOrders((s as any)?.pending_orders || []); setMasterOn((s as any)?.teams?.[0]?.master_on ?? true); } catch {}
+    try { const [s,m] = await Promise.all([getTradeDeskState(), getHyperliquidMarkets()]); setState(s); setMarkets(m.markets||[]); setPendingOrders((s as any)?.pending_orders || []); setMasterOn((s as any)?.teams?.[0]?.master_on ?? true); setSummaries((s as any)?.summaries || []); } catch {}
     setLoading(false);
   }, []);
   useEffect(() => { fetch(); }, [fetch]);
@@ -146,6 +147,25 @@ export function TradeDeskDashboard() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Summaries (11.8 — AI สรุปประจำวัน/เดือน + เป้ารายสัปดาห์) */}
+      {summaries.length > 0 && (
+        <Section title={`สรุปโดย AI (${summaries.length})`}>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {summaries.map((s,i)=>(
+              <div key={i} style={{background:INK.card,border:`1px solid ${INK.panelBorder}`,borderRadius:8,padding:'8px 12px'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4,flexWrap:'wrap',gap:6}}>
+                  <span style={{fontSize:10,fontWeight:700,color:s.kind==='weekly_target'?INK.sky:s.kind==='monthly'?INK.gold:INK.dim,textTransform:'uppercase',letterSpacing:0.5}}>
+                    {s.kind==='weekly_target'?'🎯 เป้ารายสัปดาห์':s.kind==='monthly'?'📅 สรุปรายเดือน':'📋 สรุปประจำวัน'} · {s.period}
+                  </span>
+                  {s.cost_usd>0 && <span style={{fontSize:9,color:INK.faint}}>${F.num(s.cost_usd,5)} · {s.tokens_in}+{s.tokens_out} tok</span>}
+                </div>
+                <div style={{fontSize:11,color:INK.dim,lineHeight:1.5,whiteSpace:'pre-wrap'}}>{s.summary_th}</div>
+              </div>
+            ))}
+          </div>
+        </Section>
       )}
 
       {/* Pending orders (11.7) */}

@@ -68,8 +68,8 @@
 
 | # | สถานะ | รายการ | หลักฐาน (อ้างอิง) |
 |---|---|---|---|
-| 2.1 | ❌ ต่าง | องค์ประกอบ 5 ตัว (โครงสร้าง/มหภาค/ข่าว/ยืนยัน/บทลงโทษ) | ref: `/api/models` ส่ง 5 components · เรา: `/api/models` ส่ง scores (6 โมเดล) — ตรวจสอบ component breakdown |
-| 2.2 | ❌ ต่าง | ความมั่นใจต่อโมเดล (%) | ref: แสดง % รายโมเดล (90/89/88/95/92) · เรา: ModelScore ไม่มี confidence_pct — ต้องตรวจ API |
+| 2.1 | ⚠️ ต่าง | องค์ประกอบ 5 ตัว (โครงสร้าง/มหภาค/ข่าว/ยืนยัน/บทลงโทษ) | ref: `/api/models` ส่ง 5 components · เรา: `/api/models` ส่ง scores (6 โมเดล) — ตรวจสอบ component breakdown |
+| 2.2 | ⚠️ ต่าง | ความมั่นใจต่อโมเดล (%) | ref: แสดง % รายโมเดล (90/89/88/95/92) · เรา: ModelScore ไม่มี confidence_pct — ต้องตรวจ API |
 | 2.3 | ✅ มี | เกณฑ์ก่อตัว 40 / ทำงาน 60 (เส้นบนกราฟ) | **ModelsDashboard.tsx** — factorCaps + progress bar |
 | 2.4 | ❌ ขาด | คำเตือนความเสี่ยง / disclaimer | ดู D9 |
 | **สรุป** | | **1 มี · 1 ขาด · 2 ต่าง** | |
@@ -81,7 +81,7 @@
 | # | สถานะ | รายการ | หลักฐาน (อ้างอิง) |
 |---|---|---|---|
 | 3.1 | ✅ มี | 39 สัญญาณ · API `/api/signals` | **SignalsDashboard.tsx** — 200 บน prod (แก้แล้ว: prepare_threshold) |
-| 3.2 | ❌ ต่าง | สถิติ P&L ลอยตัว/ปิดแล้ว/อัตราชนะ/PF/DD | ref: `tdStatPF`, `tdStatWinRate` · เรา: มี stats แต่ฟิลด์ละเอียดน้อยกว่า — ตรวจ `AiSignalMetrics` |
+| 3.2 | ⚠️ ต่าง | สถิติ P&L ลอยตัว/ปิดแล้ว/อัตราชนะ/PF/DD | ref: `tdStatPF`, `tdStatWinRate` · เรา: มี stats แต่ฟิลด์ละเอียดน้อยกว่า — ตรวจ `AiSignalMetrics` |
 | 3.3 | ❌ ขาด | ค่าคาดหวัง/payoff/ถือเฉลี่ย/R:R | เรา: **AiSignalMetrics** interface — ตรวจ field coverage |
 | 3.4 | ❌ ขาด | แยกหมวด STOCKS/CRYPTO/MACRO/FOREX + WR | เรา: `SignalsDashboard.tsx` — มี filter แต่ต่างจาก ref? |
 | 3.5 | ❌ ขาด | คำเตือนความแม่นยำ | ดู D8 |
@@ -134,8 +134,8 @@
 | # | สถานะ | รายการ | หลักฐาน (อ้างอิง) |
 |---|---|---|---|
 | 7.1 | ✅ มี | 27 ประเทศ + score + 10Y + sort | **CountriesDashboard.tsx** — mirror ครบ |
-| 7.2 | ❌ ต่าง | "ข้อมูลจำกัด/รายวัน/เรียลไทม์" badge ต่อประเทศ | เรา: ไม่พบ badge |
-| 7.3 | ❌ ต่าง | "±bps vs US" | เรา: มี yield spread — ตรวจ format |
+| 7.2 | ⚠️ ต่าง | "ข้อมูลจำกัด/รายวัน/เรียลไทม์" badge ต่อประเทศ | เรา: ไม่พบ badge |
+| 7.3 | ⚠️ ต่าง | "±bps vs US" | เรา: มี yield spread — ตรวจ format |
 | 7.4 | ❌ ขาด | คำเตือน / disclaimer | ดู D14 |
 | **สรุป** | | **1 มี · 1 ขาด · 2 ต่าง** | |
 
@@ -160,7 +160,7 @@
 | 9.1 | ✅ มี | สร้าง/เปิดจากข่าว/โมเดลขยับ/ล้มเหลว | **BoardroomDashboard.tsx** |
 | 9.2 | ✅ มี | ประวัติการประชุม + stances (ท่าที) | **BoardroomDashboard.tsx** |
 | 9.3 | ✅ มี | Disclaimer: "ข้อมูลเพื่อการศึกษาเท่านั้น" | **BoardroomDashboard.tsx:65,622** |
-| 9.4 | ❌ ต่าง | UX details — ref มี filter ประชุมล้มเหลว/แยก type · เรา: ตรวจ | research: `boardroom-page-2026-08-09.md` |
+| 9.4 | ⚠️ ต่าง | UX details — ref มี filter ประชุมล้มเหลว/แยก type · เรา: ตรวจ | research: `boardroom-page-2026-08-09.md` |
 | **สรุป** | | **3 มี · 0 ขาด · 1 ต่าง** | |
 
 ---
@@ -182,9 +182,9 @@
 
 | # | สถานะ | รายการ | หลักฐาน |
 |---|---|---|---|
-| 11.1 | ❌ ต่าง | อันดับ `#1` ฮาร์ดโค้ด | **TradeDeskDashboard.tsx:59** — `#1` เขียนตาย ไม่ใช่จาก data |
-| 11.2 | ❌ ต่าง | `✗0 ⏳0` ฮาร์ดโค้ด | **TradeDeskDashboard.tsx:72** — `✗0` `⏳0` คงที่ ไม่ใช่จาก turn stats จริง |
-| 11.3 | ❌ ต่าง | `MTD` แสดงค่า `weekly_target_pct` (bug) | **TradeDeskDashboard.tsx:70** — `F.pct(team.weekly_target_pct,false)` ใช้ weekly เป็น MTD |
+| 11.1 | ⚠️ ต่าง | อันดับ `#1` ฮาร์ดโค้ด | **TradeDeskDashboard.tsx:59** — `#1` เขียนตาย ไม่ใช่จาก data |
+| 11.2 | ⚠️ ต่าง | `✗0 ⏳0` ฮาร์ดโค้ด | **TradeDeskDashboard.tsx:72** — `✗0` `⏳0` คงที่ ไม่ใช่จาก turn stats จริง |
+| 11.3 | ⚠️ ต่าง | `MTD` แสดงค่า `weekly_target_pct` (bug) | **TradeDeskDashboard.tsx:70** — `F.pct(team.weekly_target_pct,false)` ใช้ weekly เป็น MTD |
 | 11.4 | ❌ ขาด | กราฟ equity ทุกโหมด (24h/7d/30d/All) + time toggle | ref: `tdChart`, `tdChartEmpty` · เรา: ไม่พบใน TradeDeskDashboard — TeamDetailPage มี SVG 30d เฉพาะ detail page |
 | 11.5 | ❌ ขาด | สวิตช์หลัก (master on/off) | ref: `tdPause`/`tdResume` · เรา: ไม่พบในโค้ด |
 | 11.6 | ❌ ขาด | โควตาเทิร์นรายวัน + ตัวนับถัดไป | ref: `tdNextTurn`, `tdForceTurn` · เรา: ไม่พบในโค้ด (TeamDetailPage มีปุ่ม Force Turn แต่ไม่มี countdown จริง) |
@@ -208,7 +208,7 @@
 | # | สถานะ | รายการ |
 |---|---|---|
 | 12.1 | ✅ มี | filter สำนักข่าว · sort (ล่าสุด/ผลกระทบ) · pagination · AI วิเคราะห์ |
-| 12.2 | ❌ ต่าง | ref: impact slider · เรา: ตรวจ NewsDashboard |
+| 12.2 | ⚠️ ต่าง | ref: impact slider · เรา: ตรวจ NewsDashboard |
 | 12.3 | ❌ ขาด | disclaimer | ดู D15 |
 | **สรุป** | | **1 มี · 1 ขาด · 1 ต่าง** |
 
@@ -216,7 +216,7 @@
 | # | สถานะ | รายการ |
 |---|---|---|
 | 13.1 | ✅ มี | AI brief (DeepSeek) + key indicators |
-| 13.2 | ❌ ต่าง | ref: มี card layout ต่างจากของเรา — ตรวจ |
+| 13.2 | ⚠️ ต่าง | ref: มี card layout ต่างจากของเรา — ตรวจ |
 | 13.3 | ❌ ขาด | disclaimer | ดู D10 |
 | **สรุป** | | **1 มี · 1 ขาด · 1 ต่าง** |
 
@@ -231,7 +231,7 @@
 | # | สถานะ | รายการ |
 |---|---|---|
 | 15.1 | ✅ มี | R3F scene + 12 rooms + OrbitControls + job runs panel |
-| 15.2 | ❌ ต่าง | ref: 13 แผนก · GLB characters · click detail · เรา: box geometry + spheres (primitive) |
+| 15.2 | ⚠️ ต่าง | ref: 13 แผนก · GLB characters · click detail · เรา: box geometry + spheres (primitive) |
 | 15.3 | ❌ ขาด | disclaimer | ดู D17 |
 | **สรุป** | | **1 มี · 1 ขาด · 1 ต่าง** |
 

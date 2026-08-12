@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { DataTierBadge } from '../ui/DataTierBadge';
 import { RiskBanner } from './RiskBanner';
 import { getCountriesDashboard, refreshCountriesDashboard } from '../../api/client';
 import type { CountriesDashboard as CountriesData, CountryCard } from '../../api/types';
@@ -164,7 +165,7 @@ function CountryCard({ country, onClick }: { country: CountryCard; onClick: () =
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, color: INK.inkFaint }}>
         <span>
-          {country.data_tier_note_th}
+          <DataTierBadge tier={country.data_tier} fallback={country.data_tier_note_th} />
           {country.yield_stale && <span style={{ color: INK.orange }}> · ข้อมูลเก่า</span>}
         </span>
         <span>→</span>

@@ -271,7 +271,7 @@ export function OverviewDashboard() {
                 {regime.phase_th || regime.phase || '—'}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, fontSize: '0.78rem', color: INK.inkDim }}>
-                <span>ความมั่นใจ: <span style={{ fontWeight: 700, color: INK.ink }}>{regime.confidence ?? 0}%</span></span>
+                <span>ความครบของข้อมูล: <span style={{ fontWeight: 700, color: INK.ink }}>{regime.confidence ?? 0}%</span></span>
                 {regime.is_transition_zone && (
                   <span style={{ background: 'rgba(167,139,250,0.15)', color: INK.violet, padding: '2px 8px', borderRadius: 6, fontSize: '0.7rem' }}>
                     โซนเปลี่ยนผ่าน

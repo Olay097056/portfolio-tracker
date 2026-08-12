@@ -199,6 +199,7 @@ export function NewsDashboard() {
   const [sort, setSort] = useState<'date' | 'impact'>('date');
   const [source, setSource] = useState('');
   const [minImpact, setMinImpact] = useState<number | null>(null);
+  const [draftImpact, setDraftImpact] = useState<number>(0); // visual only — committed to minImpact on mouseUp
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -218,6 +219,9 @@ export function NewsDashboard() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Sync draft back to minImpact when it changes externally (e.g. reset / default)
+  useEffect(() => { setDraftImpact(minImpact ?? 0); }, [minImpact]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -276,19 +280,36 @@ export function NewsDashboard() {
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
-        <select
-          value={minImpact ?? ''}
-          onChange={(e) => {
-            setMinImpact(e.target.value === '' ? null : Number(e.target.value));
-            setPage(1);
-          }}
-          style={selectStyle}
-        >
-          <option value="">IMPACT ≥ ใดก็ได้</option>
-          <option value="15">IMPACT ≥ 15</option>
-          <option value="40">IMPACT ≥ 40</option>
-          <option value="60">IMPACT ≥ 60</option>
-        </select>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: INK.inkDim }}>
+          <span style={{ whiteSpace: 'nowrap', minWidth: 80 }}>IMPACT ≥ {draftImpact === 0 ? 'ใดก็ได้' : draftImpact}</span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={draftImpact}
+            onChange={(e) => {
+              setDraftImpact(Number((e.target as HTMLInputElement).value));
+            }}
+            onPointerUp={(e) => {
+              const v = Number((e.target as HTMLInputElement).value);
+              if ((minImpact ?? 0) !== v) {
+                setMinImpact(v === 0 ? null : v);
+                setPage(1);
+              }
+            }}
+            onKeyUp={(e) => {
+              if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                const v = Number((e.target as HTMLInputElement).value);
+                if ((minImpact ?? 0) !== v) {
+                  setMinImpact(v === 0 ? null : v);
+                  setPage(1);
+                }
+              }
+            }}
+            style={{ width: 100, accentColor: INK.accent }}
+          />
+        </label>
         <button
           onClick={onRefresh}
           disabled={refreshing}

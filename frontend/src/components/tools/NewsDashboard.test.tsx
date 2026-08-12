@@ -120,13 +120,45 @@ describe('NewsDashboard', () => {
     await waitFor(() => {
       expect(mockGetNews).toHaveBeenCalledWith(1, 'impact', 'CNBC', undefined);
     });
+  });
 
-    fireEvent.change(screen.getByDisplayValue('IMPACT ≥ ใดก็ได้'), {
-      target: { value: '40' },
-    });
+  it('minImpact slider fires fetch on pointerUp (debounced — not on every drag)', async () => {
+    render(<NewsDashboard />);
+    await waitFor(() => expect(mockGetNews).toHaveBeenCalled());
+    const callCountBefore = mockGetNews.mock.calls.length;
+
+    // drag the slider (onChange fires but only updates draft, no fetch)
+    fireEvent.change(screen.getByDisplayValue('0'), { target: { value: '45' } });
+    // onChange alone must NOT trigger fetch
+    expect(mockGetNews.mock.calls.length).toBe(callCountBefore);
+
+    // pointerUp commits draft → minImpact → useEffect → fetch
+    fireEvent.pointerUp(screen.getByDisplayValue('45'));
     await waitFor(() => {
-      expect(mockGetNews).toHaveBeenCalledWith(1, 'impact', 'CNBC', 40);
+      expect(mockGetNews.mock.calls.length).toBe(callCountBefore + 1);
     });
+    // minImpact=45 → sent as 45 (0 would be undefined)
+    expect(mockGetNews).toHaveBeenLastCalledWith(1, 'date', undefined, 45);
+  });
+
+  it('minImpact=0 sends undefined to API', async () => {
+    render(<NewsDashboard />);
+    await waitFor(() => expect(mockGetNews).toHaveBeenCalled());
+    const callCountBefore = mockGetNews.mock.calls.length;
+
+    // drag to 5 then back to 0
+    fireEvent.change(screen.getByDisplayValue('0'), { target: { value: '5' } });
+    fireEvent.pointerUp(screen.getByDisplayValue('5'));
+    await waitFor(() => expect(mockGetNews.mock.calls.length).toBe(callCountBefore + 1));
+    expect(mockGetNews).toHaveBeenLastCalledWith(1, 'date', undefined, 5);
+
+    // now drag back to 0
+    const countNow = mockGetNews.mock.calls.length;
+    fireEvent.change(screen.getByDisplayValue('5'), { target: { value: '0' } });
+    fireEvent.pointerUp(screen.getByDisplayValue('0'));
+    await waitFor(() => expect(mockGetNews.mock.calls.length).toBe(countNow + 1));
+    // 0 → null → undefined
+    expect(mockGetNews).toHaveBeenLastCalledWith(1, 'date', undefined, undefined);
   });
 
   it('paginates to page 2', async () => {

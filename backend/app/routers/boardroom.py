@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
@@ -134,11 +134,23 @@ def create_meeting(payload: MeetingCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/meetings", response_model=MeetingListOut)
-def list_meetings(db: Session = Depends(get_db)):
+def list_meetings(
+    db: Session = Depends(get_db),
+    status: str | None = Query(None, pattern="^(running|completed|failed|cancelled)$"),
+    trigger_type: str | None = Query(None, pattern="^(manual|news|model|calendar)$"),
+):
     # (trigger check moved to the central job loop — grilling 03 / ticket 07:
     #  piggyback on page views was removed; pg_cron drives check_triggers)
-    meetings = (db.query(boardroom_service.BoardroomMeeting)
-                .order_by(desc(boardroom_service.BoardroomMeeting.created_at))
+    #
+    # Filters run in SQL, BEFORE .limit(50) — filtering client-side would only
+    # search the newest 50 rows, so "ล้มเหลว" could show 3 while 12 exist and
+    # nothing on screen would say so (ticket 11 / row 9.4).
+    q = db.query(boardroom_service.BoardroomMeeting)
+    if status:
+        q = q.filter(boardroom_service.BoardroomMeeting.status == status)
+    if trigger_type:
+        q = q.filter(boardroom_service.BoardroomMeeting.trigger_type == trigger_type)
+    meetings = (q.order_by(desc(boardroom_service.BoardroomMeeting.created_at))
                 .limit(50).all())
     start_of_day = boardroom_service.local_midnight_utc()
     today_meetings = (db.query(boardroom_service.BoardroomMeeting)

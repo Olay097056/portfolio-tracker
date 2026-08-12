@@ -5,6 +5,7 @@ import {
   getCountryDetail,
 } from '../../api/client';
 import type { CountryBrief, CountryDetail, CountryReport } from '../../api/types';
+import { DataTierBadge } from '../ui/DataTierBadge';
 
 // Country detail page (รายประเทศ → /countries/:code) — mirrors the reference
 // page: header (flag/name/data-tier/score/sparkline), AI สรุปสถานการณ์ brief,
@@ -276,7 +277,7 @@ export function CountryDetailPage({ code, onBack }: Props) {
           <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>
             {c.flag} {c.name_th}
           </h3>
-          <span style={{ fontSize: 12, color: INK.inkFaint }}>{c.data_tier_note_th}</span>
+          <DataTierBadge tier={c.data_tier} fallback={c.data_tier_note_th} />
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, color: INK.inkFaint }}>

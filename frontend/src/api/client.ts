@@ -602,8 +602,15 @@ export function simulateModels(overrides: Record<string, number>): Promise<Simul
 }
 
 // ── Boardroom (ห้องประชุม AI) ─────────────────────────────────────────────
-export function listBoardroomMeetings(): Promise<BoardroomList> {
-  return request<BoardroomList>('/api/boardroom/meetings');
+export function listBoardroomMeetings(
+  status?: string | null,
+  triggerType?: string | null,
+): Promise<BoardroomList> {
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (triggerType) params.set('trigger_type', triggerType);
+  const qs = params.toString();
+  return request<BoardroomList>(`/api/boardroom/meetings${qs ? `?${qs}` : ''}`);
 }
 
 export function getBoardroomMeeting(id: string): Promise<BoardroomMeetingDetail> {

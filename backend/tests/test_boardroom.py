@@ -381,3 +381,54 @@ def test_endpoints(client, db_session, monkeypatch):
 
     # 404 path
     assert client.get("/api/boardroom/meetings/nope").status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# 9. Meeting list filters (ticket 11 — checklist row 9.4)
+# ---------------------------------------------------------------------------
+def test_list_meetings_filter(client, db_session):
+    """Filters must run in SQL BEFORE .limit(50).
+
+    The two `failed` meetings here are the OLDEST rows, buried under 60 newer
+    ones. A client-side filter (or a .filter() placed after .limit()) would
+    only ever search the newest 50 and report zero failures while two exist —
+    the silent under-count this row was opened to prevent.
+    """
+    from datetime import datetime, timedelta, timezone
+    base = datetime(2026, 1, 1, tzinfo=timezone.utc).replace(tzinfo=None)
+
+    for i in range(2):
+        db_session.add(br.BoardroomMeeting(
+            id=f"old-failed-{i}", status="failed", trigger_type="news",
+            agenda=f"ประชุมเก่าที่ล้มเหลว {i}", created_at=base + timedelta(minutes=i),
+            updated_at=base + timedelta(minutes=i)))
+    for i in range(60):
+        db_session.add(br.BoardroomMeeting(
+            id=f"new-done-{i}", status="completed", trigger_type="manual",
+            agenda=f"ประชุมใหม่ {i}", created_at=base + timedelta(days=1, minutes=i),
+            updated_at=base + timedelta(days=1, minutes=i)))
+    db_session.commit()
+
+    # no filter → newest 50, and the old failed pair is NOT among them
+    body = client.get("/api/boardroom/meetings").json()
+    assert len(body["meetings"]) == 50
+    ids = {m["id"] for m in body["meetings"]}
+    assert "old-failed-0" not in ids, "setup broken: failed rows must be outside the newest 50"
+
+    # status filter reaches past the limit
+    body = client.get("/api/boardroom/meetings?status=failed").json()
+    got = {m["id"] for m in body["meetings"]}
+    assert got == {"old-failed-0", "old-failed-1"}, f"filter did not run in SQL: {got}"
+    assert all(m["status"] == "failed" for m in body["meetings"])
+
+    # trigger_type filter, same story
+    body = client.get("/api/boardroom/meetings?trigger_type=news").json()
+    assert {m["id"] for m in body["meetings"]} == {"old-failed-0", "old-failed-1"}
+
+    # both together
+    body = client.get("/api/boardroom/meetings?status=failed&trigger_type=manual").json()
+    assert body["meetings"] == []
+
+    # unknown values are rejected, not silently ignored (which would return all rows)
+    assert client.get("/api/boardroom/meetings?status=bogus").status_code == 422
+    assert client.get("/api/boardroom/meetings?trigger_type=bogus").status_code == 422

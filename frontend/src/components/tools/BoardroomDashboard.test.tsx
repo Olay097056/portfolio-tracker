@@ -129,8 +129,10 @@ describe('BoardroomDashboard', () => {
     render(<BoardroomDashboard />);
     expect(await screen.findByText('ประชุมแรก')).toBeTruthy();
     expect(screen.getByText('ประชุมที่ล้ม')).toBeTruthy();
-    expect(screen.getByText('เสร็จสิ้น')).toBeTruthy();
-    expect(screen.getByText('ล้มเหลว')).toBeTruthy();
+    // ป้ายสถานะเป็น <span>; ชิปตัวกรอง (9.4) ใช้ข้อความเดียวกันแต่เป็น <button>
+    // จึงเจาะจงว่านับเฉพาะ badge ไม่ใช่ชิป — ไม่งั้นเทสต์ผ่านได้ทั้งที่ badge หาย
+    const badges = screen.getAllByText(/^(เสร็จสิ้น|ล้มเหลว)$/).filter((el) => el.tagName === 'SPAN');
+    expect(badges.map((el) => el.textContent).sort()).toEqual(['ล้มเหลว', 'เสร็จสิ้น']);
     expect(screen.getAllByText(/เรียก AI: 23/).length).toBeGreaterThan(0);
   });
 
@@ -176,6 +178,8 @@ describe('BoardroomDashboard', () => {
     expect(screen.getAllByText(/ผ่านการพิสูจน์/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/ขัดกับข้อมูลจริง/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/ตรวจไม่ได้/).length).toBeGreaterThan(0);
+    // 2.2 safety: Boardroom stance confidence still uses "ความมั่นใจ" (AI confidence on stance, not data completeness)
+    expect(screen.getByText(/จุดยืน: US10Y long \(ความมั่นใจ 65%\)/)).toBeTruthy();
   });
 
   it('ประชุม failed แสดง error + ปุ่มประชุมต่อเรียก API', async () => {
@@ -191,5 +195,70 @@ describe('BoardroomDashboard', () => {
 
     fireEvent.click(screen.getByText(/ประชุมต่อ/));
     await waitFor(() => expect(mockClient.resumeBoardroomMeeting).toHaveBeenCalledWith('m2'));
+  });
+});
+
+describe('BoardroomDashboard — ตัวกรองคลังประชุม (9.4)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockClient.listBoardroomMeetings.mockResolvedValue({
+      meetings: [makeMeeting({ id: 'm1', status: 'completed', agenda: 'ประชุมแรก' })],
+    });
+  });
+
+  it('ไม่มีตัวกรอง = ไม่ส่งพารามิเตอร์ (ยิงครั้งเดียว)', async () => {
+    render(<BoardroomDashboard />);
+    await screen.findByText('ประชุมแรก');
+    expect(mockClient.listBoardroomMeetings).toHaveBeenCalledTimes(1);
+    expect(mockClient.listBoardroomMeetings).toHaveBeenCalledWith();
+  });
+
+  it('กด "ล้มเหลว" → ส่ง status=failed ไป API (กรองที่ server ไม่ใช่ในหน้า)', async () => {
+    render(<BoardroomDashboard />);
+    await screen.findByText('ประชุมแรก');
+
+    mockClient.listBoardroomMeetings.mockResolvedValue({
+      meetings: [makeMeeting({ id: 'mf', status: 'failed', agenda: 'ประชุมที่ล้ม' })],
+    });
+    const chips = screen.getAllByText('ล้มเหลว').filter((el) => el.tagName === 'BUTTON');
+    expect(chips).toHaveLength(1);
+    fireEvent.click(chips[0]);
+
+    await waitFor(() =>
+      expect(mockClient.listBoardroomMeetings).toHaveBeenCalledWith('failed', null));
+    expect(await screen.findByText('ประชุมที่ล้ม')).toBeTruthy();
+  });
+
+  it('กรองตามที่มา → ส่ง trigger_type', async () => {
+    render(<BoardroomDashboard />);
+    await screen.findByText('ประชุมแรก');
+    const chip = screen.getAllByText('เปิดจากข่าว').filter((el) => el.tagName === 'BUTTON')[0];
+    fireEvent.click(chip);
+    await waitFor(() =>
+      expect(mockClient.listBoardroomMeetings).toHaveBeenCalledWith(null, 'news'));
+  });
+
+  it('กรองแล้วไม่พบ → ข้อความบอก ไม่ใช่หน้าว่าง', async () => {
+    render(<BoardroomDashboard />);
+    await screen.findByText('ประชุมแรก');
+    mockClient.listBoardroomMeetings.mockResolvedValue({ meetings: [] });
+    fireEvent.click(screen.getAllByText('ล้มเหลว').filter((el) => el.tagName === 'BUTTON')[0]);
+    expect(await screen.findByText('ไม่พบประชุมที่ตรงกับตัวกรอง')).toBeTruthy();
+  });
+
+  it('กรองแล้วแผงประชุมสดต้องไม่หาย (ยังล็อกปุ่มเปิดประชุมอยู่)', async () => {
+    // รายการไม่กรองมีประชุมที่กำลังรัน — ถ้ากรอง "ล้มเหลว" แล้วเขียนทับ state เดิม
+    // แผงสดจะหายและปุ่มเปิดประชุมจะปลดล็อกทั้งที่ยังประชุมค้างอยู่
+    mockClient.listBoardroomMeetings.mockResolvedValue({
+      meetings: [makeMeeting({ id: 'run1', status: 'running', agenda: 'ประชุมที่กำลังรัน' })],
+    });
+    render(<BoardroomDashboard />);
+    // ปรากฏ 2 ที่: แผงประชุมสด + แถวในคลัง
+    expect((await screen.findAllByText(/ประชุมที่กำลังรัน/)).length).toBe(2);
+
+    mockClient.listBoardroomMeetings.mockResolvedValue({ meetings: [] });
+    fireEvent.click(screen.getAllByText('ล้มเหลว').filter((el) => el.tagName === 'BUTTON')[0]);
+    await screen.findByText('ไม่พบประชุมที่ตรงกับตัวกรอง');
+    expect(screen.getAllByText(/ประชุมที่กำลังรัน/).length).toBeGreaterThan(0);
   });
 });

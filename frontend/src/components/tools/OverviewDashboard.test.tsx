@@ -86,7 +86,7 @@ describe('OverviewDashboard', () => {
   it('renders regime + top model + country risk', async () => {
     render(<OverviewDashboard />);
     await waitFor(() => expect(screen.getByText('ฟื้นตัว')).toBeTruthy());
-    expect(screen.getByText(/ความมั่นใจ:/)).toBeTruthy();
+    expect(screen.getByText(/ความครบของข้อมูล:/)).toBeTruthy();
     expect(screen.getByText('โซนเปลี่ยนผ่าน')).toBeTruthy();
     expect(screen.getByText('โมเดลอันดับ 1')).toBeTruthy();
     expect(screen.getAllByText('โมเดลฟื้นตัว / รีเฟลชัน').length).toBeGreaterThan(0);

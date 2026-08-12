@@ -72,6 +72,10 @@ describe('CountriesDashboard', () => {
     // Laos: no score, no yield — "—" appears (score, yield, 60-day)
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
     expect(screen.getByText('ไม่มีตลาดรอง — ติดตามผ่านอันดับเครดิตและข่าว')).toBeTruthy();
+    // DataTierBadge renders with color (all 4 tiers in fixture render)
+    expect(screen.getByText('ข้อมูลเรียลไทม์')).toBeTruthy();     // US — realtime
+    expect(screen.getAllByText('ข้อมูลรายวัน').length).toBeGreaterThanOrEqual(1); // TH, MX — daily
+    expect(screen.getByText('ข้อมูลจำกัด อาจล่าช้าบางวัน')).toBeTruthy(); // TR — sparse
   });
 
   it('sorts by risk desc/asc', async () => {

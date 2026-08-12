@@ -249,6 +249,23 @@ function TriggerBadge({ trigger }: { trigger: string }) {
   return <span style={{ fontSize: 10, color: INK.faint }}>{TRIGGER[trigger] ?? trigger}</span>;
 }
 
+function FilterChip({ label, active, color, onClick }: { label: string; active: boolean; color: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      style={{
+        cursor: 'pointer', fontSize: 11, borderRadius: 999, padding: '2px 10px',
+        color: active ? color : INK.faint,
+        background: active ? 'rgba(148,163,184,0.12)' : 'transparent',
+        border: `1px solid ${active ? color : INK.border}`,
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
 function StanceBadge({ stance, asset }: { stance: string; asset: string }) {
   const dir = (stance ?? '').toLowerCase();
   const map: Record<string, { label: string; color: string; bg: string; border: string }> = {
@@ -500,6 +517,14 @@ export function BoardroomDashboard({ focusMeetingId }: { focusMeetingId?: string
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
 
+  // ตัวกรองคลังประชุม (9.4) — กรองฝั่ง server เพื่อให้เห็นประชุมเก่ากว่า 50 รายการล่าสุด
+  // `archive` แยกจาก `meetings` เพราะ `meetings` ยังต้องเป็นรายการไม่กรอง:
+  // แผงประชุมสด (บรรทัด running) และตัวล็อกปุ่มเปิดประชุมอ่านจากมัน
+  const [filterStatus, setFilterStatus] = useState<string | null>(null);
+  const [filterTrigger, setFilterTrigger] = useState<string | null>(null);
+  const [archive, setArchive] = useState<BoardroomMeeting[] | null>(null);
+  const filtering = filterStatus !== null || filterTrigger !== null;
+
   // จากแท็บ "สัญญาณที่ประชุม": กด "ไปที่ประชุม" → โหลดมตินั้นอัตโนมัติ
   const [focusedId, setFocusedId] = useState<string | null>(focusMeetingId ?? null);
   useEffect(() => {
@@ -537,6 +562,25 @@ export function BoardroomDashboard({ focusMeetingId }: { focusMeetingId?: string
     const iv = setInterval(loadList, anyRunning ? 10000 : 30000);
     return () => clearInterval(iv);
   }, [loadList, anyRunning]);
+
+  // คลังประชุมแบบกรอง — ยิงเฉพาะตอนมีตัวกรอง ไม่กรอง = ใช้ผลเดิม ไม่ยิงซ้ำ
+  const loadArchive = useCallback(async () => {
+    if (!filtering) {
+      setArchive(null);
+      return;
+    }
+    try {
+      setArchive((await listBoardroomMeetings(filterStatus, filterTrigger)).meetings);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'โหลดข้อมูลไม่สำเร็จ');
+    }
+  }, [filtering, filterStatus, filterTrigger]);
+
+  useEffect(() => {
+    loadArchive();
+  }, [loadArchive]);
+
+  const archiveList = archive ?? meetings;
 
   // detail polling: 3s while the viewed meeting is running
   useEffect(() => {
@@ -771,14 +815,49 @@ export function BoardroomDashboard({ focusMeetingId }: { focusMeetingId?: string
         <>
           {/* archive list */}
           <h3 style={{ fontSize: 13, color: INK.dim, margin: '16px 0 10px' }}>🗂️ {T.archive}</h3>
-          {loaded && meetings.length === 0 ? (
+
+          {/* ตัวกรอง (9.4) — กรองที่ server จึงเห็นประชุมเก่ากว่า 50 รายการล่าสุดด้วย */}
+          <div data-testid="meeting-filters" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10, alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: INK.faint, marginRight: 2 }}>สถานะ</span>
+            {(Object.keys(STATUS) as string[]).map((key) => (
+              <FilterChip
+                key={key}
+                label={STATUS[key].label}
+                active={filterStatus === key}
+                color={STATUS[key].color}
+                onClick={() => setFilterStatus(filterStatus === key ? null : key)}
+              />
+            ))}
+            <span style={{ fontSize: 11, color: INK.faint, margin: '0 2px 0 8px' }}>ที่มา</span>
+            {(Object.keys(TRIGGER) as string[]).map((key) => (
+              <FilterChip
+                key={key}
+                label={TRIGGER[key]}
+                active={filterTrigger === key}
+                color={INK.dim}
+                onClick={() => setFilterTrigger(filterTrigger === key ? null : key)}
+              />
+            ))}
+            {filtering && (
+              <button
+                onClick={() => { setFilterStatus(null); setFilterTrigger(null); }}
+                style={{ marginLeft: 'auto', cursor: 'pointer', background: 'transparent', border: 'none', color: INK.accent, fontSize: 11, textDecoration: 'underline' }}
+              >
+                ล้างตัวกรอง
+              </button>
+            )}
+          </div>
+
+          {loaded && archiveList.length === 0 ? (
             <div style={{ background: INK.panel, border: `1px solid ${INK.border}`, borderRadius: 12, padding: '32px 20px', textAlign: 'center' }}>
               <div style={{ fontSize: 28, marginBottom: 8 }}>🏛️</div>
-              <p style={{ margin: 0, fontSize: 13, color: INK.dim }}>{T.empty}</p>
+              <p style={{ margin: 0, fontSize: 13, color: INK.dim }}>
+                {filtering ? 'ไม่พบประชุมที่ตรงกับตัวกรอง' : T.empty}
+              </p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {meetings.map((m) => (
+              {archiveList.map((m) => (
                   <button
                     key={m.id}
                     onClick={() => loadDetail(m.id)}

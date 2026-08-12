@@ -337,7 +337,7 @@ function ModelCard({
               {model.score.toFixed(1)}
             </span>
             <span style={{ fontSize: 10, color: INK.inkFaint }}>
-              ความมั่นใจ {model.confidence}%
+              ความครบของข้อมูล {model.confidence}%
             </span>
           </span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={INK.inkFaint} strokeWidth="2" style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>

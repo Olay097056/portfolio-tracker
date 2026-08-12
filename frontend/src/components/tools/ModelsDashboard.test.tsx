@@ -113,7 +113,7 @@ describe('ModelsDashboard', () => {
     // Rank badges
     expect(screen.getByText('#1')).toBeTruthy();
     // Confidence labels
-    expect(screen.getAllByText(/ความมั่นใจ/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/ความครบของข้อมูล/).length).toBeGreaterThan(0);
     // Factor labels
     expect(screen.getAllByText('โครงสร้างตลาด').length).toBeGreaterThan(0);
     expect(screen.getAllByText('ข้อมูลมหภาค').length).toBeGreaterThan(0);

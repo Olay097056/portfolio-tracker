@@ -222,3 +222,29 @@ def test_phase_results_record_elapsed_time(db_session):
     out = jobs.run_due_turns(db_session)
     for phase in ("prewarm", "boardroom", "trade_desk", "summaries", "news"):
         assert "at_s" in out[phase], f"{phase} ไม่บันทึกเวลา: {out[phase]}"
+
+
+def test_progress_is_flushed_before_the_tick_ends(db_session, monkeypatch):
+    """A killed tick must still show where it stopped.
+
+    The row is only useful as a diagnostic if phases write as they go. Two
+    production fix attempts (2026-08-13) aimed at the wrong phase precisely
+    because a killed function persisted nothing.
+    """
+    import app.boardroom_service as br
+    from app.jobs import JobRun
+
+    seen = {}
+
+    def capture(db, max_llm_turns):
+        row = db.query(JobRun).filter(JobRun.status == "running").first()
+        seen["detail_midtick"] = row.detail
+        seen["heartbeat_midtick"] = row.heartbeat_at
+        return 0
+
+    monkeypatch.setattr(br, "advance_running_meetings", capture)
+    jobs.run_due_turns(db_session)
+
+    assert seen["detail_midtick"], "ยังไม่มีอะไรถูกเขียนตอนกลาง tick"
+    assert "prewarm" in seen["detail_midtick"], seen["detail_midtick"]
+    assert seen["heartbeat_midtick"] is not None, "heartbeat ไม่ถูกอัปเดต"

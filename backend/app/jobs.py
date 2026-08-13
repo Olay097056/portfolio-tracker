@@ -139,19 +139,29 @@ def run_due_turns(db: Session) -> dict:
         return False
 
     def _mark(phase: str, payload: dict) -> None:
-        """Record a phase result together with how long the tick has run.
+        """Record a phase result and FLUSH it to the row immediately.
 
-        Without per-phase timing a wedged tick gives no clue which phase ate
-        the budget — diagnosing the 2026-08-12 incident took a production
-        experiment that could have been a log line.
+        Writing progress only at the end is useless for the failure that
+        actually happens here: the function is killed mid-tick, so nothing is
+        ever persisted and the row says only "running". Two fix attempts were
+        aimed at the wrong phase because of that blind spot. Each phase now
+        commits its own result plus a heartbeat, so a killed tick still leaves
+        a trail showing exactly where it stopped.
         """
         detail[phase] = {**payload, "at_s": round(time.monotonic() - t_start, 1)}
+        try:
+            run.detail = json.dumps(detail, ensure_ascii=False)
+            run.heartbeat_at = _now_utc_naive()
+            db.commit()
+        except Exception:
+            db.rollback()  # instrumentation must never break the tick
 
     try:
         # 1. Pre-warm macro/market caches (Postgres cache_entries, ticket 06) so
         #    the dashboard is warm even on a cold function. Cheap when fresh.
         from app import macro_service
 
+        _mark("phase_started", {"phase": "prewarm"})
         try:
             dash = macro_service.build_dashboard(force=False)
             # FRED series ids only (the _SERIES meta maps internal keys like
@@ -167,6 +177,7 @@ def run_due_turns(db: Session) -> dict:
         from app import boardroom_service
 
         if _has_time("boardroom"):
+            _mark("phase_started", {"phase": "boardroom"})
             try:
                 trigger = boardroom_service.check_triggers(db)
                 advanced = boardroom_service.advance_running_meetings(
@@ -181,6 +192,7 @@ def run_due_turns(db: Session) -> dict:
         from app import trade_desk_service as td
 
         if _has_time("trade_desk"):
+            _mark("phase_started", {"phase": "trade_desk"})
             try:
                 td.seed_team(db)
                 team = db.query(td.TradeTeam).filter(
@@ -218,6 +230,7 @@ def run_due_turns(db: Session) -> dict:
         from app import news_service
 
         if _has_time("news"):
+            _mark("phase_started", {"phase": "news"})
             try:
                 enriched = news_service.enrich_pending(db, limit=NEWS_ENRICH_LIMIT_PER_TICK)
                 _mark("news", {"enriched": enriched})

@@ -130,3 +130,62 @@ def test_subsystem_failure_does_not_kill_tick(db_session, monkeypatch):
     assert out["news"] is not None and out.get("trade_desk") is not None
     last = db_session.query(JobRun).order_by(JobRun.id.desc()).first()
     assert last.status == "finished"  # tick survives; only the subsystem failed
+
+
+# ---------------------------------------------------------------------------
+# Tick budget (production incident 2026-08-12: 11h of consecutive failures)
+# ---------------------------------------------------------------------------
+def test_slow_phase_does_not_prevent_the_run_from_finishing(db_session, monkeypatch):
+    """A slow phase must cost the LATER phases, never the job_runs row.
+
+    Before the budget existed the tick ran until Vercel killed the function at
+    maxDuration, so `_finish` never executed: the row stayed `running`, the
+    next tick took over a "wedged" lock, and the cycle repeated every 10
+    minutes. Here phase 2 burns the whole budget; the run must still end
+    `finished`, with the later phases marked out_of_time rather than silently
+    skipped.
+    """
+    import app.boardroom_service as br
+
+    def burn_budget(db, max_llm_turns):
+        # pretend the phase took the entire budget
+        br.set_tick_deadline(0.0)
+        return 1
+
+    monkeypatch.setattr(br, "advance_running_meetings", burn_budget)
+
+    out = jobs.run_due_turns(db_session)
+
+    row = db_session.query(JobRun).order_by(JobRun.id.desc()).first()
+    assert row.status == "finished", f"row ค้างสถานะ {row.status} — Vercel จะฆ่าแล้ว lock ค้าง"
+    assert row.finished_at is not None
+    assert _running_count(db_session) == 0
+
+    for phase in ("trade_desk", "summaries", "news"):
+        assert out[phase] == {"skipped": "out_of_time", "seconds_left": 0.0} or \
+            out[phase].get("skipped") == "out_of_time", f"{phase} ควรถูกข้ามพร้อมเหตุผล: {out[phase]}"
+
+
+def test_llm_call_refuses_to_start_past_the_deadline(monkeypatch):
+    """llm_call is the choke point every expensive phase goes through."""
+    import app.boardroom_service as br
+
+    called = []
+    monkeypatch.setattr(br.httpx, "post", lambda *a, **k: called.append(1))
+
+    token = br.set_tick_deadline(0.0)  # already expired
+    try:
+        with pytest.raises(br.TickDeadlineExceeded):
+            br.llm_call("system", "user")
+    finally:
+        br.reset_tick_deadline(token)
+
+    assert called == [], "ยิง HTTP ทั้งที่เลยเวลาแล้ว"
+
+
+def test_no_deadline_armed_means_no_restriction(monkeypatch):
+    """Interactive paths (manual meeting/turn) must not inherit a tick budget."""
+    import app.boardroom_service as br
+
+    assert br.tick_time_left() is None
+    br.check_tick_deadline()  # must not raise

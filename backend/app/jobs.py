@@ -22,6 +22,7 @@ Design notes:
 from __future__ import annotations
 
 import json
+import time
 from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
@@ -97,6 +98,17 @@ NEWS_ENRICH_LIMIT_PER_TICK = 15
 # > the cron cadence (10 min) so a legitimately slow tick isn't stolen.
 WEDGED_LOCK_TTL_SECONDS = 20 * 60
 
+# The tick must finish and write its job_runs row BEFORE Vercel kills the
+# function at maxDuration (300s in vercel.json). Without a budget the tick ran
+# until it was killed mid-phase, so the row stayed "running" forever and every
+# following tick took over a wedged lock and died the same way — production
+# logged 11 hours of consecutive failures this way (2026-08-12 12:10 onward).
+# 240s leaves 60s to write the row and return.
+TICK_BUDGET_SECONDS = 240
+# A phase is only entered when at least this much budget is left; one LLM call
+# costs up to CAP_CALL_TIMEOUT_S * (RETRIES + 1) + backoff = 122s.
+PHASE_MIN_SECONDS = 130
+
 
 def run_due_turns(db: Session) -> dict:
     """One full tick: pre-warm caches, then advance every due subsystem.
@@ -111,6 +123,19 @@ def run_due_turns(db: Session) -> dict:
         return {"skipped": "job_already_running"}
 
     detail: dict = {"prewarm": None, "boardroom": None, "trade_desk": None, "summaries": None, "news": None}
+
+    from app import boardroom_service as _br
+
+    deadline_token = _br.set_tick_deadline(time.monotonic() + TICK_BUDGET_SECONDS)
+
+    def _has_time(phase: str) -> bool:
+        """Enter a phase only if it could finish inside the budget."""
+        left = _br.tick_time_left() or 0.0
+        if left >= PHASE_MIN_SECONDS:
+            return True
+        detail[phase] = {"skipped": "out_of_time", "seconds_left": round(left, 1)}
+        return False
+
     try:
         # 1. Pre-warm macro/market caches (Postgres cache_entries, ticket 06) so
         #    the dashboard is warm even on a cold function. Cheap when fresh.
@@ -130,62 +155,69 @@ def run_due_turns(db: Session) -> dict:
         # 2. Boardroom: trigger check + advance running meetings (<=3 LLM turns).
         from app import boardroom_service
 
-        try:
-            trigger = boardroom_service.check_triggers(db)
-            advanced = boardroom_service.advance_running_meetings(
-                db, max_llm_turns=MAX_LLM_TURNS_PER_TICK)
-            detail["boardroom"] = {"trigger": trigger.get("skip_reason") or (
-                "triggered" if trigger.get("triggered") else "checked"),
-                "advanced_turns": advanced}
-        except Exception as exc:
-            detail["boardroom"] = {"error": str(exc)[:200]}
+        if _has_time("boardroom"):
+            try:
+                trigger = boardroom_service.check_triggers(db)
+                advanced = boardroom_service.advance_running_meetings(
+                  db, max_llm_turns=MAX_LLM_TURNS_PER_TICK)
+                detail["boardroom"] = {"trigger": trigger.get("skip_reason") or (
+                  "triggered" if trigger.get("triggered") else "checked"),
+                  "advanced_turns": advanced}
+            except Exception as exc:
+                detail["boardroom"] = {"error": str(exc)[:200]}
 
         # 3. Trade-desk: settle pending orders (never calls LLM), then run due turns.
         from app import trade_desk_service as td
 
-        try:
-            td.seed_team(db)
-            team = db.query(td.TradeTeam).filter(
-                td.TradeTeam.code == "DEEPSEEK").first()
-            settled = []
-            if team is not None:
-                settled = td.settle_pending_orders(db, team)
-            due = td.run_due_turns(db)
-            detail["trade_desk"] = {
-                "settled": len(settled),
-                "result": [r.get("skipped") or r.get("action")
-                           for r in due if isinstance(r, dict)],
-            }
-        except Exception as exc:
-            detail["trade_desk"] = {"error": str(exc)[:200]}
+        if _has_time("trade_desk"):
+            try:
+                td.seed_team(db)
+                team = db.query(td.TradeTeam).filter(
+                  td.TradeTeam.code == "DEEPSEEK").first()
+                settled = []
+                if team is not None:
+                  settled = td.settle_pending_orders(db, team)
+                due = td.run_due_turns(db)
+                detail["trade_desk"] = {
+                  "settled": len(settled),
+                  "result": [r.get("skipped") or r.get("action")
+                             for r in due if isinstance(r, dict)],
+                }
+            except Exception as exc:
+                detail["trade_desk"] = {"error": str(exc)[:200]}
 
         # 3.5 Trade-desk: weekly target + daily/monthly summaries (1 LLM call/period
         #     each — idempotent via UNIQUE(team_id, kind, period); master-off skips all).
-        try:
-            team = db.query(td.TradeTeam).filter(
-                td.TradeTeam.code == "DEEPSEEK").first()
-            if team is not None:
-                wk = td.ensure_weekly_target(db, team)
-                day = td.ensure_daily_summary(db, team)
-                mon = td.ensure_monthly_summary(db, team)
-                detail["summaries"] = {"weekly": wk, "daily": day, "monthly": mon}
-            else:
-                detail["summaries"] = {"skipped": "no_team"}
-        except Exception as exc:
-            detail["summaries"] = {"error": str(exc)[:200]}
+        if _has_time("summaries"):
+            try:
+                team = db.query(td.TradeTeam).filter(
+                  td.TradeTeam.code == "DEEPSEEK").first()
+                if team is not None:
+                  wk = td.ensure_weekly_target(db, team)
+                  day = td.ensure_daily_summary(db, team)
+                  mon = td.ensure_monthly_summary(db, team)
+                  detail["summaries"] = {"weekly": wk, "daily": day, "monthly": mon}
+                else:
+                  detail["summaries"] = {"skipped": "no_team"}
+            except Exception as exc:
+                detail["summaries"] = {"error": str(exc)[:200]}
 
         # 4. News: enrich pending (<=40) — refresh happens on-demand via the
         #    news endpoint (fast fetch), enrichment is the slow LLM part.
         from app import news_service
 
-        try:
-            enriched = news_service.enrich_pending(db, limit=NEWS_ENRICH_LIMIT_PER_TICK)
-            detail["news"] = {"enriched": enriched}
-        except Exception as exc:
-            detail["news"] = {"error": str(exc)[:200]}
+        if _has_time("news"):
+            try:
+                enriched = news_service.enrich_pending(db, limit=NEWS_ENRICH_LIMIT_PER_TICK)
+                detail["news"] = {"enriched": enriched}
+            except Exception as exc:
+                detail["news"] = {"error": str(exc)[:200]}
 
+        detail["seconds_left"] = round(_br.tick_time_left() or 0.0, 1)
         _finish(db, run, "finished", detail)
         return detail
     except Exception as exc:
         _finish(db, run, "failed", {"error": str(exc)[:500]})
         return {"error": str(exc)[:500]}
+    finally:
+        _br.reset_tick_deadline(deadline_token)

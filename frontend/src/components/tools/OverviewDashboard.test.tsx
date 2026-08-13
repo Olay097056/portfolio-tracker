@@ -43,8 +43,8 @@ const payload = {
   ],
   key_figures: [
     { series_id: 'us10y', name_th: 'ผลตอบแทนพันธบัตรสหรัฐ 10 ปี', value: 4.699, unit: '%', change_pct: null, change_val: 0 },
-    { series_id: 'vix', name_th: 'ดัชนีความผันผวน VIX', value: 15.51, unit: 'index', change_pct: 0.0006, change_val: null },
-    { series_id: 'xauusd', name_th: 'ทองคำ', value: 4376, unit: 'USD', change_pct: -0.0122, change_val: null },
+    { series_id: 'vix', name_th: 'ดัชนีความผันผวน VIX', value: 15.51, unit: 'index', change_pct: 0.06, change_val: null },
+    { series_id: 'xauusd', name_th: 'ทองคำ', value: 4376, unit: 'USD', change_pct: -1.22, change_val: null },
     { series_id: 'us_banking_stress_index', name_th: 'ดัชนีความเสี่ยงแบงก์รัน', value: null, unit: 'index', change_pct: null, change_val: null },
   ],
   yield_curve: [
@@ -118,5 +118,26 @@ describe('OverviewDashboard', () => {
     const btn = screen.getByText('สร้างสรุปใหม่');
     btn.click();
     await waitFor(() => expect(client.refreshOverviewBrief).toHaveBeenCalled());
+  });
+});
+
+describe('OverviewDashboard — % เปลี่ยนแปลงในตัวเลขสำคัญ', () => {
+  it('แสดง change_pct ตามที่ backend ส่งมา ไม่คูณ 100 ซ้ำ', async () => {
+    // macro_service.py:734 คำนวณ (last/prev - 1) * 100 มาแล้ว → -3.4 คือ -3.4%
+    // เคยคูณซ้ำจนบน prod ขึ้น "-340.00%" (VIX) และ "+253.00%" (ทองคำ)
+    (client.getOverviewDashboard as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...payload,
+      key_figures: [
+        { series_id: 'vix', name_th: 'ดัชนีความผันผวน VIX', value: 14.76, unit: 'index', change_pct: -3.4, change_val: null },
+        { series_id: 'xauusd', name_th: 'ทองคำ', value: 4494.1, unit: 'USD', change_pct: 2.53, change_val: null },
+      ],
+    });
+
+    render(<OverviewDashboard />);
+
+    expect(await screen.findByText('-3.40%')).toBeTruthy();
+    expect(screen.getByText('+2.53%')).toBeTruthy();
+    expect(screen.queryByText('-340.00%')).toBeNull();
+    expect(screen.queryByText('+253.00%')).toBeNull();
   });
 });

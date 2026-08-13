@@ -31,6 +31,7 @@ Every LLM call counts llm_calls / tokens_in / tokens_out (principle #4).
 
 from __future__ import annotations
 
+import contextvars
 import json
 import math
 import os
@@ -53,9 +54,49 @@ from app.news_service import DEEPSEEK_MODEL, DEEPSEEK_URL, _deepseek_key
 # Safety caps (ticket 02)
 # ---------------------------------------------------------------------------
 CAP_MAX_CALLS = 40
-CAP_CALL_TIMEOUT_S = 120
+# Was 120s. With RETRIES = 1 and the 2s backoff that made a single slow call
+# cost up to 242s, which alone overruns the 300s Vercel maxDuration — the
+# function got killed mid-tick, its job_runs row never reached "finished", and
+# the next tick took over a "wedged" lock. 60s caps one call at 122s worst
+# case, so no single call can consume a whole tick.
+CAP_CALL_TIMEOUT_S = 60
 CAP_MEETING_TIMEOUT_S = 30 * 60
 RETRIES = 1
+
+# ── tick deadline ──────────────────────────────────────────────────────────
+# Set by jobs.run_due_turns for the duration of one tick. Every expensive path
+# goes through llm_call, so checking here bounds the whole tick no matter which
+# phase is running. A ContextVar (not a module global) keeps an interactive
+# request — a manual meeting or turn — from inheriting a background tick's
+# deadline when both run in the same process.
+_tick_deadline: contextvars.ContextVar[float | None] = contextvars.ContextVar(
+    "boardroom_tick_deadline", default=None)
+
+
+class TickDeadlineExceeded(RuntimeError):
+    """Raised instead of starting an LLM call that cannot finish in time."""
+
+
+def set_tick_deadline(monotonic_deadline: float | None) -> object:
+    """Arm the deadline; returns a token for reset_tick_deadline()."""
+    return _tick_deadline.set(monotonic_deadline)
+
+
+def reset_tick_deadline(token: object) -> None:
+    _tick_deadline.reset(token)  # type: ignore[arg-type]
+
+
+def tick_time_left() -> float | None:
+    """Seconds until the deadline, or None when no deadline is armed."""
+    deadline = _tick_deadline.get()
+    return None if deadline is None else deadline - time.monotonic()
+
+
+def check_tick_deadline() -> None:
+    left = tick_time_left()
+    if left is not None and left <= 0:
+        raise TickDeadlineExceeded(
+            "tick deadline reached — skipped an LLM call so the run can finish")
 # Per-tick LLM turn cap for the central job loop (grilling 03 / ticket 07).
 MAX_LLM_TURNS_PER_TICK = 3
 
@@ -628,6 +669,7 @@ class LLMError(RuntimeError):
 def llm_call(system: str, user: str, *, temperature: float = 0.7,
              max_tokens: int = 8000) -> tuple[str, dict, float]:
     """One DeepSeek call. Returns (content, usage, latency_s)."""
+    check_tick_deadline()
     key = _deepseek_key()
     if not key:
         raise LLMError("DEEPSEEK_API_KEY not set")

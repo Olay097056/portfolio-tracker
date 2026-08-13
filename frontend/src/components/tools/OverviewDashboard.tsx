@@ -57,7 +57,13 @@ function fmtFigure(f: OverviewKeyFigure): string {
 
 function fmtChange(f: OverviewKeyFigure): string {
   // "%" cards show bps deltas (change_val × 100) like the reference; "bps"
-  // cards show bps directly; everything else shows % (change_pct × 100).
+  // cards show bps directly; everything else shows change_pct as-is.
+  //
+  // change_pct arrives ALREADY in percent — macro_service.py:734 computes
+  // (last / prev - 1) * 100 and overview_service copies that field straight
+  // through. This used to multiply by 100 a second time, so VIX printed
+  // "-340.00%" for a -3.4% day and gold "+253.00%" for +2.53%.
+  // MacroDashboard.tsx:63 renders the same field without the extra factor.
   if (f.unit === '%' && f.change_val !== null) {
     const b = Math.round(f.change_val * 100);
     return `${b > 0 ? '+' : ''}${b} bps`;
@@ -67,7 +73,7 @@ function fmtChange(f: OverviewKeyFigure): string {
     return `${b > 0 ? '+' : ''}${b} bps`;
   }
   if (f.change_pct === null || f.change_pct === undefined) return '';
-  const p = f.change_pct * 100;
+  const p = f.change_pct;
   return `${p > 0 ? '+' : ''}${p.toFixed(2)}%`;
 }
 

@@ -18,7 +18,10 @@ const MOCK_STATE = {
     status: 'active', capital: 10000, balance: 9000, equity: 10800,
     pnl_pct: 8.0, margin_used: 1000,
     weekly_target_pct: 1.5, weekly_kpi_pct: 1.5,
-    next_turn_at: '2026-08-12T15:00:00Z', turns_today: 3,
+    // สัมพัทธ์กับเวลาปัจจุบันเสมอ — ค่าคงที่ '2026-08-12T15:00:00Z' ทำให้เทสต์นี้
+    // ผ่านเมื่อวานแล้วแดงวันนี้เฉยๆ เพราะนาฬิกาเดินผ่านไป (NextTurnCountdown
+    // ใส่ data-testid เฉพาะตอนยังนับถอยหลังอยู่)
+    next_turn_at: new Date(Date.now() + 3600_000).toISOString(), turns_today: 3,
     cost_today_usd: 0.003, cost_total_usd: 0.05,
   }],
   positions: {

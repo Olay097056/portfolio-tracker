@@ -92,11 +92,23 @@ def tick_time_left() -> float | None:
     return None if deadline is None else deadline - time.monotonic()
 
 
+# Worst case for one call: every attempt times out, plus the backoff between
+# them. A call must not START unless this much budget is left — checking only
+# "has the deadline passed" let a call begin with 1s to spare and then run for
+# another two minutes, overshooting the function limit anyway (observed on
+# prod 2026-08-13: run #195 still hit 295s with the deadline check in place).
+def worst_case_call_seconds() -> int:
+    backoff = sum(2 * (i + 1) for i in range(RETRIES))
+    return CAP_CALL_TIMEOUT_S * (RETRIES + 1) + backoff
+
+
 def check_tick_deadline() -> None:
     left = tick_time_left()
-    if left is not None and left <= 0:
+    if left is not None and left < worst_case_call_seconds():
         raise TickDeadlineExceeded(
-            "tick deadline reached — skipped an LLM call so the run can finish")
+            f"tick budget too low to start an LLM call "
+            f"({left:.0f}s left, needs {worst_case_call_seconds()}s) — "
+            f"skipped so the run can finish and mark itself done")
 # Per-tick LLM turn cap for the central job loop (grilling 03 / ticket 07).
 MAX_LLM_TURNS_PER_TICK = 3
 

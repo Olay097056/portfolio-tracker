@@ -189,3 +189,36 @@ def test_no_deadline_armed_means_no_restriction(monkeypatch):
 
     assert br.tick_time_left() is None
     br.check_tick_deadline()  # must not raise
+
+
+def test_call_is_refused_when_the_budget_cannot_cover_it(monkeypatch):
+    """Not "has the deadline passed" — "is there room for a whole call".
+
+    Checking only for an expired deadline let a call start with a second to
+    spare and then run its full worst case (timeout x attempts + backoff),
+    overshooting the function limit anyway. Production run #195 still reached
+    295s that way with the first version of this guard in place.
+    """
+    import app.boardroom_service as br
+
+    called = []
+    monkeypatch.setattr(br.httpx, "post", lambda *a, **k: called.append(1))
+
+    worst = br.worst_case_call_seconds()
+    assert worst >= br.CAP_CALL_TIMEOUT_S * (br.RETRIES + 1)
+
+    # deadline has NOT passed, but there is not enough room for a full call
+    token = br.set_tick_deadline(br.time.monotonic() + (worst - 5))
+    try:
+        with pytest.raises(br.TickDeadlineExceeded):
+            br.llm_call("system", "user")
+    finally:
+        br.reset_tick_deadline(token)
+    assert called == [], "ยิง HTTP ทั้งที่งบเหลือไม่พอให้คอลจบ"
+
+
+def test_phase_results_record_elapsed_time(db_session):
+    """Every phase records at_s so a wedged tick says which phase ate the budget."""
+    out = jobs.run_due_turns(db_session)
+    for phase in ("prewarm", "boardroom", "trade_desk", "summaries", "news"):
+        assert "at_s" in out[phase], f"{phase} ไม่บันทึกเวลา: {out[phase]}"

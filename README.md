@@ -2,9 +2,67 @@
 
 # Portfolio Tracker
 
-FastAPI + SQLAlchemy backend, React + TypeScript + Vite frontend. See
-`backend/README.md` for backend-specific details (environment variables,
-running tests).
+A web app for running a US stock and ETF portfolio — holdings and live pricing,
+scanners over a watchlist, forward-looking planning calculators, and an AI
+analyst layer — built around one rule: **never show a number the app can't
+account for.**
+
+**Live app:** https://portfolio-tracker-taupe-two.vercel.app
+
+## The idea
+
+Most portfolio tools answer "how am I doing?" with a single confident-looking
+score. This one started that way too — and then the score was measured against
+actual outcomes and turned out to have **no predictive validity at all**. Rather
+than re-weighting it until it looked better, it was thrown out and replaced with
+two things shown side by side:
+
+- a **logistic regression fitted on historical outcomes**
+  (`backend/app/backtest/model_fit.py`), which reports its own accuracy openly,
+  including when that accuracy is unimpressive; and
+- an **LLM analyst** that writes a plain-language read of the same position.
+
+Two independent opinions the user can disagree with beats one authoritative
+number that was never checked.
+
+That principle is enforced structurally, not by good intentions. Scanners
+present **raw signals** — one measurement, one traceable source, one sortable
+column — and are contractually forbidden from folding them into a composite
+score (`docs/adr/0005-no-composite-scores-or-subjective-tags-in-scanners.md`).
+The project's glossary goes as far as banning the word *score* for anything
+lacking a validated weighting.
+
+## What's in it
+
+- **Portfolio and holdings** — multi-portfolio, live pricing, allocation donut,
+  per-holding P&L, TradingView charts
+- **Watchlist scanners** — momentum, pre-squeeze (volatility contraction against
+  a ticker's *own* history, not against other tickers), dividend ranking,
+  market breadth, trending tickers
+- **Planning calculators** — DCA (both the average-cost recalculation and the
+  multi-year compound projection), position sizing, stress test, THB-native
+  where the user actually thinks in baht
+- **AI analyst layer** — narrative reads, pattern-history lookup ("what happened
+  the last N times this setup appeared"), earnings-proximity warnings
+- **Macro and market context** — fear/greed, FX, CME, country-level and
+  macroeconomic services
+- **Background worker** — scheduled jobs with an overlap lock and automatic
+  takeover of wedged runs
+
+## Engineering notes
+
+- **24 backend services** behind a FastAPI app, deployed as serverless functions
+- **132 test files** (75 frontend, 57 backend), co-located with the code they cover
+- **7 ADRs** in `docs/adr/` recording the decisions that future changes must not
+  silently reverse
+- Deployed on Vercel + Supabase Postgres, with the worker on `pg_cron`
+
+## Stack
+
+FastAPI + SQLAlchemy + Alembic on the backend; React + TypeScript + Vite on the
+frontend; Postgres (Supabase) in production, SQLite for local development. See
+`backend/README.md` for backend-specific details (environment variables, running
+tests).
 
 ## Running it
 

@@ -1,3 +1,5 @@
+*English · [ภาษาไทย](README.th.md)*
+
 # Portfolio Tracker
 
 FastAPI + SQLAlchemy backend, React + TypeScript + Vite frontend. See
@@ -14,7 +16,7 @@ pg_cron. **This is the production environment** — the Docker/start-app paths
 below are for development only.
 
 - **App + API**: https://portfolio-tracker-taupe-two.vercel.app
-- **Database**: Supabase project `mujxregicbbabemlwgrs`
+- **Database**: Supabase Postgres
 - **Worker**: pg_cron every 10 min → `POST /api/jobs/run-due-turns` (job_runs
   table = overlap lock; wedged runs > 20 min are taken over automatically)
 

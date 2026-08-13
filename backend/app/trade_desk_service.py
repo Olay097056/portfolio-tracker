@@ -865,9 +865,18 @@ def run_due_turns(db: Session) -> list[dict]:
         next_at = next_at.replace(tzinfo=timezone.utc)
     if next_at and next_at > now:
         return [{"skipped": "not_due", "next": next_at.isoformat()}]
+    # Compare against a datetime, not now.date().isoformat(). SQLite happily
+    # compares its ISO-8601 text timestamps to a "2026-08-13" string, so this
+    # passed every local test; Postgres raises
+    #   operator does not exist: timestamp with time zone >= character varying
+    # which aborted the transaction, so every later commit in the tick failed —
+    # including the one marking the job_runs row finished. The row stayed
+    # `running`, the next tick took over a "wedged" lock, and the loop stalled
+    # for 13 hours (2026-08-12 12:00 → 2026-08-13 01:14).
+    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
     today_count = db.query(TradeTurn).filter(
         TradeTurn.team_id == team.id,
-        TradeTurn.started_at >= now.date().isoformat()).count()
+        TradeTurn.started_at >= start_of_day).count()
     if today_count >= DAILY_CAP_DEFAULT:
         return [{"skipped": "daily_cap"}]
     turn = run_turn(db, team, trigger="scheduled")

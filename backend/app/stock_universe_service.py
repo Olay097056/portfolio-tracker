@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import io
 import math
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import Any
 
@@ -36,6 +37,8 @@ _CONSTITUENTS_KEY = "stock_universe:sp500_constituents"
 _CONSTITUENTS_TTL = 24 * 3600          # the index changes a few times a year
 _MARKETS_KEY = "stock_universe:markets"
 _MARKETS_TTL = 10 * 60                 # prices; the desk ticks every 10 min
+_FUNDAMENTALS_KEY = "stock_universe:fundamentals"
+_FUNDAMENTALS_TTL = 24 * 3600          # market cap / PE move slowly
 
 # Tier by 30-day average dollar volume — how easily a position can be exited.
 _TIER1_DOLLAR_VOLUME = 1_000_000_000   # mega-cap, always liquid
@@ -184,6 +187,50 @@ def _series(frame: Any, ticker: str, column: str) -> list[float]:
     except Exception:
         return []
     return [float(v) for v in values if v == v and v is not None]
+
+
+def fetch_fundamentals(force: bool = False) -> dict:
+    """{SYMBOL: {market_cap, trailing_pe, forward_pe, sector}} — cached 24h.
+
+    Real values from yfinance .info (the same pipe as prices, no API key).
+    8 workers fetch the 503 names in ~1 minute. A symbol that fails to
+    fetch is simply ABSENT from the result — never guessed.
+    """
+    if not force:
+        cached = cache_get(_FUNDAMENTALS_KEY)
+        if cached:
+            return cached
+
+    constituents = fetch_sp500_constituents()
+    if not constituents:
+        return {}
+
+    import yfinance as yf
+
+    def _one(entry: dict) -> tuple | None:
+        try:
+            info = yf.Ticker(entry["symbol"]).info
+        except Exception:
+            return None
+        mcap = info.get("marketCap")
+        pe = info.get("trailingPE")
+        fpe = info.get("forwardPE")
+        sector = info.get("sector") or entry.get("sector")
+        if mcap is None and pe is None and fpe is None and sector is None:
+            return None
+        return (entry["symbol"], {
+            "market_cap": mcap, "trailing_pe": pe, "forward_pe": fpe,
+            "sector": sector,
+        })
+
+    out: dict = {}
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        for res in pool.map(_one, constituents):
+            if res:
+                out[res[0]] = res[1]
+    if out:
+        cache_set(_FUNDAMENTALS_KEY, out, _FUNDAMENTALS_TTL)
+    return out
 
 
 def get_prices_for_symbols(symbols: list[str]) -> dict[str, dict | None]:

@@ -110,3 +110,61 @@ def test_class_share_symbols_are_converted_for_yfinance(monkeypatch):
 
     rows = su.fetch_sp500_constituents()
     assert [r["symbol"] for r in rows] == ["BRK-B", "AAPL"]
+
+
+# ── fetch_fundamentals (Layer 3 — real values from yfinance, never guessed) ──
+
+class _FakeTicker:
+    def __init__(self, symbol):
+        self._symbol = symbol
+
+    @property
+    def info(self):
+        if self._symbol == "BROKEN":
+            raise RuntimeError("fetch failed")
+        return {"marketCap": 3_000_000_000_000, "trailingPE": 30.0,
+                "forwardPE": 28.0, "sector": "Technology"}
+
+
+def test_fetch_fundamentals_returns_real_values(monkeypatch):
+    monkeypatch.setattr(su, "fetch_sp500_constituents", lambda: [
+        {"symbol": "AAPL", "name": "Apple", "sector": "Information Technology"},
+        {"symbol": "MSFT", "name": "Microsoft", "sector": "Information Technology"},
+    ])
+    monkeypatch.setattr(su, "cache_get", lambda key: None)
+    monkeypatch.setattr(su, "cache_set", lambda key, value, ttl: None)
+    monkeypatch.setattr("yfinance.Ticker", _FakeTicker)
+
+    out = su.fetch_fundamentals()
+    assert out["AAPL"]["market_cap"] == 3_000_000_000_000
+    assert out["AAPL"]["trailing_pe"] == 30.0
+    assert out["MSFT"]["forward_pe"] == 28.0
+    assert out["AAPL"]["sector"] == "Technology"
+
+
+def test_fetch_fundamentals_skips_failed_symbols(monkeypatch):
+    monkeypatch.setattr(su, "fetch_sp500_constituents", lambda: [
+        {"symbol": "BROKEN", "name": "X", "sector": None},
+        {"symbol": "AAPL", "name": "Apple", "sector": "Information Technology"},
+    ])
+    monkeypatch.setattr(su, "cache_get", lambda key: None)
+    monkeypatch.setattr(su, "cache_set", lambda key, value, ttl: None)
+    monkeypatch.setattr("yfinance.Ticker", _FakeTicker)
+
+    out = su.fetch_fundamentals()
+    assert "BROKEN" not in out, "หุ้นที่ดึงข้อมูลไม่ได้ต้องไม่ถูกเดา"
+    assert "AAPL" in out
+
+
+def test_fetch_fundamentals_uses_cache(monkeypatch):
+    cached = {"AAPL": {"market_cap": 1, "trailing_pe": None,
+                       "forward_pe": None, "sector": "X"}}
+    monkeypatch.setattr(su, "cache_get",
+                        lambda key: cached if key == su._FUNDAMENTALS_KEY else None)
+    called = []
+    monkeypatch.setattr(su, "cache_set", lambda key, value, ttl: called.append(key))
+    monkeypatch.setattr("yfinance.Ticker", _FakeTicker)
+
+    out = su.fetch_fundamentals()
+    assert out == cached
+    assert called == [], "มีแคชแล้วต้องไม่เรียก fetch ใหม่"

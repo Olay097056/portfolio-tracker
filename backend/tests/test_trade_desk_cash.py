@@ -60,7 +60,11 @@ class TestOpenReservesCash:
                                      "tokens_in": 100, "tokens_out": 50, "latency_s": 0.1}):
                 with patch("app.stock_universe_service.get_prices_for_symbols",
                            return_value={"AAPL": {"mark_price": 100.0}}):
-                    run_turn(db_session, team, trigger="manual")
+                    with patch("app.stock_universe_service.fetch_fundamentals",
+                               return_value={"AAPL": {"market_cap": 3_000_000_000_000,
+                                                     "trailing_pe": 30.0, "forward_pe": 28.0,
+                                                     "sector": "Technology"}}):
+                        run_turn(db_session, team, trigger="manual")
 
         db_session.refresh(team)
         assert team.balance == 9500.0          # 10000 - 5% × 10000 = 500

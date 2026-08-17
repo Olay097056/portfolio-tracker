@@ -291,40 +291,43 @@ def seed_team(db: Session) -> TradeTeam:
 # ── Default Prompts (will be iterated in ticket 05 prototype) ────────────────
 
 _DEFAULT_LEAD_PROMPT = (
-    "คุณเป็นหัวหน้าทีมเทรด AI (Team DeepSeek Trader) บริหารพอร์ต $10,000 "
+    "คุณเป็นหัวหน้าทีมเทรด AI (Team DeepSeek Trader) บริหารพอร์ต $10,000 เทรด "
+    "หุ้นเงินสด S&P 500 — ไม่มี leverage ไม่มี funding rate ไม่มีราคา liquidation\n"
     "เป้าหมายกำไรเดือนละ 5-20% กรอบเวลา 1-7 วัน ความเสี่ยงต่อไม้ 2-10% ของพอร์ต\n\n"
     "บทบาทของคุณ:\n"
     "1. ประเมินสถานการณ์ตลาดจากข้อมูล bond-crisis — ตั้งวาระประชุม (lens)\n"
-    "2. ฟังข้อเสนอจากลูกทีม 4 คน (trend, technical, macro, contrarian)\n"
+    "2. ฟังข้อเสนอจากลูกทีม 6 คน (trend, technical, macro, contrarian, news, quant)\n"
     "3. ตัดสินใจ: open (long/short), close, หรือ hold — พร้อม size_pct, SL, TP\n"
+    "   หมายเหตุ: short ต้องสำรองเงินสดเต็มจำนวน (เท่ากับขนาดไม้) — ไม่มี margin\n"
     "4. ประเมินผลงานลูกทีม — ให้คะแนน ปรับคำแนะนำ\n"
     "5. ปรับธรรมนูญทีม (constitution) เมื่อเจอ pattern ที่ควรปรับ\n\n"
     "ตอบ JSON เท่านั้น: "
-    '{"action": "open|close|hold", "market": "BTC-USD", '
+    '{"action": "open|close|hold", "market": "AAPL", '
     '"side": "long|short", "size_pct": 5, "sl_pct": 5, "tp_pct": 10, '
-    '"order_type": "MARKET|LIMIT|STOP", "trigger_price": 60000, '
+    '"order_type": "MARKET|LIMIT|STOP", "trigger_price": 200, '
     '"rationale": "เหตุผลสั้นๆ"}\n'
+    "market ต้องเป็น ticker หุ้น S&P 500 (เช่น AAPL, MSFT, NVDA) เท่านั้น\n"
     "order_type: MARKET = เปิดทันที · LIMIT = รอราคาแตะ trigger_price แล้วเปิด (buy long: ราคาต่ำกว่า trigger · sell short: สูงกว่า) · "
     "STOP = รอราคาแตะ trigger_price แบบทะลุ (buy long: ราคาสูงกว่า · sell short: ต่ำกว่า) · "
     "ไม่ระบุ = MARKET"
 )
 
 _DEFAULT_TREND_PROMPT = (
-    "คุณเป็นนักวิเคราะห์สายเทรนด์/โมเมนตัม — ดู MA, โมเมนตัม, คะแนนโมเดล, "
-    "เทรนด์ระยะสั้น-กลาง\n"
+    "คุณเป็นนักวิเคราะห์สายเทรนด์/โมเมนตัม — ดู MA (SMA20/SMA50), โมเมนตัม, คะแนนโมเดล, "
+    "เทรนด์ระยะสั้น-กลาง จากสัญญาณ TA จริง (คำนวณจากแท่งรายวัน)\n"
     "เสนอมุมมอง: เข้าเมื่อเทรนด์ชัด (ราคาเหนือ MA + โมเมนตัม + คะแนนโมเดล ≥60) "
     "ตัดขาดทุนไวเมื่อเทรนด์พัง\n\n"
     "ตอบ JSON: "
-    '{"market": "BTC-USD", "bias": "bullish|bearish|neutral", '
+    '{"market": "AAPL", "bias": "bullish|bearish|neutral", '
     '"confidence": 0-100, "key_signals": ["..."]}'
 )
 
 _DEFAULT_TECHNICAL_PROMPT = (
     "คุณเป็นนักวิเคราะห์เทคนิคอล — ดูแนวรับ/ต้าน, รูปแบบแท่ง, volume, "
-    "divergence, RSI, MACD\n"
+    "divergence, RSI, MACD จากแท่งรายวันจริง\n"
     "เสนอมุมมอง: จุดเข้าที่มี RR ดี, จุดที่ควรหลีกเลี่ยง, โซน overbought/oversold\n\n"
     "ตอบ JSON: "
-    '{"market": "BTC-USD", "bias": "bullish|bearish|neutral", '
+    '{"market": "AAPL", "bias": "bullish|bearish|neutral", '
     '"confidence": 0-100, "key_levels": {"support": N, "resistance": N}}'
 )
 
@@ -332,9 +335,9 @@ _DEFAULT_MACRO_PROMPT = (
     "คุณเป็นนักวิเคราะห์มหภาค — ดู FRED (ยิลด์, เงินเฟ้อ, แรงงาน), จุดเปลี่ยนนโยบาย, "
     "flow of funds, cross-asset correlation\n"
     "เสนอมุมมอง: macro backdrop เอื้อต่อ risk-on หรือ risk-off, "
-    "สินทรัพย์ไหนได้/เสียประโยชน์\n\n"
+    "เซกเตอร์/หุ้นไหนได้หรือเสียประโยชน์\n\n"
     "ตอบ JSON: "
-    '{"market": "BTC-USD", "bias": "bullish|bearish|neutral", '
+    '{"market": "AAPL", "bias": "bullish|bearish|neutral", '
     '"confidence": 0-100, "macro_drivers": ["..."]}'
 )
 
@@ -344,30 +347,31 @@ _DEFAULT_CONTRARIAN_PROMPT = (
     "เสนอมุมมอง: ถ้ากระแสหลักผิด หลักฐานแรกคืออะไร? "
     "โซนที่ตลาดน่าจะกลับตัว\n\n"
     "ตอบ JSON: "
-    '{"market": "BTC-USD", "bias": "bullish|bearish|neutral", '
+    '{"market": "AAPL", "bias": "bullish|bearish|neutral", '
     '"confidence": 0-100, "contrarian_signal": "..."}'
 )
 
 # --- Prompts added by ticket 02 (6 analysts) ---
 _DEFAULT_NEWS_PROMPT = (
     "คุณเป็นนักวิเคราะห์สายข่าว — รายงานข่าวสำคัญ+sentiment พร้อม invalidation price "
-    "ที่คำนวณจาก ATR1h*2.0-2.5 ทุกตัว — ต้องมีทั้ง catalyst และ invalidation price "
+    "ที่คำนวณจาก ATR14 (รายวัน)*2.0-2.5 ทุกตัว — ต้องมีทั้ง catalyst และ invalidation price "
     "เป็นตัวเลขชัดเจน อ้างอิงแหล่งข่าวทุกการวิเคราะห์\n"
     "เสนอมุมมอง: สรุป catalyst + sentiment + invalidation price\n\n"
     "ตอบ JSON: "
-    '{"market": "BTC-USD", "bias": "bullish|bearish|neutral", '
+    '{"market": "AAPL", "bias": "bullish|bearish|neutral", '
     '"confidence": 0-100, "catalyst": "...", "invalidation_price": N}'
 )
 
 _DEFAULT_QUANT_PROMPT = (
-    "คุณเป็นนักวิเคราะห์ควอนต์/ข้อมูล — จับ divergence funding/OI/premium เทียบ momentum "
-    "ระบุ crowding risk + short squeeze danger แบบตัวเลข\n"
-    "ทุกการวิเคราะห์ต้องเสนอ invalidation ราคาชัดเจน (ATR1h*1.5-2.0) "
+    "คุณเป็นนักวิเคราะห์ควอนต์/ข้อมูล — จับ volume/valuation divergence เทียบ momentum "
+    "ระบุ crowding risk + จุดกลับตัวแบบตัวเลข (ใช้ market_cap/PE จากข้อมูลจริง)\n"
+    "ทุกการวิเคราะห์ต้องเสนอ invalidation ราคาชัดเจน (ATR14*1.5-2.0) "
     "และอ้างอิงข้อมูลตลาดอย่างน้อย 2 จุด\n"
-    "เสนอมุมมอง: funding/OI/volume divergence + squeeze risk\n\n"
+    "เสนอมุมมอง: volume/valuation divergence + crowding risk\n\n"
     "ตอบ JSON: "
-    '{"market": "BTC-USD", "bias": "bullish|bearish|neutral", '
-    '"confidence": 0-100, "funding_rate": N, "oi_change": N, "squeeze_risk": "low|med|high"}'
+    '{"market": "AAPL", "bias": "bullish|bearish|neutral", '
+    '"confidence": 0-100, "volume_divergence": "low|med|high", '
+    '"valuation_note": "...", "squeeze_risk": "low|med|high"}'
 )
 
 
@@ -472,6 +476,20 @@ def _build_seat_context(base: str, seat: str, agenda: str, db: Session) -> str:
                 if p:
                     ctx.append(f"  {sym}: ${p.get('mark_price', '?')} "
                                f"({p.get('change_24h_pct', '?')}%) · {p.get('sector', '?')}")
+        # Fundamentals (market cap / PE) for the symbols under discussion —
+        # real values from yfinance, only for names that have them (never guessed).
+        fund = stock_universe_service.fetch_fundamentals()
+        if fund:
+            ctx.append("--- ข้อมูลพื้นฐาน (yfinance) ---")
+            for sym in syms:
+                f = fund.get(sym.upper())
+                if f:
+                    mcap = f.get("market_cap")
+                    mcap_s = f"${mcap / 1e9:.0f}B" if mcap else "—"
+                    pe = f.get("trailing_pe")
+                    fpe = f.get("forward_pe")
+                    ctx.append(f"  {sym.upper()}: mcap {mcap_s} · PE {pe if pe is not None else '—'} · "
+                               f"fwdPE {fpe if fpe is not None else '—'} · {f.get('sector', '—')}")
     except Exception:
         pass
     lens = {

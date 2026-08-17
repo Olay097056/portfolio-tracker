@@ -74,6 +74,8 @@ class TestManualTurnEndpoint:
         monkeypatch.setattr("app.trade_desk_service.llm_call", mock_llm)
         monkeypatch.setattr("app.stock_universe_service.get_prices_for_symbols",
                            lambda syms: {})
+        monkeypatch.setattr("app.stock_universe_service.fetch_fundamentals",
+                           lambda force=False: {})
 
         resp = client.post("/api/trade-desk/turn?team_code=DEEPSEEK&agenda=test+agenda")
         assert resp.status_code == 200

@@ -149,5 +149,7 @@ class TestMasterSwitch:
                    return_value=('{"action":"hold"}', {}, 0.1)):
             with patch("app.stock_universe_service.get_prices_for_symbols",
                        return_value={}):
-                result = run_due_turns(db_session)
+                with patch("app.stock_universe_service.fetch_fundamentals",
+                           return_value={}):
+                    result = run_due_turns(db_session)
         assert "skipped" not in result[0] or result[0]["skipped"] != "master_off"

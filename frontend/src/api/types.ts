@@ -1103,6 +1103,23 @@ export interface HyperliquidMarketsResponse {
   updated_at: string;
 }
 
+// --- Stock universe (S&P 500 cash equity — user decision 2026-08-13) ---
+// Cash equity has no funding rate / leverage / liquidation price, so none of
+// those fields exists here — they were cut, not simulated.
+export interface StockMarket {
+  symbol: string; name: string | null; sector: string | null;
+  price: number | null; change_24h_pct: number | null;
+  dollar_volume: number | null;
+  ta_signals: string[]; ta_score: number; ta_arrow: string; tier: number;
+}
+
+export interface StockMarketsResponse {
+  markets: StockMarket[];
+  total: number;
+  by_sector: Record<string, number>;
+  updated_at: string | null;
+}
+
 // --- Job status (office 3D) ---
 export interface JobRunView {
   id: number; job_name: string; started_at: string | null;

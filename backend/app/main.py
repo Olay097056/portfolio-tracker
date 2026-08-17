@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import Base, engine
-from app.routers import ai_narrative, banking, boardroom, boardroom_signals, cme, compare, countries, dca, fear_greed, fx, holdings, hyperliquid, investors, jobs, macro, market, market_data, models, news, overview, portfolios, prices, screener, signals, trade_desk, watchlist
+from app.routers import ai_narrative, banking, boardroom, boardroom_signals, cme, compare, countries, dca, fear_greed, fx, holdings, hyperliquid, investors, jobs, macro, market, market_data, models, news, overview, portfolios, prices, screener, signals, stock_universe, trade_desk, watchlist
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -54,6 +54,7 @@ app.include_router(signals.router)
 app.include_router(boardroom.router)
 app.include_router(boardroom_signals.router)
 app.include_router(hyperliquid.router)
+app.include_router(stock_universe.router)
 app.include_router(trade_desk.router)
 app.include_router(jobs.router)
 

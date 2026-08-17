@@ -5,7 +5,7 @@ import * as client from '../../api/client';
 
 vi.mock('../../api/client', () => ({
   getTradeDeskState: vi.fn(),
-  getHyperliquidMarkets: vi.fn(),
+  getStockMarkets: vi.fn(),
   triggerTradeDeskTurn: vi.fn(),
   getTeamEquity: vi.fn(),
   setTeamDirective: vi.fn(),
@@ -33,14 +33,14 @@ const MOCK_STATE = {
 };
 
 const MOCK_MARKETS = {
-  markets: [{ symbol: 'BTC', category: 'crypto', mark_price: 63700, mid_price: 63700, change_24h_pct: 1.5, funding_rate: 0.001, open_interest: 1000000, volume_24h: 500, max_leverage: 40 }],
-  total: 1, by_category: { crypto: 1, stocks: 0, macro: 0, fx: 0 }, updated_at: '2026-08-12T14:30:00Z',
+  markets: [{ symbol: 'AAPL', name: 'Apple Inc.', sector: 'Information Technology', price: 212.5, change_24h_pct: 1.5, dollar_volume: 8_500_000_000, ta_signals: ['bull trend+8'], ta_score: 8, ta_arrow: '↑', tier: 1 }],
+  total: 1, by_sector: { 'Information Technology': 1 }, updated_at: '2026-08-12T14:30:00Z',
 };
 
 describe('TradeDeskDashboard', () => {
   beforeEach(() => {
     vi.mocked(client.getTradeDeskState).mockResolvedValue(MOCK_STATE as never);
-    vi.mocked(client.getHyperliquidMarkets).mockResolvedValue(MOCK_MARKETS as never);
+    vi.mocked(client.getStockMarkets).mockResolvedValue(MOCK_MARKETS as never);
   });
 
   it('renders team card with equity and P&L', async () => {
@@ -77,16 +77,16 @@ describe('TradeDeskDashboard', () => {
   });
 
   it('shows "—" when price data is unavailable', async () => {
-    // Mock market data with null prices
-    vi.mocked(client.getHyperliquidMarkets).mockResolvedValue({
-      markets: [{ ...MOCK_MARKETS.markets[0], mark_price: null, change_24h_pct: null, funding_rate: null, volume_24h: null }],
-      total: 1, by_category: { crypto: 1, stocks: 0, macro: 0, fx: 0 },
-      updated_at: '2026-08-12T14:30:00Z',
-    } as never);
-    render(<TradeDeskDashboard />);
-    await waitFor(() => expect(screen.getAllByText('—').length).toBeGreaterThan(0));
-    vi.mocked(client.getHyperliquidMarkets).mockResolvedValue(MOCK_MARKETS as never);
-  });
+      // Mock market data with null prices
+      vi.mocked(client.getStockMarkets).mockResolvedValue({
+        markets: [{ ...MOCK_MARKETS.markets[0], price: null, change_24h_pct: null, dollar_volume: null }],
+        total: 1, by_sector: { 'Information Technology': 1 },
+        updated_at: '2026-08-12T14:30:00Z',
+      } as never);
+      render(<TradeDeskDashboard />);
+      await waitFor(() => expect(screen.getAllByText('—').length).toBeGreaterThan(0));
+      vi.mocked(client.getStockMarkets).mockResolvedValue(MOCK_MARKETS as never);
+    });
 
   it('renders empty state without crashing when no positions', async () => {
     vi.mocked(client.getTradeDeskState).mockResolvedValue({
@@ -136,6 +136,15 @@ describe('TradeDeskDashboard', () => {
     render(<TradeDeskDashboard />);
     await waitFor(() => expect(screen.getAllByText('—').length).toBeGreaterThan(0));
     vi.mocked(client.getTradeDeskState).mockResolvedValue(MOCK_STATE as never);
+  });
+
+  it('renders market table with sector column and NO funding column (cash equity)', async () => {
+    render(<TradeDeskDashboard />);
+    await waitFor(() => expect(screen.getByText('AAPL')).toBeTruthy());
+    // sector column exists
+    expect(screen.getByText('Sector')).toBeTruthy();
+    // perp-only column must be gone — funding is cut, not simulated
+    expect(screen.queryByText('Funding')).toBeNull();
   });
 
   // ── Ticket 07 guard rails ──

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getTradeDeskState, triggerTradeDeskTurn, getHyperliquidMarkets, setTeamDirective, setTeamMaster } from '../../api/client';
-import type { TradeDeskState, HyperliquidMarket, TradePendingOrder, TradeSummary } from '../../api/types';
+import { getTradeDeskState, triggerTradeDeskTurn, getStockMarkets, setTeamDirective, setTeamMaster } from '../../api/client';
+import type { TradeDeskState, StockMarket, TradePendingOrder, TradeSummary } from '../../api/types';
 import { TeamDetailPage } from './TeamDetailPage';
 import { EquityChart, NextTurnCountdown } from './TradeDeskCharts';
 
@@ -14,7 +14,7 @@ const F = {
 
 export function TradeDeskDashboard() {
   const [state, setState] = useState<TradeDeskState | null>(null);
-  const [markets, setMarkets] = useState<HyperliquidMarket[]>([]);
+  const [markets, setMarkets] = useState<StockMarket[]>([]);
   const [loading, setLoading] = useState(true);
   const [turning, setTurning] = useState(false);
   const [msg, setMsg] = useState('');
@@ -28,7 +28,7 @@ export function TradeDeskDashboard() {
   const [summaries, setSummaries] = useState<TradeSummary[]>([]);
 
   const fetch = useCallback(async () => {
-    try { const [s,m] = await Promise.all([getTradeDeskState(), getHyperliquidMarkets()]); setState(s); setMarkets(m.markets||[]); setPendingOrders((s as any)?.pending_orders || []); setMasterOn((s as any)?.teams?.[0]?.master_on ?? true); setSummaries((s as any)?.summaries || []); } catch {}
+    try { const [s,m] = await Promise.all([getTradeDeskState(), getStockMarkets()]); setState(s); setMarkets(m.markets||[]); setPendingOrders((s as any)?.pending_orders || []); setMasterOn((s as any)?.teams?.[0]?.master_on ?? true); setSummaries((s as any)?.summaries || []); } catch {}
     setLoading(false);
   }, []);
   useEffect(() => { fetch(); }, [fetch]);
@@ -58,8 +58,8 @@ export function TradeDeskDashboard() {
   const team = state?.teams?.[0];
   const openPos = state?.positions?.open || [];
   const turns = state?.turns || [];
-  const cats = ['all',...new Set(markets.map(m=>m.category))];
-  const filtered = mktCat==='all'?markets:markets.filter(m=>m.category===mktCat);
+  const cats = ['all', ...Array.from(new Set(markets.map(m => m.sector ?? 'อื่นๆ')))];
+  const filtered = mktCat==='all'?markets:markets.filter(m=>(m.sector ?? 'อื่นๆ')===mktCat);
 
   return (
     <div style={{display:'flex',flexDirection:'column',gap:14}}>
@@ -67,7 +67,7 @@ export function TradeDeskDashboard() {
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:8}}>
         <div>
           <h2 style={{margin:0,fontSize:20,fontWeight:800,color:INK.text}}>🏢 ทีมเทรด</h2>
-          <p style={{margin:'4px 0 0',fontSize:11,color:INK.faint}}>ห้องเทรดจำลอง 1 ทีม AI (DeepSeek) · พอร์ตเริ่ม $10,000 · ราคาจริง Hyperliquid · Multi-agent: lead + 6 analysts</p>
+          <p style={{margin:'4px 0 0',fontSize:11,color:INK.faint}}>ห้องเทรดจำลอง 1 ทีม AI (DeepSeek) · พอร์ตเริ่ม $10,000 · หุ้นเงินสด S&P 500 (ราคาจริง yfinance) · ไม่มี leverage/funding/liquidation · Multi-agent: lead + 6 analysts</p>
         </div>
         <button onClick={doTurn} disabled={turning}
           style={{padding:'8px 18px',borderRadius:8,border:'none',cursor:turning?'not-allowed':'pointer',background:INK.sky,color:'#000',fontWeight:700,fontSize:13,opacity:turning?.6:1}}>
@@ -227,7 +227,7 @@ export function TradeDeskDashboard() {
         <div style={{display:'flex',gap:6,marginBottom:8}}>{cats.map(c=><button key={c} onClick={()=>setMktCat(c)} style={{padding:'3px 10px',borderRadius:999,border:`1px solid ${INK.panelBorder}`,background:mktCat===c?INK.sky+'20':'transparent',color:mktCat===c?INK.sky:INK.dim,fontSize:10,fontWeight:600,cursor:'pointer',textTransform:'uppercase'}}>{c}</button>)}</div>
         <div style={{overflowX:'auto',maxHeight:400,overflowY:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',fontSize:10}}>
           <thead><tr style={{borderBottom:`1px solid ${INK.panelBorder}`,position:'sticky',top:0,background:INK.panel}}>
-            {['Symbol','Price','24h','Funding','Vol $M','TA','TIER'].map(h=><th key={h} style={{padding:'3px 6px',textAlign:h==='Symbol'?'left':'right',color:INK.faint,fontWeight:500,fontSize:9}}>{h}</th>)}
+            {['Symbol','Price','24h','Sector','Vol $B','TA','TIER'].map(h=><th key={h} style={{padding:'3px 6px',textAlign:h==='Symbol'?'left':'right',color:INK.faint,fontWeight:500,fontSize:9}}>{h}</th>)}
           </tr></thead>
           <tbody>{filtered.slice(0,120).map(m=>{
             const ta = (m as any).ta_signals || [];
@@ -236,10 +236,10 @@ export function TradeDeskDashboard() {
             const tierColor = tier===1?INK.gold:tier===2?INK.sky:INK.faint;
             return <tr key={m.symbol} style={{borderBottom:`1px solid ${INK.panelBorder}10`}}>
               <td style={{padding:'3px 6px',color:INK.text,fontWeight:600}}>{m.symbol}</td>
-              <td style={{padding:'3px 6px',textAlign:'right',color:INK.text,...NUM}}>{F.price(m.mark_price)}</td>
+              <td style={{padding:'3px 6px',textAlign:'right',color:INK.text,...NUM}}>{F.price(m.price)}</td>
               <td style={{padding:'3px 6px',textAlign:'right',color:(m.change_24h_pct??0)>=0?INK.green:INK.red,fontWeight:600,...NUM}}>{F.pct(m.change_24h_pct)}</td>
-              <td style={{padding:'3px 6px',textAlign:'right',color:INK.dim,...NUM}}>{m.funding_rate!=null?`${m.funding_rate}%`:'—'}</td>
-              <td style={{padding:'3px 6px',textAlign:'right',color:INK.dim,...NUM}}>{F.num(m.volume_24h,1)}</td>
+              <td style={{padding:'3px 6px',textAlign:'right',color:INK.dim,fontSize:9}}>{m.sector ?? '—'}</td>
+              <td style={{padding:'3px 6px',textAlign:'right',color:INK.dim,...NUM}}>{m.dollar_volume!=null?`$${F.num(m.dollar_volume/1e9,2)}B`:'—'}</td>
               <td style={{padding:'3px 6px',textAlign:'right'}}>{arrow} {ta.slice(0,2).map((s:string,i:number)=><span key={i} style={{color:INK.dim,fontSize:9}}>{s.split('+')[0].split('-')[0].slice(0,6)}{i<ta.length-1?',':''}</span>)}</td>
               <td style={{padding:'3px 6px',textAlign:'right',color:tierColor,fontWeight:700}}>{tier}</td>
             </tr>;

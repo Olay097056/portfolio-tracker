@@ -52,6 +52,7 @@ import type {
   TradeDeskTurnResult,
   TeamDetail,
   HyperliquidMarketsResponse,
+  StockMarketsResponse,
   JobStatus,
 } from './types';
 import type { AiSignalMetrics } from '../utils/aiTechnicalSignal';
@@ -643,6 +644,11 @@ export function triggerTradeDeskTurn(teamCode: string, agenda?: string): Promise
 // --- Hyperliquid markets ---
 export function getHyperliquidMarkets(): Promise<HyperliquidMarketsResponse> {
   return request<HyperliquidMarketsResponse>('/api/hyperliquid/markets');
+}
+
+// --- Stock universe (S&P 500 cash equity) ---
+export function getStockMarkets(): Promise<StockMarketsResponse> {
+  return request<StockMarketsResponse>('/api/stock-universe/markets');
 }
 
 // --- Job status (office 3D) ---

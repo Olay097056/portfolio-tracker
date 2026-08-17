@@ -45,11 +45,66 @@ def test_list_new_holdings(client):
     assert data["limit"] == 20
 
 
-def test_last_13f_filing_reflects_each_investor_s_own_holdings_not_one_fixed_quarter(client):
+def test_last_13f_filing_reflects_each_investor_s_own_holdings_not_one_fixed_quarter(client, monkeypatch):
     """Every investor previously showed the literal 'SEC Form 13F (Q1 2026)' —
     a fixed guess, not derived from real data. It's now the mode of that
     investor's own holdings' activity_period, so different funds can (and do)
-    show different quarters."""
+    show different quarters. The payload is mocked with fixed quarters so the
+    assertions are deterministic — no live network, no quarter drift."""
+    import json
+    import urllib.request
+    import app.routers.investors as inv_module
+
+    def make_investor(slug, name, periods):
+        return {
+            "_id": f"inv_{slug}",
+            "slug": slug,
+            "name": name,
+            "managedFund": f"{name} Fund",
+            "performance": 10.0,
+            "portfolioValue": "1B",
+            "avatar": "",
+            "description": "",
+            "holdings": [
+                {
+                    "name": f"Holding {i}",
+                    "logo": f"/stock-logo/H{i}.svg",
+                    "portfolioPercent": 5.0,
+                    "avgBuyPrice": 100.0,
+                    "currentPrice": 120.0,
+                    "gainPercent": 20.0,
+                    "activityPeriod": period,
+                    "activityText": "Held",
+                }
+                for i, period in enumerate(periods)
+            ],
+        }
+
+    # Two investors whose holdings' mode quarter differs — Bill Gates Q3 2025,
+    # Ray Dalio Q2 2026 — so the label must be derived per investor, not fixed.
+    fake_payload = {
+        "data": [
+            make_investor("bill-gates", "Bill Gates", ["Q3 2025", "Q3 2025", "Q2 2026"]),
+            make_investor("ray-dalio", "Ray Dalio", ["Q2 2026", "Q2 2026", "Q1 2026"]),
+        ]
+    }
+
+    class FakeResponse:
+        status = 200
+
+        def read(self):
+            return json.dumps(fake_payload).encode("utf-8")
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    inv_module._CACHE_TIMESTAMP = 0.0
+    inv_module._CACHED_INVESTORS = []
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **k: FakeResponse())
+
     response = client.get("/api/investors")
     assert response.status_code == 200
     data = response.json()
@@ -57,11 +112,13 @@ def test_last_13f_filing_reflects_each_investor_s_own_holdings_not_one_fixed_qua
     filings = {inv["slug"]: inv["last_13f_filing"] for inv in data}
     assert len(set(filings.values())) > 1, f"expected real per-investor variation, got: {filings}"
 
-    # A concrete, verifiable fact: Bill Gates' own holdings' most common
-    # activity_period is Q3 2025, not Q1 2026.
     bill_gates = next((inv for inv in data if inv["slug"] == "bill-gates"), None)
     assert bill_gates is not None
     assert bill_gates["last_13f_filing"] == "SEC Form 13F (Q3 2025)"
+
+    ray_dalio = next((inv for inv in data if inv["slug"] == "ray-dalio"), None)
+    assert ray_dalio is not None
+    assert ray_dalio["last_13f_filing"] == "SEC Form 13F (Q2 2026)"
 
 
 def test_data_provider_credits_konbalongtun_not_only_sec_edgar(client):

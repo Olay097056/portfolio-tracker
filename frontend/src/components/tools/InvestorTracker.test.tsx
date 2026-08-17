@@ -145,14 +145,14 @@ describe('InvestorTracker', () => {
     const fallbackInvestor = makeInvestor({ id: 'fallback-1', name: 'Michael Burry', slug: 'michael-burry' });
     vi.spyOn(client, 'listInvestors').mockResolvedValue([fallbackInvestor]);
     vi.spyOn(client, 'listNewHoldings').mockResolvedValue(newHoldings);
-    vi.spyOn(client, 'getInvestorsStatus').mockResolvedValue({ last_fetched_at: '', fetch_timestamp: 0, investors_count: 1, data_provider: 'Official U.S. SEC EDGAR API & Konbalongtun Network' });
+    vi.spyOn(client, 'getInvestorsStatus').mockResolvedValue({ last_fetched_at: '', fetch_timestamp: 0, investors_count: 1, data_provider: 'SEC EDGAR' });
 
     render(<InvestorTracker />);
 
     await waitFor(() => expect(screen.getByText('Michael Burry')).toBeInTheDocument());
   });
 
-  describe('New Holdings tab (mirrors konbalongtun.com/new-holdings)', () => {
+  describe('SEC-derived New Holdings tab', () => {
     async function openNewHoldingsTab() {
       vi.spyOn(client, 'listInvestors').mockResolvedValue([makeInvestor({})]);
       vi.spyOn(client, 'getInvestorsStatus').mockResolvedValue({ last_fetched_at: '', fetch_timestamp: 0, investors_count: 1, data_provider: 'test' });

@@ -506,7 +506,7 @@ export function analyzeAiNarrative(ticker: string, metrics: AiSignalMetrics): Pr
   return request<AiNarrativeResult>('/ai-narrative/analyze', { method: 'POST', body: JSON.stringify(body) });
 }
 
-// --- Investor Tracker API Functions (konbalongtun style) ---
+// --- Investor Tracker API Functions ---
 export function listInvestors(search?: string, sortBy?: string): Promise<InvestorProfile[]> {
   const params = new URLSearchParams();
   if (search) params.append('search', search);

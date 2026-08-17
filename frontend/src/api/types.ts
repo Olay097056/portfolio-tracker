@@ -288,15 +288,15 @@ export interface AiNarrativeResult {
   caveats: string[];
 }
 
-// --- Investor Tracker Types (konbalongtun style) ---
+// --- Investor Tracker Types (SEC EDGAR 13F snapshots) ---
 export interface InvestorHolding {
   id: string;
   name: string;
-  ticker: string;
-  portfolio_percent: number;
-  avg_buy_price: number;
-  current_price: number;
-  gain_percent: number;
+  ticker: string | null;
+  portfolio_percent: number | null;
+  avg_buy_price: number | null;
+  current_price: number | null;
+  gain_percent: number | null;
   activity_period: string;
   activity_text: string;
   sector?: string;
@@ -308,9 +308,9 @@ export interface InvestorProfile {
   name: string;
   slug: string;
   fund_name: string;
-  performance_1y_pct: number;
+  performance_1y_pct: number | null;
   portfolio_value_usd: string;
-  portfolio_value_num: number;
+  portfolio_value_num: number | null;
   description: string;
   avatar_url: string;
   last_13f_filing: string;
@@ -323,14 +323,14 @@ export interface NewHoldingBuyer {
   investor_slug: string;
   investor_name: string;
   investor_avatar_url: string | null;
-  portfolio_percent: number;
+  portfolio_percent: number | null;
   avg_buy_price: number | null;
   gain_percent: number | null;
   activity_period: string;
 }
 
 export interface NewHoldingStock {
-  ticker: string;
+  ticker: string | null;
   company_name: string;
   logo_url: string | null;
   current_price: number | null;

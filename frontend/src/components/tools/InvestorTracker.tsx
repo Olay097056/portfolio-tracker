@@ -25,10 +25,7 @@ function mostCommon(values: string[]): string | null {
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
 }
 
-// Mirrors konbalongtun's own pagination widget exactly: 1, 2, 3 … last, with the current
-// page's neighbors folded in. Confirmed against their live site 2026-08-07 that they elide
-// down to "1 2 3 … 5" even at only 5 total pages (skip straight past page 4) -- not just a
-// generic "collapse once it gets long" pattern, so the threshold here is <= 3, not <= 5.
+// Shared pagination for the SEC-derived feed.
 function buildPageNumbers(current: number, total: number): (number | '...')[] {
   if (total <= 3) return Array.from({ length: total }, (_, i) => i + 1);
   const pages = new Set<number>([1, 2, 3, total, current]);
@@ -54,9 +51,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
   const [activeSubTab, setActiveSubTab] = useState<'portfolios' | 'new-holdings'>('portfolios');
   const [displayLimit, setDisplayLimit] = useState<number>(50);
 
-  // New Holdings tab: its own paginated/searchable feed, independent of the Portfolios
-  // tab's search/sort (mirrors konbalongtun.com/new-holdings, which paginates server-side
-  // at 20 items/page rather than dumping everything into one long list).
+  // New Holdings feed: independent search and pagination, derived from SEC filing changes.
   const [newHoldings, setNewHoldings] = useState<NewHoldingStock[]>([]);
   const [nhLoading, setNhLoading] = useState<boolean>(false);
   const [nhSearch, setNhSearch] = useState<string>('');
@@ -164,8 +159,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
       });
   }
 
-  // A single letter, for a stock/investor with no real logo/avatar -- matches
-  // konbalongtun's own fallback behavior (confirmed by inspecting their live DOM).
+  // A single letter keeps the UI useful when SEC does not provide an image.
   function initialOf(name: string): string {
     return name.trim().charAt(0).toUpperCase() || '?';
   }
@@ -175,7 +169,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
 
   // KPI aggregates
   const topPerformer = investors.length > 0
-    ? [...investors].sort((a, b) => b.performance_1y_pct - a.performance_1y_pct)[0]
+    ? [...investors].sort((a, b) => (b.performance_1y_pct ?? -Infinity) - (a.performance_1y_pct ?? -Infinity))[0]
     : null;
   const totalAumUsd = investors.reduce((sum, inv) => sum + (inv.portfolio_value_num || 0), 0);
   const totalAumFormatted = formatAumUsd(totalAumUsd);
@@ -194,7 +188,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
             <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: 'var(--text)' }}>
               🕵️‍♂️ พอร์ตนักลงทุนระดับโลก (Super Investor Tracker)
             </h3>
-            <span className="badge badge-blue" style={{ fontSize: '0.75rem', padding: '3px 8px' }}>konbalongtun style</span>
+            <span className="badge badge-blue" style={{ fontSize: '0.75rem', padding: '3px 8px' }}>SEC EDGAR 13F</span>
             {lastFetchedAt && (
               <span className="badge badge-green" style={{ fontSize: '0.75rem', padding: '3px 10px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                 🕒 อัปเดตข้อมูล API ล่าสุด: <strong>{lastFetchedAt}</strong>
@@ -266,9 +260,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
         </div>
       </div>
 
-      {/* ── Top Summary KPI Cards (Konbalongtun Style) ── Portfolios-tab stats only; the
-          New Holdings tab replaces this whole area with its own konbalongtun-matching
-          hero banner below, since konbalongtun's real new-holdings page has no such KPIs. */}
+      {/* ── Portfolio summary: shared app theme ── */}
       {activeSubTab === 'portfolios' && (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
         <div className="card" style={{ margin: 0, padding: '14px 18px', background: 'rgba(15, 23, 42, 0.85)', border: '1px solid var(--border)' }}>
@@ -282,7 +274,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
         <div className="card" style={{ margin: 0, padding: '14px 18px', background: 'rgba(15, 23, 42, 0.85)', border: '1px solid var(--border)' }}>
           <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>ผลตอบแทนสูงสุด 1 ปี</span>
           <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--green)', marginTop: '4px' }}>
-            +{topPerformer?.performance_1y_pct || 0}%
+            {topPerformer?.performance_1y_pct != null ? `+${topPerformer.performance_1y_pct}%` : '—'}
           </div>
           <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
             {topPerformer ? `${topPerformer.name} (${topPerformer.fund_name})` : '—'}
@@ -354,7 +346,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
       {error && <div role="alert" style={{ marginBottom: '12px' }}>{error}</div>}
 
       {activeSubTab === 'new-holdings' ? (
-        /* ── New Holdings: mirrors konbalongtun.com/new-holdings's real layout ── */
+        /* ── New Holdings: SEC-derived changes ── */
         <div>
           <div className="nh-hero">
             <div className="nh-hero-inner">
@@ -374,7 +366,6 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
               <circle cx="11" cy="11" r="8" />
             </svg>
             <TickerAutocomplete
-              theme="light"
               className="nh-search-input"
               placeholder="ค้นหาชื่อหุ้น..."
               value={nhSearch}
@@ -515,7 +506,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
           Loading super investor tracker profiles…
         </div>
       ) : activeSubTab === 'portfolios' ? (
-        /* ── Investor Cards Grid (Konbalongtun Style) ── */
+        /* ── Investor cards: shared app theme ── */
         <div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
             {investors.slice(0, displayLimit).map((inv) => (
@@ -536,21 +527,13 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
                 <div>
                   {/* Profile Header */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
-                    <img
-                      src={inv.avatar_url}
-                      alt={inv.name}
-                      style={{
-                        width: 54,
-                        height: 54,
-                        borderRadius: '50%',
-                        objectFit: 'cover',
-                        border: '2px solid var(--primary)',
-                      }}
-                      onError={(e) => {
-                        // Fallback avatar icon
-                        e.currentTarget.src = 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png';
-                      }}
-                    />
+                    {inv.avatar_url ? (
+                      <img src={inv.avatar_url} alt={inv.name} style={{ width: 54, height: 54, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary)' }} />
+                    ) : (
+                      <div aria-label={`${inv.name} initials`} style={{ width: 54, height: 54, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(59,130,246,0.18)', color: 'var(--primary)', border: '2px solid var(--primary)', fontWeight: 800, fontSize: '1.1rem' }}>
+                        {initialOf(inv.name)}
+                      </div>
+                    )}
                     <div>
                       <h4 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text)' }}>
                         {inv.name}
@@ -563,14 +546,14 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', padding: '10px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', marginBottom: '14px', border: '1px solid rgba(255,255,255,0.05)' }}>
                     <div>
                       <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>ผลตอบแทน (1 ปี)</span>
-                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: inv.performance_1y_pct >= 0 ? 'var(--green)' : 'var(--red)', marginTop: '2px' }}>
-                        {inv.performance_1y_pct >= 0 ? '+' : ''}{inv.performance_1y_pct}%
+                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: inv.performance_1y_pct != null && inv.performance_1y_pct >= 0 ? 'var(--green)' : 'var(--text-muted)', marginTop: '2px' }}>
+                        {inv.performance_1y_pct != null ? `${inv.performance_1y_pct >= 0 ? '+' : ''}${inv.performance_1y_pct}%` : '—'}
                       </div>
                     </div>
                     <div>
                       <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>มูลค่าพอร์ต (AUM)</span>
                       <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text)', marginTop: '2px' }}>
-                        ${inv.portfolio_value_usd}
+                        {inv.portfolio_value_usd}
                       </div>
                     </div>
                   </div>
@@ -600,11 +583,11 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontWeight: 800, color: 'var(--primary)' }}>{holding.ticker}</span>
+                            <span style={{ fontWeight: 800, color: 'var(--primary)' }}>{holding.ticker || '—'}</span>
                             <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{holding.name}</span>
                           </div>
                           <div style={{ textAlign: 'right' }}>
-                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--primary)' }}>{holding.portfolio_percent}%</span>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--primary)' }}>{holding.portfolio_percent != null ? `${holding.portfolio_percent}%` : '—'}</span>
                             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{holding.activity_text}</div>
                           </div>
                         </div>
@@ -750,12 +733,12 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
                     <tbody>
                       {selectedInvestor.top_holdings.map((h) => (
                         <tr key={h.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                          <td style={{ padding: '8px', fontWeight: 700, color: 'var(--primary)' }}>{h.ticker}</td>
-                          <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700, color: 'var(--primary)' }}>{h.portfolio_percent}%</td>
-                          <td style={{ padding: '8px', textAlign: 'right', color: 'var(--text-muted)' }}>{currencySymbol}{(h.avg_buy_price * multiplier).toFixed(2)}</td>
-                          <td style={{ padding: '8px', textAlign: 'right', fontWeight: 600 }}>{currencySymbol}{(h.current_price * multiplier).toFixed(2)}</td>
-                          <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700, color: h.gain_percent >= 0 ? 'var(--green)' : 'var(--red)' }}>
-                            {h.gain_percent >= 0 ? '+' : ''}{h.gain_percent}%
+                          <td style={{ padding: '8px', fontWeight: 700, color: 'var(--primary)' }}>{h.ticker || '—'}</td>
+                          <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700, color: 'var(--primary)' }}>{h.portfolio_percent != null ? `${h.portfolio_percent}%` : '—'}</td>
+                          <td style={{ padding: '8px', textAlign: 'right', color: 'var(--text-muted)' }}>{h.avg_buy_price != null ? `${currencySymbol}${(h.avg_buy_price * multiplier).toFixed(2)}` : '—'}</td>
+                          <td style={{ padding: '8px', textAlign: 'right', fontWeight: 600 }}>{h.current_price != null ? `${currencySymbol}${(h.current_price * multiplier).toFixed(2)}` : '—'}</td>
+                          <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700, color: h.gain_percent != null && h.gain_percent >= 0 ? 'var(--green)' : 'var(--text-muted)' }}>
+                            {h.gain_percent != null ? `${h.gain_percent >= 0 ? '+' : ''}${h.gain_percent}%` : '—'}
                           </td>
                           <td style={{ padding: '8px', color: 'var(--text-muted)', fontSize: '0.78rem' }}>{h.activity_text}</td>
                         </tr>
@@ -776,7 +759,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
       )}
 
       {/* ── Modal: New Holding stock's buyer breakdown -- "กดที่หุ้นเพื่อดูว่าใครเข้าซื้อ
-          สัดส่วนในพอร์ต และราคาเฉลี่ยที่ซื้อ" per konbalongtun's own card copy. Light theme
+          สัดส่วนในพอร์ต และข้อมูลจาก SEC filing
           to stay visually consistent with the card grid it opens from. ── */}
       {selectedStock && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>

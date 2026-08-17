@@ -416,12 +416,7 @@ tr:hover td {
   }
 }
 
-/* ── New Holdings card grid: deliberately mirrors konbalongtun.com/new-holdings's real
-   layout pixel-for-pixel (light theme, indigo→purple hero, white cards, avatar stack,
-   numbered pagination) rather than the app's own dark theme -- inspected their live DOM
-   2026-08-07 to match colors/spacing exactly. Scoped under .nh-* so it doesn't leak into
-   the rest of the (dark) app; !important mirrors this file's existing .glass-* convention
-   for overriding the global button/input element resets above. */
+/* ── New Holdings card grid, shared with the Investor Tracker dark theme. ── */
 .nh-hero {
   position: relative;
   overflow: hidden;
@@ -786,6 +781,39 @@ tr:hover td {
 /* ── Shared ticker-autocomplete dropdown (TickerAutocomplete.tsx) -- one component used
    by every "type a ticker" field in the app, dark by default to match the rest of the
    UI, with a `.light` variant for fields embedded in the New Holdings card grid above. ── */
+
+/* Investor Tracker uses one dark research-desk theme across both tabs. */
+.nh-hero {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 0.98)) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+}
+.nh-hero-title { color: var(--text) !important; }
+.nh-hero-subtitle { color: var(--text-muted) !important; }
+.nh-search-input {
+  border: 1px solid var(--border) !important;
+  background: rgba(15, 23, 42, 0.8) !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+}
+.nh-search-input:focus { border-color: var(--primary) !important; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18) !important; }
+.nh-card, .nh-empty, .nh-modal-card {
+  border-color: var(--border) !important;
+  background: rgba(15, 23, 42, 0.85) !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+}
+.nh-card:hover { border-color: var(--primary) !important; box-shadow: 0 12px 24px rgba(0, 0, 0, 0.22) !important; }
+.nh-card-name { color: var(--text) !important; }
+.nh-card:hover .nh-card-name { color: var(--primary) !important; }
+.nh-card-price, .nh-pagination-info, .nh-avatar-more { color: var(--text-muted) !important; }
+.nh-card-bottom { border-top-color: var(--border) !important; }
+.nh-card-logo { background: rgba(30, 41, 59, 0.9); box-shadow: inset 0 0 0 1px var(--border); }
+.nh-card-logo-fallback { background: rgba(59, 130, 246, 0.18); color: var(--primary); }
+.nh-buyers-badge { background: rgba(16, 185, 129, 0.15); color: var(--green); }
+.nh-page-btn { border-color: var(--border) !important; background: rgba(15, 23, 42, 0.8) !important; color: var(--text-muted) !important; }
+.nh-page-btn.active { background: var(--primary) !important; border-color: var(--primary) !important; box-shadow: none !important; }
+.nh-modal-card th, .nh-modal-card td { border-color: var(--border) !important; color: var(--text) !important; }
 .ticker-ac-dropdown {
   position: absolute;
   top: calc(100% + 4px);

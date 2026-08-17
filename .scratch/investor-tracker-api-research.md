@@ -50,3 +50,23 @@
 - SEC API documentation: https://www.sec.gov/edgar/sec-api-documentation
 - SEC submissions endpoint (Warren Buffett CIK): https://data.sec.gov/submissions/CIK0001067983.json
 - SEC ticker mapping: https://www.sec.gov/files/company_tickers.json
+
+## ทำไมแหล่งอื่นมีข้อมูลมากกว่า
+
+ตรวจ live response ของ third-party feed เพื่อเปรียบเทียบเท่านั้น (ไม่ได้ใช้เป็น production source):
+
+- `investors-with-holdings` ส่งกลับ 70 investors, 1,092 holding rows และมี activity periods หลายปีตั้งแต่ 2016 ถึง 2026
+- `new-holdings` ส่งกลับ 90 stocks แต่ periods มีทั้ง `Q4 2016`, `Q2 2021`, `Q4 2023`, `Q1/Q2 2026` จึงไม่ใช่ความหมายเดียวกับ "เพิ่งซื้อใน filing ล่าสุด" ทั้งหมด
+- fields เช่น `avgBuyPrice`, `currentPrice`, `gainPercent`, `performance` ไม่มีอยู่ใน SEC 13F โดยตรง จึงเป็นข้อมูล enrichment/derived หรือ curated data ของ provider และ response ไม่มี CIK, accession number หรือ source filing URL ให้ตรวจย้อนกลับ
+
+ข้อสรุปคือจำนวนที่มากกว่ามาจาก universe นักลงทุนที่กว้างกว่า, การเก็บประวัติหลายไตรมาส/หลายปี และการเติม market-data/derived metrics—not จาก SEC snapshot ล่าสุดเพียงอย่างเดียว
+
+## แนวทางเพิ่มข้อมูลโดยไม่ผูกกับ third-party feed
+
+- ใช้ SEC EDGAR full-text search (`https://efts.sec.gov/LATEST/search-index?forms=13F-HR...`) เพื่อค้นหา CIK และ reporting manager จาก filing จริง
+- สร้าง registry ของผู้จัดการ 50–100 รายในโปรเจค โดยเก็บ `slug`, `cik`, `display_name`, `official_name`, `last_verified_at`
+- ดึง filing ล่าสุดและย้อนหลัง 8–12 quarters ต่อ CIK
+- คำนวณ new/increased/reduced/exited holdings จาก quarter-over-quarter diffs
+- enrich current price/sector/market cap จาก yfinance ที่โปรเจคใช้อยู่แล้ว
+- คำนวณ gain/performance เฉพาะเมื่อมีนิยามและ price history ที่ตรวจสอบได้; ถ้าไม่พอให้แสดง `—`
+- เก็บ accession/source URL ทุกแถว เพื่อ audit ย้อนกลับได้

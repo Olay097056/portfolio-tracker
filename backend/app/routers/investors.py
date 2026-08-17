@@ -21,6 +21,17 @@ SEC_CIK_REGISTRY = {
     "ray-dalio": {"cik": "0001350694", "name": "Ray Dalio", "fund": "Bridgewater Associates, LP"},
     "bill-gates": {"cik": "0001166559", "name": "Bill Gates", "fund": "Gates Foundation Trust"},
     "michael-burry": {"cik": "0001649339", "name": "Michael Burry", "fund": "Scion Asset Management, LLC"},
+    "li-lu": {"cik": "0001709323", "name": "Li Lu", "fund": "Himalaya Capital Management LLC"},
+    "tci-fund-management": {"cik": "0001647251", "name": "Chris Hohn", "fund": "TCI Fund Management Ltd"},
+    "pershing-square": {"cik": "0001336528", "name": "Bill Ackman", "fund": "Pershing Square Capital Management, L.P."},
+    "viking-global": {"cik": "0001103804", "name": "Andreas Halvorsen", "fund": "Viking Global Investors LP"},
+    "fundsmith": {"cik": "0001569205", "name": "Terry Smith", "fund": "Fundsmith LLP"},
+    "d-e-shaw": {"cik": "0001009207", "name": "David E. Shaw", "fund": "D. E. Shaw & Co., Inc."},
+    "third-point": {"cik": "0001040273", "name": "Daniel Loeb", "fund": "Third Point LLC"},
+    "elliott-investment": {"cik": "0001791786", "name": "Paul Singer", "fund": "Elliott Investment Management L.P."},
+    "paulson": {"cik": "0001035674", "name": "John Paulson", "fund": "Paulson & Co. Inc."},
+    "rv-capital": {"cik": "0001766596", "name": "Robert Vinall", "fund": "RV Capital AG"},
+    "chou-associates": {"cik": "0001389403", "name": "Francis Chou", "fund": "Chou Associates Management Inc."},
 }
 
 

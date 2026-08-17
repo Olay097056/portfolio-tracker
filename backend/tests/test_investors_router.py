@@ -43,11 +43,20 @@ def test_list_investors_is_sec_first(client, monkeypatch):
     response = client.get("/api/investors")
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 5
+    assert len(data) == len(inv_module.SEC_CIK_REGISTRY)
     buffett = next(inv for inv in data if inv["slug"] == "warren-buffett")
     assert buffett["data_provider"] == "SEC EDGAR"
     assert buffett["top_holdings"][0]["ticker"] == "AAPL"
     assert buffett["top_holdings"][0]["source_url"].startswith("https://www.sec.gov/")
+
+
+def test_registry_contains_expanded_sec_verified_managers():
+    expected = {
+        "li-lu", "tci-fund-management", "pershing-square", "viking-global",
+        "fundsmith", "d-e-shaw", "third-point", "elliott-investment",
+        "paulson", "rv-capital", "chou-associates",
+    }
+    assert expected.issubset(inv_module.SEC_CIK_REGISTRY)
 
 
 def test_investor_search_and_profile(client, monkeypatch):

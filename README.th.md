@@ -6,7 +6,9 @@
 สแกนหาสัญญาณจาก watchlist, เครื่องคำนวณวางแผนล่วงหน้า และชั้น AI analyst —
 สร้างขึ้นบนกฎข้อเดียวคือ **ห้ามแสดงตัวเลขที่แอปอธิบายที่มาไม่ได้**
 
-**แอปตัวจริง:** https://portfolio-tracker-taupe-two.vercel.app
+### ▶ [เปิดแอปตัวจริง](https://portfolio-tracker-taupe-two.vercel.app)
+
+รันอยู่บน production จริงที่ Vercel + Supabase ใช้ข้อมูลตลาดจริง ไม่ใช่ข้อมูลจำลอง
 
 ## แนวคิด
 

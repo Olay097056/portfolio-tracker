@@ -7,7 +7,9 @@ scanners over a watchlist, forward-looking planning calculators, and an AI
 analyst layer — built around one rule: **never show a number the app can't
 account for.**
 
-**Live app:** https://portfolio-tracker-taupe-two.vercel.app
+### ▶ [Open the live app](https://portfolio-tracker-taupe-two.vercel.app)
+
+Running in production on Vercel + Supabase — real market data, not a mock.
 
 ## The idea
 

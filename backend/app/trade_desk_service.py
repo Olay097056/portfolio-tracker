@@ -306,7 +306,10 @@ _DEFAULT_LEAD_PROMPT = (
     '"side": "long|short", "size_pct": 5, "sl_pct": 5, "tp_pct": 10, '
     '"order_type": "MARKET|LIMIT|STOP", "trigger_price": 200, '
     '"rationale": "เหตุผลสั้นๆ"}\n'
-    "market ต้องเป็น ticker หุ้น S&P 500 (เช่น AAPL, MSFT, NVDA) เท่านั้น\n"
+    "market ต้องเป็น ticker หุ้นรายตัวใน S&P 500 (เช่น AAPL, MSFT, NVDA, JPM) เท่านั้น\n"
+    "ห้ามใช้ดัชนีหรือ ETF: SPX, ^GSPC, S&P-500, QQQ, SPY, DIA, IWM ล้วนเป็นสิ่งที่เทรดไม่ได้\n"
+    "เลือกจากรายชื่อหุ้นใน snapshot ตลาดหุ้นด้านบน (Top gainers/losers/high volume) — "
+    "มีราคาและปริมาตรจริงทุกตัว\n"
     "order_type: MARKET = เปิดทันที · LIMIT = รอราคาแตะ trigger_price แล้วเปิด (buy long: ราคาต่ำกว่า trigger · sell short: สูงกว่า) · "
     "STOP = รอราคาแตะ trigger_price แบบทะลุ (buy long: ราคาสูงกว่า · sell short: ต่ำกว่า) · "
     "ไม่ระบุ = MARKET"
@@ -407,6 +410,37 @@ def _run_analyst(seat: str, system_prompt: str, user_prompt: str) -> dict:
     }
 
 
+def _stock_market_snapshot() -> str:
+    """Top gainers/losers + volume leaders from the REAL S&P 500 universe
+    (cached build_markets). Without this the lead/analysts see zero stocks
+    and the LLM defaults to famous non-universe tickers (BTC-USD)."""
+    try:
+        from app import stock_universe_service
+        data = stock_universe_service.build_markets()
+        markets = data.get("markets", []) if isinstance(data, dict) else data
+        if not markets:
+            return ""
+        by_chg = sorted(
+            markets,
+            key=lambda m: (m.get("change_24h_pct") is None, m.get("change_24h_pct") or 0),
+            reverse=True,
+        )
+        by_vol = sorted(markets, key=lambda m: m.get("dollar_volume") or 0, reverse=True)[:5]
+        lines = ["--- ตลาดหุ้น S&P 500 (ราคาจริง, อัปเดตทุก 10 นาที) ---"]
+        lines.append("  Top gainers 24h: " + ", ".join(
+            f"{m['symbol']} ${m.get('price', '?')} ({m.get('change_24h_pct', '?')}%)"
+            for m in by_chg[:5]))
+        lines.append("  Top losers 24h: " + ", ".join(
+            f"{m['symbol']} ${m.get('price', '?')} ({m.get('change_24h_pct', '?')}%)"
+            for m in by_chg[-5:]))
+        lines.append("  High volume: " + ", ".join(
+            f"{m['symbol']} (${(m.get('dollar_volume') or 0) / 1e9:.1f}B)"
+            for m in by_vol))
+        return "\n".join(lines)
+    except Exception:
+        return ""
+
+
 def _build_base_context(db: Session, team: TradeTeam | None = None) -> str:
     """Gather bond-crisis data shared across all analysts."""
     parts = ["=== BOND-CRISIS SNAPSHOT ===\n"]
@@ -445,9 +479,6 @@ def _build_base_context(db: Session, team: TradeTeam | None = None) -> str:
         if fg:
             parts.append("--- อารมณ์ตลาด ---")
             parts.append(f"  CNN FG: {fg.get('score')} ({fg.get('rating')})")
-            c = fg.get("crypto_fear_greed")
-            if c:
-                parts.append(f"  Crypto FG: {c.get('score')} ({c.get('rating')})")
     except Exception:
         pass
     try:
@@ -460,6 +491,9 @@ def _build_base_context(db: Session, team: TradeTeam | None = None) -> str:
                 parts.append(f"  • {n.title_th or n.title}")
     except Exception:
         pass
+    snap = _stock_market_snapshot()
+    if snap:
+        parts.append(snap)
     return "\n".join(parts)
 
 
@@ -468,14 +502,18 @@ def _build_seat_context(base: str, seat: str, agenda: str, db: Session) -> str:
     ctx = [f"วาระประชุม: {agenda}", "", base]
     try:
         from app import stock_universe_service
-        syms = list(set(re.findall(r'\b([A-Z]{1,5})\b', agenda.upper())))
-        prices = stock_universe_service.get_prices_for_symbols(syms)
-        if prices:
-            ctx.append("--- ราคาปัจจุบัน (S&P 500) ---")
-            for sym, p in prices.items():
-                if p:
-                    ctx.append(f"  {sym}: ${p.get('mark_price', '?')} "
-                               f"({p.get('change_24h_pct', '?')}%) · {p.get('sector', '?')}")
+        # Symbols explicitly named in the agenda get per-symbol detail, but the
+        # base context already carries the full S&P 500 snapshot (top movers /
+        # volume) so analysts always see real stocks to pick from.
+        syms = list(set(re.findall(r"\b([A-Z]{1,5})\b", agenda.upper())))
+        if syms:
+            prices = stock_universe_service.get_prices_for_symbols(syms)
+            if prices:
+                ctx.append("--- ราคาปัจจุบัน (S&P 500) ---")
+                for sym, p in prices.items():
+                    if p:
+                        ctx.append(f"  {sym}: ${p.get('mark_price', '?')} "
+                                   f"({p.get('change_24h_pct', '?')}%) · {p.get('sector', '?')}")
         # Fundamentals (market cap / PE) for the symbols under discussion —
         # real values from yfinance, only for names that have them (never guessed).
         fund = stock_universe_service.fetch_fundamentals()
@@ -521,7 +559,8 @@ def run_turn(db: Session, team: TradeTeam, trigger: str = "manual",
              agenda: str | None = None) -> TradeTurn:
     """Execute one complete multi-agent turn for a team."""
     if agenda is None:
-        agenda = ("ประเมินสถานการณ์ตลาด — CPI + JGB + FedWatch "
+        agenda = ("ประเมินตลาดหุ้นสหรัฐวันนี้ — momentum (ราคา/TA), fundamental "
+                  "(PE/mcap), ข่าว, volume — เสนอหุ้น S&P 500 ที่มี edge "
                   "เลนส์ contrarian: ถ้ากระแสหลักผิด หลักฐานแรกคืออะไร?")
 
     base_ctx = _build_base_context(db, team)
@@ -553,7 +592,7 @@ def run_turn(db: Session, team: TradeTeam, trigger: str = "manual",
     lead_user = (f"{agenda}\n\n{base_ctx}\n\nข้อเสนอลูกทีม:\n{opinions}\n\n"
                  "เคาะออเดอร์ (JSON: action, market, side, size_pct, sl_pct, tp_pct, rationale)")
     lead_content, lead_usage, _ = llm_call(
-        team.lead_system_prompt or _DEFAULT_LEAD_PROMPT,
+        _DEFAULT_LEAD_PROMPT,
         lead_user, temperature=0.4, max_tokens=400)
     lead_parsed = _parse_lead_json(lead_content)
     tokens_in += lead_usage.get("prompt_tokens", 0)
@@ -622,6 +661,17 @@ def run_turn(db: Session, team: TradeTeam, trigger: str = "manual",
                     status="open",
                     opened_at=datetime.now(timezone.utc),
                 ))
+            else:
+                # Not in the S&P 500 universe (or price unavailable) — do NOT
+                # open a phantom position. Record why in the turn so the UI can
+                # show it instead of silently doing nothing.
+                lead_parsed = dict(lead_parsed or {})
+                lead_parsed["action"] = "rejected"
+                lead_parsed["rationale"] = (
+                    f"{lead_parsed.get('rationale', '')} "
+                    f"[REJECTED: {market} ไม่มีราคาใน S&P 500 universe — "
+                    f"ต้องเป็น ticker หุ้นอเมริกา (AAPL, MSFT, NVDA…)]".strip())
+                turn.lead_decision = lead_parsed
 
     db.commit()
     db.refresh(turn)

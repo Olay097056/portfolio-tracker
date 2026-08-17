@@ -32,6 +32,10 @@ def _fake_sec(monkeypatch):
     inv_module._CACHE_TIMESTAMP = 0
     inv_module._CACHED_INVESTORS = []
     inv_module._CACHED_NEW_HOLDINGS = []
+    inv_module._SEC_TICKER_MAP = {
+        "APPLE INC": "AAPL", "NVIDIA CORP": "NVDA", "MICROSOFT CORP": "MSFT",
+        "COCA COLA CO": "KO", "AMAZON COM INC": "AMZN",
+    }
 
 
 def test_list_investors_is_sec_first(client, monkeypatch):

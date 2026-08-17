@@ -99,6 +99,7 @@ class NewHoldingsPageOut(BaseModel):
 _CACHE_TIMESTAMP = 0.0
 _CACHED_INVESTORS: list[InvestorProfile] = []
 _CACHED_NEW_HOLDINGS: list[NewHoldingStock] = []
+_SEC_TICKER_MAP: dict[str, str] | None = None
 
 
 def _format_usd(value: float | None) -> str:
@@ -119,15 +120,25 @@ def _mode_period(holdings: list[TopHolding]) -> str:
 
 
 def _ticker_for_issuer(issuer: str) -> str | None:
-    """Use a conservative local mapping; never invent a ticker from a company name."""
-    known = {
-        "APPLE INC": "AAPL", "MICROSOFT CORP": "MSFT", "NVIDIA CORP": "NVDA",
-        "AMAZON COM INC": "AMZN", "COCA COLA CO": "KO", "AMERICAN EXPRESS CO": "AXP",
-        "BANK OF AMERICA CORP": "BAC", "CHEVRON CORP": "CVX", "ALPHABET INC": "GOOGL",
-        "BERKSHIRE HATHAWAY INC": "BRK.B", "OCCIDENTAL PETROLEUM CORP": "OXY",
-    }
+    """Resolve a ticker from SEC's own company-ticker registry; never guess."""
+    global _SEC_TICKER_MAP
     key = re.sub(r"[^A-Z0-9 ]", "", issuer.upper()).replace("  ", " ").strip()
-    return known.get(key)
+    if not key:
+        return None
+    if _SEC_TICKER_MAP is None:
+        try:
+            _SEC_TICKER_MAP = sec_13f_service.fetch_sec_ticker_map()
+        except Exception:
+            _SEC_TICKER_MAP = {}
+    if key in _SEC_TICKER_MAP:
+        return _SEC_TICKER_MAP[key]
+    ignored = {"INC", "CORP", "CORPORATION", "CO", "COMPANY", "LTD", "PLC", "DE", "THE", "HOLDINGS"}
+    issuer_tokens = set(key.split()) - ignored
+    candidates = [
+        ticker for title, ticker in _SEC_TICKER_MAP.items()
+        if issuer_tokens and issuer_tokens.issubset(set(title.split()) - ignored)
+    ]
+    return candidates[0] if len(candidates) == 1 else None
 
 
 def _holding_from_row(slug: str, row: dict[str, Any], index: int) -> TopHolding:

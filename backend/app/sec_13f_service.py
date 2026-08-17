@@ -75,6 +75,17 @@ def parse_information_table(xml_text: str, filing_period: str) -> list[dict[str,
     return rows
 
 
+def fetch_sec_ticker_map() -> dict[str, str]:
+    raw = _request_json(f"{SEC_BASE}/files/company_tickers.json")
+    result: dict[str, str] = {}
+    for item in raw.values():
+        title = re.sub(r"[^A-Z0-9 ]", "", str(item.get("title", "")).upper()).replace("  ", " ").strip()
+        ticker = str(item.get("ticker", "")).upper().strip()
+        if title and ticker:
+            result[title] = ticker
+    return result
+
+
 def _find_information_document(cik: str, accession_number: str) -> str:
     url = build_filing_url(cik, accession_number, "index.json")
     index = _request_json(url)

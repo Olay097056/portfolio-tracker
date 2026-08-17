@@ -129,8 +129,10 @@ class TradePosition(Base):
 
     symbol = Column(String(32), nullable=False)
     side = Column(String(8), nullable=False)        # long | short
-    size_pct = Column(Float, nullable=False)         # % of capital
+    size_pct = Column(Float, nullable=False)         # % of capital (position sizing)
     entry_price = Column(Float, nullable=False)
+    quantity = Column(Float, nullable=True)          # shares held (fractional, paper)
+    reserved_cash = Column(Float, nullable=True)     # cash locked = qty × entry (long cost / short full notional)
 
     # Order parameters (can be modified by AI autonomously)
     sl_pct = Column(Float, nullable=True)            # stop-loss % from entry
@@ -461,15 +463,15 @@ def _build_seat_context(base: str, seat: str, agenda: str, db: Session) -> str:
     """Tailor context for one analyst seat."""
     ctx = [f"วาระประชุม: {agenda}", "", base]
     try:
-        from app import hyperliquid_service
-        syms = list(set(re.findall(r'\b([A-Z]{2,8}(?:-USD)?)\b', agenda.upper())))
-        prices = hyperliquid_service.get_prices_for_symbols(syms)
+        from app import stock_universe_service
+        syms = list(set(re.findall(r'\b([A-Z]{1,5})\b', agenda.upper())))
+        prices = stock_universe_service.get_prices_for_symbols(syms)
         if prices:
-            ctx.append("--- ราคาปัจจุบัน (Hyperliquid) ---")
+            ctx.append("--- ราคาปัจจุบัน (S&P 500) ---")
             for sym, p in prices.items():
                 if p:
                     ctx.append(f"  {sym}: ${p.get('mark_price', '?')} "
-                               f"({p.get('change_24h_pct', '?')}%)")
+                               f"({p.get('change_24h_pct', '?')}%) · {p.get('sector', '?')}")
     except Exception:
         pass
     lens = {
@@ -587,19 +589,16 @@ def run_turn(db: Session, team: TradeTeam, trigger: str = "manual",
                 expires_at=datetime.now(timezone.utc) + timedelta(days=7),
             ))
         elif size_notional > 0:
-            # market order — open immediately at current mark price
-            mark = None
-            try:
-                from app import hyperliquid_service
-                px = hyperliquid_service.get_prices_for_symbols([market]) or {}
-                if px.get(market) and px[market].get("mark_price") is not None:
-                    mark = float(px[market]["mark_price"])
-            except Exception:
-                mark = None
+            # market order — open immediately at current price. Cash equity:
+            # shares = notional / price; the full notional is reserved up front.
+            mark = _market_price(market)
             if mark:
+                qty = size_notional / mark
+                team.balance = (team.balance or 0) - size_notional
                 db.add(TradePosition(
                     team_id=team.id, symbol=market, side=side,
                     size_pct=size_pct, entry_price=mark,
+                    quantity=qty, reserved_cash=size_notional,
                     sl_pct=float(sl_pct) if sl_pct else None,
                     tp_pct=float(tp_pct) if tp_pct else None,
                     status="open",
@@ -611,13 +610,25 @@ def run_turn(db: Session, team: TradeTeam, trigger: str = "manual",
     return turn
 
 
+def _market_price(symbol: str) -> float | None:
+    """Current price for one stock from the S&P 500 universe (cached)."""
+    try:
+        from app import stock_universe_service
+        px = stock_universe_service.get_prices_for_symbols([symbol]) or {}
+        p = (px.get(symbol.upper()) or {}).get("mark_price")
+        return float(p) if p is not None else None
+    except Exception:
+        return None
+
+
 def settle_pending_orders(db: Session, team: TradeTeam) -> list[dict]:
-    """Settle pending LIMIT/STOP orders against current Hyperliquid prices.
+    """Settle pending LIMIT/STOP orders against current S&P 500 prices.
 
     Runs inside the 10-min job tick. **NEVER calls the LLM** — it only
     compares prices and fills/expires. Fill price = the order's target price
     (limit) or the current price (stop), NOT whatever price we see at settle
     time — otherwise results would randomly be better/worse than reality.
+    On fill the order's notional is reserved from cash (same as a market open).
     """
     out: list[dict] = []
     orders = db.query(TradePendingOrder).filter(
@@ -627,11 +638,11 @@ def settle_pending_orders(db: Session, team: TradeTeam) -> list[dict]:
     if not orders:
         return out
 
-    from app import hyperliquid_service
+    from app import stock_universe_service
     syms = list({o.symbol for o in orders})
     prices = {}
     try:
-        prices = hyperliquid_service.get_prices_for_symbols(syms) or {}
+        prices = stock_universe_service.get_prices_for_symbols(syms) or {}
     except Exception:
         prices = {}
 
@@ -647,7 +658,7 @@ def settle_pending_orders(db: Session, team: TradeTeam) -> list[dict]:
             out.append({"symbol": o.symbol, "order_type": o.order_type, "status": "expired"})
             continue
 
-        cur = prices.get(o.symbol)
+        cur = prices.get(o.symbol.upper())
         if not cur or cur.get("mark_price") is None:
             out.append({"symbol": o.symbol, "order_type": o.order_type, "status": "no_price"})
             continue
@@ -662,10 +673,13 @@ def settle_pending_orders(db: Session, team: TradeTeam) -> list[dict]:
 
         if hit:
             fill_px = o.target_price if o.order_type == "LIMIT" else mark
+            qty = o.size_notional / fill_px if fill_px else 0
+            team.balance = (team.balance or 0) - o.size_notional  # reserve cash on fill
             pos = TradePosition(
                 team_id=team.id, symbol=o.symbol, side=o.side,
                 size_pct=o.size_notional / team.capital * 100 if team.capital else 0,
-                entry_price=fill_px, sl_pct=o.sl_price, tp_pct=o.tp_price,
+                entry_price=fill_px, quantity=qty, reserved_cash=o.size_notional,
+                sl_pct=o.sl_price, tp_pct=o.tp_price,
                 status="open",
                 opened_at=now,
             )
@@ -675,6 +689,77 @@ def settle_pending_orders(db: Session, team: TradeTeam) -> list[dict]:
         else:
             out.append({"symbol": o.symbol, "order_type": o.order_type, "status": "waiting"})
 
+    db.commit()
+    return out
+
+
+def settle_open_positions(db: Session, team: TradeTeam) -> list[dict]:
+    """Check SL/TP on open positions against current S&P 500 prices.
+
+    Cash-equity close: realized PnL = (exit - entry) × qty for a long,
+    (entry - exit) × qty for a short. The reserved cash is released back to
+    balance and the realized PnL is added on top. **NEVER calls the LLM.**
+    Equity = cash balance + Σ(reserved_cash + live_pnl) over open positions
+    (for a long that equals market value; for a cash-backed short it is the
+    reserve plus unrealized PnL).
+    """
+    out: list[dict] = []
+    positions = db.query(TradePosition).filter(
+        TradePosition.team_id == team.id,
+        TradePosition.status == "open",
+    ).all()
+    if not positions:
+        return out
+
+    from app import stock_universe_service
+    syms = list({p.symbol for p in positions})
+    prices = {}
+    try:
+        prices = stock_universe_service.get_prices_for_symbols(syms) or {}
+    except Exception:
+        prices = {}
+
+    now = datetime.now(timezone.utc)
+    for p in positions:
+        cur = prices.get(p.symbol.upper())
+        if not cur or cur.get("mark_price") is None:
+            out.append({"symbol": p.symbol, "status": "no_price"})
+            continue
+        mark = float(cur["mark_price"])
+        qty = p.quantity or 0
+        p.live_pnl = round(
+            (mark - p.entry_price) * qty if p.side == "long" else (p.entry_price - mark) * qty, 2)
+
+        exit_px = None
+        reason = None
+        if p.side == "long":
+            if p.sl_price is not None and mark <= p.sl_price:
+                exit_px, reason = p.sl_price, "sl"
+            elif p.tp_price is not None and mark >= p.tp_price:
+                exit_px, reason = p.tp_price, "tp"
+        else:
+            if p.sl_price is not None and mark >= p.sl_price:
+                exit_px, reason = p.sl_price, "sl"
+            elif p.tp_price is not None and mark <= p.tp_price:
+                exit_px, reason = p.tp_price, "tp"
+
+        if exit_px is not None:
+            pnl = (exit_px - p.entry_price) * qty if p.side == "long" else (p.entry_price - exit_px) * qty
+            p.status = "closed"
+            p.close_price = exit_px
+            p.closed_at = now
+            p.closed_by = reason
+            p.realized_pnl = round(pnl, 2)
+            p.live_pnl = 0.0
+            reserved = p.reserved_cash or 0
+            team.balance = (team.balance or 0) + reserved + pnl  # release cash + PnL
+            out.append({"symbol": p.symbol, "side": p.side, "status": "closed",
+                        "closed_by": reason, "exit_px": exit_px, "pnl": pnl})
+
+    # Equity = free cash + Σ(reserved + unrealized) over still-open positions
+    reserved_total = sum((p.reserved_cash or 0) + (p.live_pnl or 0)
+                         for p in positions if p.status == "open")
+    team.equity = round((team.balance or 0) + reserved_total, 2)
     db.commit()
     return out
 
@@ -856,8 +941,9 @@ def run_due_turns(db: Session) -> list[dict]:
 
     # 0. Master switch OFF → no NEW turns, but SL/TP + settle keep working
     if not team.master_on:
+        closed = settle_open_positions(db, team)
         settled = settle_pending_orders(db, team)
-        return [{"skipped": "master_off", "settled": len(settled)}]
+        return [{"skipped": "master_off", "settled": len(settled), "closed": len(closed)}]
 
     now = datetime.now(timezone.utc)
     next_at = team.next_turn_at
@@ -920,7 +1006,7 @@ def get_state(db: Session) -> dict:
             "equity": team.equity,
             "pnl_pct": round((team.equity - team.capital) / team.capital * 100, 2) if team.capital else 0,
             "mtd_pnl_pct": mtd_pnl_pct,
-            "margin_used": sum((p.size_pct or 0) / 100 * team.capital for p in open_pos),
+            "margin_used": round(sum(p.reserved_cash or 0 for p in open_pos), 2),  # cash reserved (long cost / short notional)
             "weekly_target_pct": team.weekly_target_pct,
             "weekly_kpi_pct": team.weekly_kpi_pct,
             "next_turn_at": team.next_turn_at.isoformat() if team.next_turn_at else None,
@@ -950,6 +1036,7 @@ def get_state(db: Session) -> dict:
                 "size_pct": p.size_pct, "entry_price": p.entry_price,
                 "mark_price": None, "sl_pct": p.sl_pct, "tp_pct": p.tp_pct,
                 "live_pnl": p.live_pnl,
+                "quantity": p.quantity, "reserved_cash": p.reserved_cash,
                 "opened_at": p.opened_at.isoformat() if p.opened_at else None,
             } for p in open_pos],
             "closed": [{

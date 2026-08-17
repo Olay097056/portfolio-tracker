@@ -56,7 +56,7 @@ class TestSettleNeverCallsLLM:
 
         # patch both the analyst runner and llm_call — nothing may fire
         with patch("app.trade_desk_service.llm_call", side_effect=spy):
-            with patch("app.hyperliquid_service.get_prices_for_symbols",
+            with patch("app.stock_universe_service.get_prices_for_symbols",
                        return_value={}):
                 for _ in range(100):
                     settle_pending_orders(db_session, team)
@@ -72,7 +72,7 @@ class TestLimitFillPrice:
         o = _add_pending(db_session, team, symbol="BTC-USD", otype="LIMIT",
                          side="long", target=50000.0)
         # current price is 45000 (ran BELOW the buy limit) — fill at 50000
-        with patch("app.hyperliquid_service.get_prices_for_symbols",
+        with patch("app.stock_universe_service.get_prices_for_symbols",
                    return_value={"BTC-USD": {"mark_price": 45000.0}}):
             result = settle_pending_orders(db_session, team)
 
@@ -88,7 +88,7 @@ class TestLimitFillPrice:
         team = _make_team(db_session)
         _add_pending(db_session, team, symbol="ETH-USD", otype="STOP",
                      side="long", target=3000.0)
-        with patch("app.hyperliquid_service.get_prices_for_symbols",
+        with patch("app.stock_universe_service.get_prices_for_symbols",
                    return_value={"ETH-USD": {"mark_price": 3050.0}}):
             result = settle_pending_orders(db_session, team)
         assert result[0]["status"] == "filled"
@@ -98,7 +98,7 @@ class TestLimitFillPrice:
         team = _make_team(db_session)
         _add_pending(db_session, team, symbol="BTC-USD", otype="LIMIT",
                      side="long", target=50000.0)
-        with patch("app.hyperliquid_service.get_prices_for_symbols",
+        with patch("app.stock_universe_service.get_prices_for_symbols",
                    return_value={"BTC-USD": {"mark_price": 60000.0}}):
             result = settle_pending_orders(db_session, team)
         assert result[0]["status"] == "waiting"
@@ -109,7 +109,7 @@ class TestLimitFillPrice:
         team = _make_team(db_session)
         _add_pending(db_session, team, symbol="BTC-USD", target=50000.0,
                      expires_in_hours=-1)  # already expired
-        with patch("app.hyperliquid_service.get_prices_for_symbols",
+        with patch("app.stock_universe_service.get_prices_for_symbols",
                    return_value={"BTC-USD": {"mark_price": 45000.0}}):
             result = settle_pending_orders(db_session, team)
         assert result[0]["status"] == "expired"
@@ -127,7 +127,7 @@ class TestMasterSwitch:
                      side="long", target=50000.0)
         db_session.commit()
 
-        with patch("app.hyperliquid_service.get_prices_for_symbols",
+        with patch("app.stock_universe_service.get_prices_for_symbols",
                    return_value={"BTC-USD": {"mark_price": 45000.0}}):
             with patch("app.trade_desk_service.llm_call") as llm:
                 result = run_due_turns(db_session)
@@ -147,7 +147,7 @@ class TestMasterSwitch:
         db_session.commit()
         with patch("app.trade_desk_service.llm_call",
                    return_value=('{"action":"hold"}', {}, 0.1)):
-            with patch("app.hyperliquid_service.get_prices_for_symbols",
+            with patch("app.stock_universe_service.get_prices_for_symbols",
                        return_value={}):
                 result = run_due_turns(db_session)
         assert "skipped" not in result[0] or result[0]["skipped"] != "master_off"

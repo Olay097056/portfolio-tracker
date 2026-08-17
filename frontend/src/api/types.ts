@@ -1060,6 +1060,7 @@ export interface TradeDeskPosition {
   id: string; symbol: string; side: string; size_pct: number;
   entry_price: number; mark_price: number | null; sl_pct: number | null;
   tp_pct: number | null; live_pnl: number; opened_at: string | null;
+  quantity: number | null; reserved_cash: number | null;
 }
 
 export interface TradeDeskClosedPosition {

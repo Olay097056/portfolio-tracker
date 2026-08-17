@@ -198,11 +198,14 @@ def run_due_turns(db: Session) -> dict:
                 team = db.query(td.TradeTeam).filter(
                   td.TradeTeam.code == "DEEPSEEK").first()
                 settled = []
+                closed = []
                 if team is not None:
                   settled = td.settle_pending_orders(db, team)
+                  closed = td.settle_open_positions(db, team)
                 due = td.run_due_turns(db)
                 _mark("trade_desk", {
                     "settled": len(settled),
+                    "closed": len(closed),
                     "result": [r.get("skipped") or r.get("action")
                                for r in due if isinstance(r, dict)],
                 })

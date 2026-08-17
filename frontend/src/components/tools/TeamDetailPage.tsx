@@ -102,7 +102,7 @@ export function TeamDetailPage({ teamCode, onBack }: Props) {
         {card('P&L',F.pct(t.pnl_pct),pnlC)}
         {card('Closed P&L',F.price(x.closed_pnl_sum), (x.closed_pnl_sum??0)>=0?INK.green:INK.red)}
         {card('Cash',F.price(t.balance),INK.dim)}
-        {card('Margin',F.price(t.margin_used),INK.dim)}
+        {card('Reserved',F.price(t.margin_used),INK.dim)}
         {card('Live P&L',F.price(x.live_pnl), (x.live_pnl??0)>=0?INK.green:INK.red)}
         {card('Win Rate',x.win_rate!=null?F.pct(x.win_rate,false):'—',INK.sky)}
         {card('R:R',x.rr_ratio!=null?F.num(x.rr_ratio):'—',INK.sky)}
@@ -112,7 +112,6 @@ export function TeamDetailPage({ teamCode, onBack }: Props) {
         {card('Closed',`${x.closed_count??0} ไม้`,INK.dim)}
         {card('Net P&L',F.price(x.net_pnl), (x.net_pnl??0)>=0?INK.green:INK.red)}
         {card('W/L',`W${x.win_count??0}/L${x.loss_count??0}`,INK.dim)}
-        {card('Reserve',F.price(x.reserved_margin),INK.faint)}
         {card('Cost',`$${F.num(t.cost_today_usd,4)}`,INK.faint)}
       </div>
 
@@ -131,14 +130,15 @@ export function TeamDetailPage({ teamCode, onBack }: Props) {
 
       {/* Open Positions */}
       <Section title={`ไม้ที่เปิดอยู่ (${data.positions.open.length})`}>
-        {!data.positions.open.length ? <Empty/> : <Table headers={['Symbol','Side','Entry','Size','SL','TP','P&L']} rows={data.positions.open.map(p=>[
+        {!data.positions.open.length ? <Empty/> : <Table headers={['Symbol','Side','Entry','Qty','Cost','SL','TP','P&L']} rows={data.positions.open.map(p=>[
           <b style={{color:INK.text}}>{p.symbol}</b>,
           <span style={{color:p.side==='long'?INK.green:INK.red}}>{p.side}</span>,
           <span style={{color:INK.text,...NUM}}>{F.price(p.entry_price)}</span>,
-          <span style={{color:INK.dim,...NUM}}>{F.pct(p.size_pct,false)}</span>,
+          <span style={{color:INK.dim,...NUM}}>{(p as any).quantity!=null?F.num((p as any).quantity,2):'—'}</span>,
+          <span style={{color:INK.dim,...NUM}}>{(p as any).reserved_cash!=null?F.price((p as any).reserved_cash):'—'}</span>,
           p.sl_pct?`${p.sl_pct}%`:'—',
           p.tp_pct?`${p.tp_pct}%`:'—',
-          <span style={{color:(p.live_pnl??0)>=0?INK.green:INK.red,fontWeight:700,...NUM}}>{F.pct(p.live_pnl)}</span>,
+          <span style={{color:(p.live_pnl??0)>=0?INK.green:INK.red,fontWeight:700,...NUM}}>{F.price(p.live_pnl)}</span>,
         ])} />}
       </Section>
 

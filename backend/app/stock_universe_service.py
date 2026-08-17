@@ -186,6 +186,27 @@ def _series(frame: Any, ticker: str, column: str) -> list[float]:
     return [float(v) for v in values if v == v and v is not None]
 
 
+def get_prices_for_symbols(symbols: list[str]) -> dict[str, dict | None]:
+    """Bulk price lookup for the trade desk — replaces the perp feed.
+
+    Returns {SYMBOL: {mark_price, change_24h_pct, dollar_volume, sector} | None}
+    so the trade desk reads one price shape regardless of source. Backed by the
+    same cached build_markets() as the markets table, so it costs nothing extra.
+    """
+    data = build_markets()
+    idx = {m["symbol"].upper(): m for m in data.get("markets", [])}
+    out: dict[str, dict | None] = {}
+    for s in symbols:
+        m = idx.get(s.upper())
+        out[s.upper()] = {
+            "mark_price": m.get("price"),
+            "change_24h_pct": m.get("change_24h_pct"),
+            "dollar_volume": m.get("dollar_volume"),
+            "sector": m.get("sector"),
+        } if m else None
+    return out
+
+
 def build_markets(force: bool = False) -> dict:
     """The tradable universe with prices and TA. Cached; safe to call per tick."""
     if not force:

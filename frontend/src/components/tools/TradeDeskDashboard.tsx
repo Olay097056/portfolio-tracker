@@ -101,7 +101,7 @@ export function TradeDeskDashboard() {
             </button>
           </div>
           <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10}}>
-            {[[F.price(team.equity),'Equity',(team.pnl_pct??0)>=0?INK.green:INK.red],[F.pct(team.pnl_pct),'P&L',(team.pnl_pct??0)>=0?INK.green:INK.red],[F.price(team.margin_used),'Margin',INK.dim],[F.price(team.balance),'Cash',INK.dim]].map(([v,l,c],i)=><div key={i}><div style={{fontSize:10,color:INK.faint}}>{l as string}</div><div style={{fontSize:15,fontWeight:700,color:c as string,...NUM}}>{v as string}</div></div>)}
+            {[[F.price(team.equity),'Equity',(team.pnl_pct??0)>=0?INK.green:INK.red],[F.pct(team.pnl_pct),'P&L',(team.pnl_pct??0)>=0?INK.green:INK.red],[F.price(team.margin_used),'Reserved',INK.dim],[F.price(team.balance),'Cash',INK.dim]].map(([v,l,c],i)=><div key={i}><div style={{fontSize:10,color:INK.faint}}>{l as string}</div><div style={{fontSize:15,fontWeight:700,color:c as string,...NUM}}>{v as string}</div></div>)}
           </div>
           <div style={{display:'flex',gap:14,marginTop:10,borderTop:`1px solid ${INK.panelBorder}`,paddingTop:10,flexWrap:'wrap',alignItems:'center'}}>
             <span style={{fontSize:11,color:INK.dim}}>MTD: <b style={{color:INK.text}}>{(team as any).mtd_pnl_pct != null ? F.pct((team as any).mtd_pnl_pct, false) : '—'}</b> / 5–20%</span>
@@ -193,15 +193,16 @@ export function TradeDeskDashboard() {
       {/* Open Positions All Teams */}
       <Section title={`ไม้ที่เปิดอยู่ (${openPos.length})`}>
         {!openPos.length ? <Empty/> : <div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',fontSize:11}}>
-          <thead><tr style={{borderBottom:`1px solid ${INK.panelBorder}`}}>{['Symbol','Side','Entry','Size','SL','TP','P&L'].map(h=><th key={h} style={{padding:'4px 6px',textAlign:'left',color:INK.faint,fontWeight:500,fontSize:10}}>{h}</th>)}</tr></thead>
+          <thead><tr style={{borderBottom:`1px solid ${INK.panelBorder}`}}>{['Symbol','Side','Entry','Qty','Cost','SL','TP','P&L'].map(h=><th key={h} style={{padding:'4px 6px',textAlign:'left',color:INK.faint,fontWeight:500,fontSize:10}}>{h}</th>)}</tr></thead>
           <tbody>{openPos.map(p=><tr key={p.id} style={{borderBottom:`1px solid ${INK.panelBorder}10`}}>
             <td style={{padding:'4px 6px',color:INK.text,fontWeight:600}}>{p.symbol}</td>
             <td style={{padding:'4px 6px',color:p.side==='long'?INK.green:INK.red,fontWeight:600}}>{p.side.toUpperCase()}</td>
             <td style={{padding:'4px 6px',color:INK.text,...NUM}}>{F.price(p.entry_price)}</td>
-            <td style={{padding:'4px 6px',color:INK.dim,...NUM}}>{F.pct(p.size_pct,false)}</td>
+            <td style={{padding:'4px 6px',color:INK.dim,...NUM}}>{p.quantity!=null?F.num(p.quantity,2):'—'}</td>
+            <td style={{padding:'4px 6px',color:INK.dim,...NUM}}>{p.reserved_cash!=null?F.price(p.reserved_cash):'—'}</td>
             <td style={{padding:'4px 6px',color:INK.dim}}>{p.sl_pct?`${p.sl_pct}%`:'—'}</td>
             <td style={{padding:'4px 6px',color:INK.dim}}>{p.tp_pct?`${p.tp_pct}%`:'—'}</td>
-            <td style={{padding:'4px 6px',color:(p.live_pnl??0)>=0?INK.green:INK.red,fontWeight:700,...NUM}}>{F.pct(p.live_pnl)}</td>
+            <td style={{padding:'4px 6px',color:(p.live_pnl??0)>=0?INK.green:INK.red,fontWeight:700,...NUM}}>{F.price(p.live_pnl)}</td>
           </tr>)}</tbody>
         </table></div>}
       </Section>

@@ -91,7 +91,7 @@ def team_detail(team_code: str, page: int = 1, db: Session = Depends(get_db)):
             "analyst_prompts": {k: (v or "")[:300] for k, v in (team.analyst_prompts or {}).items()},
             "capital": team.capital, "balance": team.balance, "equity": team.equity,
             "pnl_pct": round((team.equity - team.capital) / team.capital * 100, 2) if team.capital else 0,
-            "margin_used": sum((p.size_pct or 0) / 100 * team.capital for p in open_pos_q),
+            "margin_used": round(sum(p.reserved_cash or 0 for p in open_pos_q), 2),
             "live_pnl": sum(p.live_pnl or 0 for p in open_pos_q),
             "closed_pnl": sum(p.realized_pnl or 0 for p in closed_pos),
             "next_turn_at": team.next_turn_at.isoformat() if team.next_turn_at else None,
@@ -103,6 +103,7 @@ def team_detail(team_code: str, page: int = 1, db: Session = Depends(get_db)):
                        "size_pct": p.size_pct, "entry_price": p.entry_price,
                        "mark_price": None, "sl_pct": p.sl_pct, "tp_pct": p.tp_pct,
                        "live_pnl": p.live_pnl,
+                       "quantity": p.quantity, "reserved_cash": p.reserved_cash,
                        "opened_at": p.opened_at.isoformat() if p.opened_at else None}
                       for p in open_pos_q],
             "closed": [{"id": p.id, "symbol": p.symbol, "side": p.side,
@@ -203,7 +204,7 @@ def _compute_team_stats(team, open_pos_q, closed_pos, db) -> dict:
     profit_factor = sum(p.realized_pnl or 0 for p in wins) / sum(abs(p.realized_pnl or 0) for p in losses) if wins and losses else None
     win_rate = round(win_count / total_closed * 100, 1) if total_closed else None
     live_pnl = sum(p.live_pnl or 0 for p in open_pos_q)
-    reserved = sum((p.size_pct or 0) / 100 * team.capital for p in open_pos_q)
+    reserved = sum(p.reserved_cash or 0 for p in open_pos_q)
     return {
         "win_count": win_count, "loss_count": loss_count, "closed_count": total_closed,
         "net_pnl": net_pnl, "closed_pnl_sum": closed_pnl_sum,

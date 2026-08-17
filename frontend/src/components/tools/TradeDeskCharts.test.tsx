@@ -24,6 +24,13 @@ describe('EquityChart (11.4)', () => {
     await waitFor(() => expect(screen.getByTestId('equity-chart')).toBeTruthy());
     // % mode shows +8.00%
     expect(screen.getByText(/\+8\.00%/)).toBeTruthy();
+    // SVG <polygon>/<polyline> points must be bare coordinate pairs — path
+    // commands (M/L) are illegal there and React logs "Expected number".
+    for (const el of Array.from(document.querySelectorAll('polygon, polyline'))) {
+      const pts = el.getAttribute('points') ?? '';
+      expect(pts).toMatch(/^[\d.,\s]+$/);
+      expect(pts).not.toMatch(/[MLml]/);
+    }
   });
 
   it('shows empty state — no fake chart when <2 points', async () => {

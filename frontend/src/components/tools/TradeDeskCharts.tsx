@@ -47,7 +47,7 @@ export function EquityChart({ teamCode }: { teamCode: string }) {
   const W = 600, H = 160, PAD = 34;
   const x = (i: number) => PAD + (i / (points.length - 1)) * (W - PAD * 2);
   const y = (v: number) => H - PAD - ((v - min) / span) * (H - PAD * 2);
-  const path = vals.map((v, idx) => `${idx ? 'L' : 'M'}${x(idx).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const path = vals.map((v, idx) => `${x(idx).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
   const last = vals[vals.length - 1];
   const lastPct = ((points[points.length - 1].equity - base) / base) * 100;
   const color = last >= 0 ? INK.green : INK.red;

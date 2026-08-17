@@ -59,7 +59,12 @@ import type { AiSignalMetrics } from '../utils/aiTechnicalSignal';
 
 export type { ChartData, TickerPosition, Zone, ZoneInput };
 
-const BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
+// Same-origin by default: on prod the frontend and FastAPI backend are served
+// from the same Vercel domain, so relative paths hit the API directly. The
+// old default of http://localhost:8000 made every prod build call the dev
+// server and blank the whole app. Set VITE_API_BASE_URL (frontend/.env.local)
+// only when running the Vite dev server against a local backend.
+const BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? '';
 
 export class ApiError extends Error {
   status: number;

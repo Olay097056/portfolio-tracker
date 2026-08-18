@@ -59,6 +59,15 @@ lacking a validated weighting.
   silently reverse
 - Deployed on Vercel + Supabase Postgres, with the worker on `pg_cron`
 
+## Design system
+
+Uses **HyperUI** (hyperui.dev) as the governing design language — light-first
+gray surfaces, semantic color tokens, flat cards (no glass/glow). The frontend
+ships with a **light / dark toggle** (persisted in `localStorage` + cookie, no
+flash of wrong theme on load). Token mapping and porting notes live in
+`docs/design/hyperui-v2-tokens.md`; the same system was first applied to
+`switch-wr-tool`.
+
 ## Stack
 
 FastAPI + SQLAlchemy + Alembic on the backend; React + TypeScript + Vite on the

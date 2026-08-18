@@ -58,6 +58,15 @@
 - **ADR 7 ฉบับ** ใน `docs/adr/` บันทึกการตัดสินใจที่การแก้ในอนาคตต้องไม่ย้อนกลับแบบเงียบๆ
 - Deploy บน Vercel + Supabase Postgres โดย worker รันบน `pg_cron`
 
+## ระบบดีไซน์
+
+ใช้ **HyperUI** (hyperui.dev) เป็นภาษาการออกแบบหลัก — พื้นผิวเทาแบบ
+light-first, color token แบบ semantic, การ์ดแบนเรียบ (ไม่มี glass/glow)
+ฝั่ง frontend มีปุ่มสลับ **โหมดสว่าง / มืด** (จำไว้ใน `localStorage` +
+cookie, โหลดแล้วไม่กระพริบสีผิดชั่วขณะ) รายละเอียด token และวิธีพอร์ตไป
+โปรเจคอื่นอยู่ใน `docs/design/hyperui-v2-tokens.md` — ระบบเดียวกันนี้
+ทำที่ `switch-wr-tool` ก่อนแล้ว
+
 ## เทคโนโลยีที่ใช้
 
 ฝั่ง backend เป็น FastAPI + SQLAlchemy + Alembic ฝั่ง frontend เป็น

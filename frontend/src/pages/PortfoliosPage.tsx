@@ -343,7 +343,7 @@ export function PortfoliosPage() {
       {/* ── Top 5 Portfolio Performance KPI Summary Cards (wethaiinvest Style) ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '16px', marginBottom: '24px' }}>
         {/* KPI 1: Market Value / Cost Basis */}
-        <div className="card" style={{ margin: 0, padding: '16px 20px', background: 'rgba(15, 23, 42, 0.85)', border: '1px solid var(--border)' }}>
+        <div className="card" style={{ margin: 0, padding: '16px 20px', background: 'var(--card-bg)', border: '1px solid var(--border)' }}>
           <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>มูลค่าหุ้น / ต้นทุน</span>
           <div style={{ fontSize: '1.5rem', fontWeight: 800, fontFamily: 'Outfit, sans-serif', color: '#f8fafc', marginTop: '4px' }}>
             {currencySymbol}{(totalHoldingsMarketValueUsd * multiplier).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -354,7 +354,7 @@ export function PortfoliosPage() {
         </div>
 
         {/* KPI 2: Unrealized P&L ("กำไร/ขาดทุน ทิพย์") */}
-        <div className="card" style={{ margin: 0, padding: '16px 20px', background: 'rgba(15, 23, 42, 0.85)', border: '1px solid var(--border)' }}>
+        <div className="card" style={{ margin: 0, padding: '16px 20px', background: 'var(--card-bg)', border: '1px solid var(--border)' }}>
           <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>กำไร/ขาดทุน "ทิพย์"</span>
           <div style={{ fontSize: '1.5rem', fontWeight: 800, fontFamily: 'Outfit, sans-serif', color: totalUnrealizedPnlUsd >= 0 ? 'var(--green)' : 'var(--red)', marginTop: '4px' }}>
             {totalUnrealizedPnlUsd >= 0 ? '+' : ''}{currencySymbol}{(totalUnrealizedPnlUsd * multiplier).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -365,7 +365,7 @@ export function PortfoliosPage() {
         </div>
 
         {/* KPI 3: Realized P&L ("กำไร ล็อคแล้ว") */}
-        <div className="card" style={{ margin: 0, padding: '16px 20px', background: 'rgba(15, 23, 42, 0.85)', border: '1px solid var(--border)' }}>
+        <div className="card" style={{ margin: 0, padding: '16px 20px', background: 'var(--card-bg)', border: '1px solid var(--border)' }}>
           <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>กำไร "ล็อคแล้ว"</span>
           <div style={{ fontSize: '1.5rem', fontWeight: 800, fontFamily: 'Outfit, sans-serif', color: totalRealizedPnlUsd >= 0 ? 'var(--green)' : 'var(--red)', marginTop: '4px' }}>
             {totalRealizedPnlUsd >= 0 ? '+' : ''}{currencySymbol}{(totalRealizedPnlUsd * multiplier).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -374,7 +374,7 @@ export function PortfoliosPage() {
         </div>
 
         {/* KPI 4: Cash Balance & Deposit/Withdraw Action */}
-        <div className="card" style={{ margin: 0, padding: '16px 20px', background: 'rgba(15, 23, 42, 0.85)', border: '1px solid var(--border)' }}>
+        <div className="card" style={{ margin: 0, padding: '16px 20px', background: 'var(--card-bg)', border: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>เงินสดคงเหลือ</span>
             {portfolios.length > 0 && (
@@ -397,7 +397,7 @@ export function PortfoliosPage() {
         </div>
 
         {/* KPI 5: Total Portfolio Value & Dividend Income */}
-        <div className="card" style={{ margin: 0, padding: '16px 20px', background: 'rgba(15, 23, 42, 0.85)', border: '1px solid var(--border)' }}>
+        <div className="card" style={{ margin: 0, padding: '16px 20px', background: 'var(--card-bg)', border: '1px solid var(--border)' }}>
           <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>มูลค่าพอร์ตรวมทั้งหมด</span>
           <div style={{ fontSize: '1.5rem', fontWeight: 800, fontFamily: 'Outfit, sans-serif', color: 'var(--primary)', marginTop: '4px' }}>
             {currencySymbol}{(totalPortfolioValueUsd * multiplier).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -434,7 +434,7 @@ export function PortfoliosPage() {
       )}
 
       {/* ── Add Portfolio Form Section ── */}
-      <div className="card" style={{ background: 'rgba(15, 23, 42, 0.85)', border: '1px solid var(--border)', marginBottom: '24px' }}>
+      <div className="card" style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', marginBottom: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
           <span style={{ fontSize: '1.1rem' }}>➕</span>
           <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--primary)' }}>เพิ่มพอร์ตการลงทุนใหม่ (Create Portfolio)</h3>
@@ -496,7 +496,7 @@ export function PortfoliosPage() {
         <p style={{ color: 'var(--text-muted)' }}>No portfolios yet — add one above.</p>
       ) : (
         filteredPortfolios.map((portfolio) => (
-          <div key={portfolio.id} className="card" style={{ background: 'rgba(15, 23, 42, 0.85)', border: '1px solid var(--border)', marginBottom: '20px' }}>
+          <div key={portfolio.id} className="card" style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', marginBottom: '20px' }}>
             <PortfolioCard
               portfolio={portfolio}
               allPortfolios={portfolios}
@@ -539,7 +539,7 @@ export function PortfoliosPage() {
 
       {/* ── Transaction History Table Section (V2 Mode) ── */}
       {displayMode === 'V2' && allTransactionsList.length > 0 && (
-        <div className="card" style={{ background: 'rgba(15, 23, 42, 0.85)', border: '1px solid var(--border)', marginTop: '28px' }}>
+        <div className="card" style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', marginTop: '28px' }}>
           <h3 style={{ margin: '0 0 16px 0', fontSize: '1.2rem', fontWeight: 700, color: 'var(--primary)' }}>📝 ประวัติรายการซื้อขายทั้งหมด (Transaction History Ledger)</h3>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
@@ -594,7 +594,7 @@ export function PortfoliosPage() {
       {/* ── Modal 1: Cash Deposit / Withdraw Modal ── */}
       {cashModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
-          <div className="card" style={{ width: '100%', maxWidth: '420px', background: '#0f172a', border: '1px solid var(--border)', padding: '24px', borderRadius: '12px' }}>
+          <div className="card" style={{ width: '100%', maxWidth: '420px', background: 'var(--card-bg)', border: '1px solid var(--border)', padding: '24px', borderRadius: '12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>💰 ฝาก / ถอน เงินสดในพอร์ต</h3>
               <button type="button" onClick={() => setCashModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
@@ -663,7 +663,7 @@ export function PortfoliosPage() {
       {/* ── Modal 2: Batch Transaction Modal (V2) ── */}
       {txModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
-          <div className="card" style={{ width: '100%', maxWidth: '500px', background: '#0f172a', border: '1px solid var(--border)', padding: '24px', borderRadius: '12px' }}>
+          <div className="card" style={{ width: '100%', maxWidth: '500px', background: 'var(--card-bg)', border: '1px solid var(--border)', padding: '24px', borderRadius: '12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>➕ บันทึกรายการ ซื้อ/ขาย/ปันผล</h3>
               <button type="button" onClick={() => setTxModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>

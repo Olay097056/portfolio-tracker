@@ -5,14 +5,14 @@ import { RiskBanner } from './RiskBanner';
 // (Telegram ถูกตัดออกตามใบ 09) — เก็บใน localStorage (ยังไม่มีระบบ auth)
 
 const INK = {
-  panel: '#101623',
-  panelBorder: '#1e2940',
-  ink: '#e8eef7',
-  inkDim: '#8b9bb4',
-  inkFaint: '#5a6b85',
-  accent: '#38bdf8',
+  panel: 'var(--panel)',
+  panelBorder: 'var(--border)',
+  ink: 'var(--text)',
+  inkDim: 'var(--text-muted)',
+  inkFaint: 'var(--text-dim)',
+  accent: 'var(--primary)',
   emerald: '#34d399',
-  amber: '#f59e0b',
+  amber: '#fbbf24',
 };
 
 interface AlertPref {
@@ -90,7 +90,7 @@ export function SettingsDashboard() {
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="ชื่อของคุณ"
               style={{
                 width: '100%', padding: '8px 12px', borderRadius: 8, fontSize: '0.85rem',
-                background: '#0d1220', border: `1px solid ${INK.panelBorder}`, color: INK.ink, outline: 'none',
+                background: 'var(--panel)', border: `1px solid ${INK.panelBorder}`, color: INK.ink, outline: 'none',
               }} />
           </div>
           <div>
@@ -98,13 +98,13 @@ export function SettingsDashboard() {
             <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com"
               style={{
                 width: '100%', padding: '8px 12px', borderRadius: 8, fontSize: '0.85rem',
-                background: '#0d1220', border: `1px solid ${INK.panelBorder}`, color: INK.ink, outline: 'none',
+                background: 'var(--panel)', border: `1px solid ${INK.panelBorder}`, color: INK.ink, outline: 'none',
               }} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button onClick={saveProfile} style={{
               padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem',
-              background: INK.accent, border: 'none', color: '#0d1220',
+              background: INK.accent, border: 'none', color: '#ffffff',
             }}>บันทึก</button>
             {saved && <span style={{ color: INK.emerald, fontSize: '0.75rem' }}>✓ บันทึกแล้ว</span>}
           </div>
@@ -118,7 +118,7 @@ export function SettingsDashboard() {
           {prefs.map((p) => (
             <div key={p.id} style={{
               display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px',
-              background: '#0d1220', border: `1px solid ${INK.panelBorder}`, borderRadius: 10,
+              background: 'var(--panel)', border: `1px solid ${INK.panelBorder}`, borderRadius: 10,
             }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: '0.82rem', fontWeight: 700, color: INK.ink }}>{p.label}</div>

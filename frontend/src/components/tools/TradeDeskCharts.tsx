@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getTeamEquity } from '../../api/client';
 
-const INK = { bg:'#0d1220',panel:'#131a2b',panelBorder:'#1e2940',card:'#161e30',text:'#e6ecf5',dim:'#8a97ad',faint:'#5a6b85',green:'#10b981',red:'#ef4444',amber:'#f59e0b',sky:'#38bdf8',gold:'#f5c542' };
+const INK = { bg:'var(--bg)',panel:'var(--panel)',panelBorder:'var(--border)',card:'var(--card-bg)',text:'var(--text)',dim:'var(--text-muted)',faint:'var(--text-dim)',green:'#10b981',red:'#ef4444',amber: '#fbbf24',sky:'#38bdf8',gold:'#f5c542' };
 
 // ── Equity chart (11.4 — ticket 07) ────────────────────────────────────────
 // SVG ล้วน ไม่มี dependency (โปรเจคไม่มี recharts — ห้ามเพิ่ม)

@@ -50,7 +50,7 @@ export function PositionWidget({ ticker, currencyMultiplier, currencySymbol }: P
   return (
     <div style={{
       borderRadius: '12px',
-      background: 'rgba(15, 23, 42, 0.85)',
+      background: 'var(--card-bg)',
       border: '1px solid var(--border)',
       overflow: 'hidden',
       marginTop: '4px',

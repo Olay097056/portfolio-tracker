@@ -23,9 +23,9 @@ const ROOMS: { id: string; label: string; pos: [number, number]; color: string; 
 ];
 
 const INK = {
-  bg: '#0d1220', panel: '#131a2b', panelBorder: '#1e2940',
-  text: '#e6ecf5', inkDim: '#8a97ad', inkFaint: '#5a6b85',
-  green: '#10b981', amber: '#f59e0b', red: '#ef4444', sky: '#38bdf8',
+  bg: 'var(--bg)', panel: 'var(--panel)', panelBorder: 'var(--border)',
+  text: 'var(--text)', inkDim: 'var(--text-muted)', inkFaint: 'var(--text-dim)',
+  green: '#10b981', amber: '#fbbf24', red: '#ef4444', sky: '#38bdf8',
 };
 
 // ── 3D Components ───────────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ function OfficeScene({ onRoomClick }: { onRoomClick: (roomId: string) => void })
       <ambientLight intensity={0.4} />
       <directionalLight position={[10, 15, 10]} intensity={0.6} />
       {/* Grid floor */}
-      <gridHelper args={[16, 16, '#1e2940', '#0d1220']} position={[3, -0.01, 5]} />
+      <gridHelper args={[16, 16, 'var(--border)', 'var(--bg)']} position={[3, -0.01, 5]} />
       {ROOMS.map(room => (
         <group key={room.id} onClick={() => onRoomClick(room.id)}>
           <Room room={room} />

@@ -6,14 +6,14 @@ import type { NewsItem, NewsList } from '../../api/types';
 // Ink palette — same constants as ModelsDashboard/SignalsDashboard (no
 // Tailwind in this app; inline styles matching the reference dark theme).
 const INK = {
-  bg: '#0a0f16',
-  panel: '#101623',
+  bg:'var(--bg)',
+  panel: 'var(--panel)',
   panel2: '#151d2c',
-  edge: '#1e2940',
-  ink: '#e2e8f0',
-  inkDim: '#94a3b8',
-  inkFaint: '#5a6b85',
-  accent: '#38bdf8',
+  edge: 'var(--border)',
+  ink:'var(--text)',
+  inkDim:'var(--text-muted)',
+  inkFaint: 'var(--text-dim)',
+  accent:'var(--primary)',
   up: '#34d399',
   down: '#f87171',
   warn: '#f59e0b',

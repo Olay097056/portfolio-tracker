@@ -30,7 +30,7 @@ const TIER_META: Record<string, { label: string; color: string; bg: string; bord
   },
   manual: {
     label: 'ไม่มีตลาดรอง — ติดตามผ่านอันดับเครดิตและข่าว',
-    color: '#8a97ad',
+    color: 'var(--text-muted)',
     bg: 'rgba(138,151,173,0.12)',
     border: 'rgba(138,151,173,0.35)',
   },
@@ -41,7 +41,7 @@ export function DataTierBadge({ tier, fallback }: DataTierBadgeProps): ReactElem
   const label = meta?.label ?? fallback;
   if (!label) return null;
 
-  const { color, bg, border } = meta ?? { color: '#8a97ad', bg: 'rgba(138,151,173,0.12)', border: 'rgba(138,151,173,0.35)' };
+  const { color, bg, border } = meta ?? { color: 'var(--text-muted)', bg: 'rgba(138,151,173,0.12)', border: 'rgba(138,151,173,0.35)' };
 
   return (
     <span

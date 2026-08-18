@@ -263,7 +263,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
       {/* ── Portfolio summary: shared app theme ── */}
       {activeSubTab === 'portfolios' && (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
-        <div className="card" style={{ margin: 0, padding: '14px 18px', background: 'rgba(15, 23, 42, 0.85)', border: '1px solid var(--border)' }}>
+        <div className="card" style={{ margin: 0, padding: '14px 18px', background: 'var(--card-bg)', border: '1px solid var(--border)' }}>
           <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>กองทุนเซียนหุ้นที่ติดตาม</span>
           <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text)', marginTop: '4px' }}>
             {investors.length} กองทุนหลัก
@@ -271,7 +271,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
           <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Top Super Investors</span>
         </div>
 
-        <div className="card" style={{ margin: 0, padding: '14px 18px', background: 'rgba(15, 23, 42, 0.85)', border: '1px solid var(--border)' }}>
+        <div className="card" style={{ margin: 0, padding: '14px 18px', background: 'var(--card-bg)', border: '1px solid var(--border)' }}>
           <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>ผลตอบแทนสูงสุด 1 ปี</span>
           <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--green)', marginTop: '4px' }}>
             {topPerformer?.performance_1y_pct != null ? `+${topPerformer.performance_1y_pct}%` : '—'}
@@ -281,7 +281,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
           </span>
         </div>
 
-        <div className="card" style={{ margin: 0, padding: '14px 18px', background: 'rgba(15, 23, 42, 0.85)', border: '1px solid var(--border)' }}>
+        <div className="card" style={{ margin: 0, padding: '14px 18px', background: 'var(--card-bg)', border: '1px solid var(--border)' }}>
           <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>มูลค่าพอร์ตรวม (AUM)</span>
           <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--yellow)', marginTop: '4px' }}>
             {totalAumFormatted}
@@ -289,7 +289,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
           <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Combined Portfolio AUM</span>
         </div>
 
-        <div className="card" style={{ margin: 0, padding: '14px 18px', background: 'rgba(15, 23, 42, 0.85)', border: '1px solid var(--border)' }}>
+        <div className="card" style={{ margin: 0, padding: '14px 18px', background: 'var(--card-bg)', border: '1px solid var(--border)' }}>
           <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>13F FILING ที่พบบ่อยที่สุด</span>
           <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--primary)', marginTop: '4px' }}>
             {mostCommonFiling ? mostCommonFiling.replace(/SEC Form 13F \(?|\)$/g, '') : '—'}
@@ -516,7 +516,7 @@ export function InvestorTracker({ currency = 'USD', fxRate = 33.38 }: InvestorTr
                 style={{
                   margin: 0,
                   padding: '20px',
-                  background: 'rgba(15, 23, 42, 0.85)',
+                  background: 'var(--card-bg)',
                   border: '1px solid var(--border)',
                   borderRadius: '12px',
                   display: 'flex',

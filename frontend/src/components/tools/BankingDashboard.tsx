@@ -13,15 +13,15 @@ import type {
 // card. All values come from /api/banking; a missing value renders "—".
 
 const INK = {
-  bg: '#0d1220',
-  panel: '#131a2b',
-  panelBorder: '#1e2940',
-  text: '#e6ecf5',
+  bg: 'var(--bg)',
+  panel: 'var(--panel)',
+  panelBorder: 'var(--border)',
+  text: 'var(--text)',
   textDim: '#c0c8d8',
-  inkDim: '#8a97ad',
-  inkFaint: '#5a6b85',
+  inkDim: 'var(--text-muted)',
+  inkFaint: 'var(--text-dim)',
   green: '#10b981',
-  amber: '#f59e0b',
+  amber: '#fbbf24',
   red: '#ef4444',
   sky: '#38bdf8',
   gold: '#f5c542',

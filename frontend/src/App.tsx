@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { TabStrip } from './components/TabStrip';
+import { ThemeToggle } from './components/ui/ThemeToggle';
 import { DashboardPage } from './pages/DashboardPage';
 import { PortfoliosPage } from './pages/PortfoliosPage';
 import { BondCrisisPage } from './pages/BondCrisisPage';
@@ -44,6 +45,7 @@ export function App() {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <ThemeToggle />
           <span className="badge badge-green" style={{ padding: '4px 10px' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block', boxShadow: '0 0 8px #10b981' }}></span>
             Live Market Server

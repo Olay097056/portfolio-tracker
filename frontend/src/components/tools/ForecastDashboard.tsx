@@ -4,13 +4,13 @@ import type { ModelsDashboard, SimulateResponse, SimulatedModel, SliderSpec } fr
 
 // Ink palette (project-wide, no Tailwind)
 const INK = {
-  bg: '#0a0e14',
-  panel: '#111722',
+  bg:'var(--bg)',
+  panel:'var(--panel)',
   panel2: '#0d1320',
   border: '#1f2937',
-  ink: '#e2e8f0',
-  faint: '#64748b',
-  accent: '#38bdf8',
+  ink:'var(--text)',
+  faint:'var(--text-dim)',
+  accent:'var(--primary)',
   accent2: '#f59e0b',
   emerald: '#34d399',
   red: '#f87171',

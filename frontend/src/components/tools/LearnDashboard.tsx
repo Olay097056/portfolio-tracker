@@ -7,14 +7,14 @@ import { RiskBanner } from './RiskBanner';
 // progress เก็บ localStorage (ไม่มีระบบ auth) + ปุ่ม reset
 
 const INK = {
-  panel: '#101623',
-  panelBorder: '#1e2940',
-  ink: '#e8eef7',
-  inkDim: '#8b9bb4',
-  inkFaint: '#5a6b85',
-  accent: '#38bdf8',
+  panel: 'var(--panel)',
+  panelBorder: 'var(--border)',
+  ink: 'var(--text)',
+  inkDim: 'var(--text-muted)',
+  inkFaint: 'var(--text-dim)',
+  accent:'var(--primary)',
   emerald: '#34d399',
-  amber: '#f59e0b',
+  amber: '#fbbf24',
 };
 
 interface LessonBlock {

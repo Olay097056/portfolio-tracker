@@ -19,16 +19,16 @@ import type {
 // yield-shock #f97316, credit-panic #f87171, bank-run #34d399)
 
 const INK = {
-  panel: '#101623',
+  panel: 'var(--panel)',
   panel2: '#182136',
-  panelBorder: '#1e2940',
-  ink: '#e8eef7',
-  inkDim: '#8b9bb4',
-  inkFaint: '#5a6b85',
-  accent: '#38bdf8',
+  panelBorder: 'var(--border)',
+  ink: 'var(--text)',
+  inkDim: 'var(--text-muted)',
+  inkFaint: 'var(--text-dim)',
+  accent:'var(--primary)',
   emerald: '#34d399',
   red: '#f87171',
-  amber: '#f59e0b',
+  amber: '#fbbf24',
   slate: '#475569',
 };
 

@@ -201,7 +201,7 @@ function IndicatorCard({ indicator }: { indicator: FearGreedIndicator }) {
       style={{
         margin: 0,
         padding: '16px',
-        background: 'rgba(15, 23, 42, 0.85)',
+        background: 'var(--card-bg)',
         border: '1px solid var(--border)',
         display: 'flex',
         flexDirection: 'column',

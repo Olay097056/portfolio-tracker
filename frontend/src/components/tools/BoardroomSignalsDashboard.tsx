@@ -5,14 +5,14 @@ import type { BoardroomStance, BoardroomStancesPayload } from '../../api/types';
 
 // ── palette (inline — ไม่มี Tailwind) ───────────────────────────────────────
 const INK = {
-  bg: '#0b1120',
-  panel: '#111827',
+  bg:'var(--bg)',
+  panel:'var(--panel)',
   panel2: '#1a2332',
   border: '#263042',
-  ink: '#e5e7eb',
-  dim: '#9ca3af',
-  faint: '#6b7280',
-  accent: '#38bdf8',
+  ink:'var(--text)',
+  dim:'var(--text-muted)',
+  faint:'var(--text-dim)',
+  accent:'var(--primary)',
   emerald: '#34d399',
   red: '#f87171',
   amber: '#fbbf24',

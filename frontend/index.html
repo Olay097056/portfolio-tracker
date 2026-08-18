@@ -4,6 +4,24 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Portfolio Tracker</title>
+    <script>
+      // Apply saved theme before first paint (no FOUC).
+      // Must mirror frontend/src/utils/theme.ts. Read order: localStorage -> cookie -> light.
+      (function () {
+        var t = 'light';
+        try {
+          var s = localStorage.getItem('pt_theme');
+          if (s === 'light' || s === 'dark') {
+            t = s;
+          } else {
+            var m = document.cookie.match(/(?:^|;\s*)theme=([^;]*)/);
+            var c = m ? decodeURIComponent(m[1]) : '';
+            if (c === 'light' || c === 'dark') t = c;
+          }
+        } catch (e) { /* storage unavailable */ }
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
     <link rel="stylesheet" href="/src/styles/theme.css" />
   </head>
   <body>

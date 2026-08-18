@@ -13,6 +13,24 @@ from app.trade_desk_service import (
 _stock_market_snapshot = getattr(tds, "_stock_market_snapshot", None)
 
 
+@pytest.fixture()
+def fast_base_context(monkeypatch):
+    """Isolate the slow cold-cache services the base context loads on every turn.
+
+    build_markets is already mocked per-test here (the tests assert on its
+    output); build_dashboard re-fetches 31 FRED series (~5-6s), build_models
+    and fetch_cnn hit live pages — all network-bound and irrelevant to these
+    tests' mechanics. Cache is cleared per test by conftest, so each call pays
+    the full cold start without this fixture.
+    """
+    monkeypatch.setattr(
+        "app.macro_service.build_dashboard",
+        lambda force=False: {"sections": [], "updated_at": None},
+    )
+    monkeypatch.setattr("app.model_service.build_models", lambda: {"models": []})
+    monkeypatch.setattr("app.fear_greed_service.fetch_cnn", lambda: None)
+
+
 class TestStockMarketSnapshot:
     def test_snapshot_contains_real_stocks_not_crypto(self, db_session, monkeypatch):
         """build_markets feeds real S&P 500 movers into the context."""
@@ -36,7 +54,7 @@ class TestStockMarketSnapshot:
         assert "NVDA" in snap and "MU" in snap
         assert "BTC" not in snap
 
-    def test_base_context_includes_stock_snapshot_no_crypto_fg(self, db_session, monkeypatch):
+    def test_base_context_includes_stock_snapshot_no_crypto_fg(self, db_session, monkeypatch, fast_base_context):
         """The shared context every analyst sees carries real stocks and no
         crypto fear/greed (a stock team must not be steered to crypto)."""
         monkeypatch.setattr(
@@ -55,7 +73,7 @@ class TestStockMarketSnapshot:
 
 
 class TestNonUniverseRejection:
-    def test_lead_picking_btc_usd_is_rejected_not_opened(self, db_session, monkeypatch):
+    def test_lead_picking_btc_usd_is_rejected_not_opened(self, db_session, monkeypatch, fast_base_context):
         """If the lead still names a ticker outside the S&P 500 universe, the
         turn must record action=rejected (with reason) and open NO position —
         not silently do nothing while claiming an open."""
@@ -94,7 +112,7 @@ class TestNonUniverseRejection:
             TradePosition.team_id == team.id).all()
         assert positions == []
 
-    def test_lead_picking_aapl_opens_position(self, db_session, monkeypatch):
+    def test_lead_picking_aapl_opens_position(self, db_session, monkeypatch, fast_base_context):
         """A valid S&P 500 ticker with a real price still opens normally."""
         seed_team(db_session)
         team = db_session.query(TradeTeam).filter(TradeTeam.code == "DEEPSEEK").first()

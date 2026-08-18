@@ -6,9 +6,37 @@ the AI sees it. We stub llm_call and assert on the arguments passed.
 
 from unittest.mock import patch
 
+import pytest
+
 from app.trade_desk_service import (
     TradeTeam, run_turn, _DEFAULT_TREND_PROMPT,
 )
+
+
+@pytest.fixture()
+def fast_base_context(monkeypatch):
+    """Isolate the slow cold-cache services the base context loads on every turn.
+
+    build_markets downloads all 503 S&P constituents from yfinance (~12s),
+    build_dashboard re-fetches 31 FRED series (~5-6s) and fetch_cnn hits the
+    CNN Fear & Greed page — all network-bound and irrelevant to these tests'
+    mechanics. Cache is cleared per test by conftest, so each call pays the
+    full cold start without this fixture.
+    """
+    monkeypatch.setattr(
+        "app.stock_universe_service.build_markets",
+        lambda force=False: {"markets": [], "total": 0, "by_sector": {}, "updated_at": None},
+    )
+    monkeypatch.setattr(
+        "app.stock_universe_service.fetch_fundamentals",
+        lambda force=False: {},
+    )
+    monkeypatch.setattr(
+        "app.macro_service.build_dashboard",
+        lambda force=False: {"sections": [], "updated_at": None},
+    )
+    monkeypatch.setattr("app.model_service.build_models", lambda: {"models": []})
+    monkeypatch.setattr("app.fear_greed_service.fetch_cnn", lambda: None)
 
 
 def _fake_llm(system_prompt: str, user_prompt: str, **kwargs):
@@ -29,7 +57,7 @@ def _make_team(db, directive=None, mandate=None):
 
 
 class TestDirectiveReachesLLM:
-    def test_directive_in_lead_prompt(self, db_session):
+    def test_directive_in_lead_prompt(self, db_session, fast_base_context):
         """Directive text must appear in the user_prompt sent to llm_call."""
         team = _make_team(db_session, directive="งดเทรดตอนข่าว FOMC โดยเด็ดขาด")
 
@@ -46,7 +74,7 @@ class TestDirectiveReachesLLM:
         # directive must be in the context sent to the lead
         assert "งดเทรดตอนข่าว FOMC" in captured["user_prompt"]
 
-    def test_mandate_in_lead_prompt(self, db_session):
+    def test_mandate_in_lead_prompt(self, db_session, fast_base_context):
         """Mandate text must also reach the LLM."""
         team = _make_team(db_session, mandate="ลู่ทีม: เน้นเทรดทองคำช่วงข่าว FOMC")
 
@@ -61,7 +89,7 @@ class TestDirectiveReachesLLM:
 
         assert "ลู่ทีม: เน้นเทรดทองคำ" in captured["user_prompt"]
 
-    def test_no_directive_means_no_directive_section(self, db_session):
+    def test_no_directive_means_no_directive_section(self, db_session, fast_base_context):
         """No directive set → context must not contain a fake empty section."""
         team = _make_team(db_session, directive=None, mandate=None)
 

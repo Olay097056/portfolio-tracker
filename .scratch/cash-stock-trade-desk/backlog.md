@@ -32,7 +32,11 @@ mock 4 service หนักดังกล่าว → ตัวเลข:
 
 - ไม่แตะ logic production — แค่ test เร็วขึ้น
 - `test_markets_endpoint_returns_stock_shape` ยังรัน `build_markets` จริง
-  (~15s) เพราะเป็นการทดสอบ endpoint ที่ควรเห็นของจริง — ตั้งใจปล่อยไว้
-- ถ้าต้องการให้ `hermes verify` เข้าต่ำกว่า ~5 นาที: เพิ่ม `--durations`
-  ลง pytest args ใน `.hermes/environment.json` หรือหั่น test network
-  กลุ่มอื่น (SEC investors, macro) ต่อ
+  (~14s) เพราะเป็นการทดสอบ endpoint ที่ควรเห็นของจริง — ตั้งใจปล่อยไว้
+- รอบ 2 (2026-08-18): เจอตัวร้ายตัวจริงเพิ่ม — `fetch_fundamentals()`
+  ดาวน์โหลด yfinance 503 ตัว ~11.8s/รอบ × 6 analyst loop = ~70s/test
+  ใน `test_trade_desk_directive.py` → เพิ่ม mock ใน fixture ด้วย
+  ผลลัพธ์รอบเต็ม: 596 passed ใน **42.3s** (จากเดิม 539.8s = เร็วกว่า 12.8 เท่า)
+- ถ้าต้องการให้ `hermes verify` เข้าต่ำกว่า ~1 นาที: mock `build_markets`
+  ใน `test_markets_endpoint_returns_stock_shape` ด้วย (เสีย real-data
+  coverage ไป 1 จุด) หรือแยกเป็น "smoke test" รันคืนละครั้ง

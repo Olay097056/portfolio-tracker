@@ -16,6 +16,8 @@ Mandatory tests (per ticket):
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
+import pytest
+
 from app.trade_desk_service import (
     TradeTeam, TradeTurn,
     ensure_weekly_target, ensure_daily_summary, ensure_monthly_summary,
@@ -59,6 +61,28 @@ def _fake_llm(system, user, **kwargs):
             {"prompt_tokens": 100, "completion_tokens": 50}, 0.1)
 
 
+@pytest.fixture()
+def fast_base_context(monkeypatch):
+    """Isolate the slow cold-cache services the base context loads on every target.
+
+    build_markets downloads all 503 S&P constituents from yfinance (~12s),
+    build_dashboard re-fetches 31 FRED series (~5-6s) and fetch_cnn hits the
+    CNN Fear & Greed page — all network-bound and irrelevant to these tests'
+    mechanics. Cache is cleared per test by conftest, so each call pays the
+    full cold start without this fixture.
+    """
+    monkeypatch.setattr(
+        "app.stock_universe_service.build_markets",
+        lambda force=False: {"markets": [], "total": 0, "by_sector": {}, "updated_at": None},
+    )
+    monkeypatch.setattr(
+        "app.macro_service.build_dashboard",
+        lambda force=False: {"sections": [], "updated_at": None},
+    )
+    monkeypatch.setattr("app.model_service.build_models", lambda: {"models": []})
+    monkeypatch.setattr("app.fear_greed_service.fetch_cnn", lambda: None)
+
+
 class TestDailySummaryIdempotence:
     def test_100_ticks_same_day_one_call(self, db_session):
         team = _make_team(db_session)
@@ -96,7 +120,7 @@ class TestDailySummaryIdempotence:
 
 
 class TestWeeklyTargetIdempotence:
-    def test_100_ticks_same_week_one_call(self, db_session):
+    def test_100_ticks_same_week_one_call(self, db_session, fast_base_context):
         team = _make_team(db_session)
         calls = []
         with patch("app.trade_desk_service.llm_call",
@@ -105,7 +129,7 @@ class TestWeeklyTargetIdempotence:
                 ensure_weekly_target(db_session, team, now=TODAY)
         assert len(calls) == 1, f"weekly target called LLM {len(calls)} times for 100 ticks!"
 
-    def test_next_week_adds_one_more_call(self, db_session):
+    def test_next_week_adds_one_more_call(self, db_session, fast_base_context):
         team = _make_team(db_session)
         calls = []
         with patch("app.trade_desk_service.llm_call",
@@ -114,7 +138,7 @@ class TestWeeklyTargetIdempotence:
             ensure_weekly_target(db_session, team, now=NEXT_WEEK)
         assert len(calls) == 2
 
-    def test_target_written_to_team(self, db_session):
+    def test_target_written_to_team(self, db_session, fast_base_context):
         team = _make_team(db_session)
         with patch("app.trade_desk_service.llm_call", side_effect=_fake_llm):
             r = ensure_weekly_target(db_session, team, now=TODAY)
@@ -122,7 +146,7 @@ class TestWeeklyTargetIdempotence:
         assert r["set"] is True
         assert team.weekly_target_pct == 2.5
 
-    def test_directive_in_context_when_setting_target(self, db_session):
+    def test_directive_in_context_when_setting_target(self, db_session, fast_base_context):
         """User directive must be visible to the LLM when it sets the target."""
         team = _make_team(db_session, directive="งดเทรดตอนข่าว FOMC")
         captured = {}
@@ -135,7 +159,7 @@ class TestWeeklyTargetIdempotence:
 
 
 class TestMasterSwitchGatesSummaries:
-    def test_master_off_zero_llm_calls_first_tick_of_week(self, db_session):
+    def test_master_off_zero_llm_calls_first_tick_of_week(self, db_session, fast_base_context):
         team = _make_team(db_session, master_on=0)
         calls = []
         with patch("app.trade_desk_service.llm_call",
@@ -146,7 +170,7 @@ class TestMasterSwitchGatesSummaries:
         assert r["skipped"] == "master_off_or_inactive"
         assert calls == [], f"master off leaked {len(calls)} LLM calls!"
 
-    def test_master_on_one_call_then_week_rest_zero(self, db_session):
+    def test_master_on_one_call_then_week_rest_zero(self, db_session, fast_base_context):
         team = _make_team(db_session, master_on=1)
         calls = []
         with patch("app.trade_desk_service.llm_call",

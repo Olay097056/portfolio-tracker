@@ -1,27 +1,38 @@
-# Backlog — cash-stock-trade-desk (perp → หุ้นเงินสด S&P 500)
+# Trade desk test performance — root cause & fix (2026-08-18)
 
-## Screener (2026-08-13 — วัดแล้ว ไม่ทำตอนนี้)
+## อาการ
 
-`POST /api/screener/stocks` บน prod ยิงตรง payload เปล่า → **total: 986** (ไม่ใช่ 0)
-"0" ที่เห็นมาจากตัวกรองชื่อไม่ตรง ไม่ใช่ endpoint พัง:
+Full backend suite ใช้เวลา 539.8s (8:59); `hermes verify` เกือบชน timeout
+600s (445–540s ต่อรอบ) และดูเหมือนค้างเพราะไม่มี output ระหว่าง test
 
-- `sector: "Information Technology"` → 0 (DB ใช้ "Technology", 93 แถว)
-- `sector: "Consumer Discretionary"` → 0 (DB ใช้ "Consumer Cyclical", 36)
-- `sector: "Health Care"` → 0 (DB ใช้ "Healthcare", 170)
-- `searchQuery: "AAPL"` → 0 (ตาราง 986 ตัวไม่มี mega-cap — skew small/mid-cap)
-- `preset: "cloud"` / `"robotics"` → 0 (industry Software = 0 แถว, tags ว่าง)
-- **ไม่มี UI caller** (มีแค่ `/search` typeahead; ToolsPage ไม่มีหน้า Screener) → ไม่มีใครเดือดร้อน
+## ต้นเหตุ (พิสูจน์ด้วย cProfile)
 
-ทางแก้ที่เป็นไปได้ (ยังไม่ทำ): normalize sector mapping + distinct sector list ให้ UI ใช้
+- `run_turn()` / `ensure_weekly_target()` เรียก `_build_base_context()`
+  ซึ่งรัน service หนักทุกครั้ง:
+  - `build_markets()` → yfinance.download S&P 503 ตัว ~12s (1,098× sleep)
+  - `build_dashboard()` → FRED 31 ซีรีส์ ~5–6s
+  - `fetch_cnn()` → CNN Fear & Greed หน้าเว็บ ~1–2s
+- conftest `_fresh_cache_per_test` ล้าง DB cache ทุก test → ทุก test จ่าย
+  cold start เต็ม → test ตัวละ 22–27s
+- test เคย mock `llm_call`/`_run_analyst`/`get_prices_for_symbols`/
+  `fetch_fundamentals` แต่ **ลืม mock `build_markets`/`build_dashboard`/
+  `build_models`/`fetch_cnn`**
 
-## Layer 3 — แหล่ง fundamental (รอ user เคาะ 2026-08-13)
+## แก้
 
-S&P 500 503 · screener_stocks 986 · **ทับกันแค่ 95 (18.9%)** · mega-cap ใน screener = JPM ตัวเดียว
-ไม่มี AAPL MSFT NVDA AMZN META GOOGL TSLA AVGO → ใช้เป็นแหล่ง fundamental ของ Layer 3 ไม่ได้
+เพิ่ม fixture `fast_base_context` ใน 4 ไฟล์ test (cash/pending/summaries/turn)
+mock 4 service หนักดังกล่าว → ตัวเลข:
 
-ทางเลือก:
-- **ก.** ดึง fundamental S&P 500 ทั้ง 503 จาก yfinance `.info` (trailingPE/marketCap/sector) — ท่อเดียวกับ Layer 1 ไม่พึ่ง Finnhub
-- **ข.** ไม่ใช้ fundamental เลย — AI ตัดสินจาก TA + ราคา + เซกเตอร์ (มีครบ 503 จาก Layer 1)
-- **ค.** รัน refresh_screener ใหม่ universe=S&P 500 แต่ต้องแก้สคริปต์ให้เขียน Postgres ก่อน
+| กลุ่ม | ก่อน | หลัง |
+|---|---|---|
+| 4 ไฟล์ trade desk | 191.4s | 1.44s |
+| Full backend suite | 539.8s | 311.7s |
 
-(ผู้ช่วยเอนไปทาง ก. — รอ user ตัดสินใจ)
+## หมายเหตุ
+
+- ไม่แตะ logic production — แค่ test เร็วขึ้น
+- `test_markets_endpoint_returns_stock_shape` ยังรัน `build_markets` จริง
+  (~15s) เพราะเป็นการทดสอบ endpoint ที่ควรเห็นของจริง — ตั้งใจปล่อยไว้
+- ถ้าต้องการให้ `hermes verify` เข้าต่ำกว่า ~5 นาที: เพิ่ม `--durations`
+  ลง pytest args ใน `.hermes/environment.json` หรือหั่น test network
+  กลุ่มอื่น (SEC investors, macro) ต่อ

@@ -9,6 +9,8 @@ The three expensive traps this guards:
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
+import pytest
+
 from app.trade_desk_service import (
     TradeTeam, TradePendingOrder, TradePosition, TradeTurn,
     settle_pending_orders, run_due_turns, run_turn,
@@ -39,6 +41,28 @@ def _add_pending(db, team, symbol="BTC-USD", otype="LIMIT", side="long",
     db.add(o)
     db.commit()
     return o
+
+
+@pytest.fixture()
+def fast_base_context(monkeypatch):
+    """Isolate the slow cold-cache services the base context loads on every turn.
+
+    build_markets downloads all 503 S&P constituents from yfinance (~12s),
+    build_dashboard re-fetches 31 FRED series (~5-6s) and fetch_cnn hits the
+    CNN Fear & Greed page — all network-bound and irrelevant to these tests'
+    mechanics. Cache is cleared per test by conftest, so each call pays the
+    full cold start without this fixture.
+    """
+    monkeypatch.setattr(
+        "app.stock_universe_service.build_markets",
+        lambda force=False: {"markets": [], "total": 0, "by_sector": {}, "updated_at": None},
+    )
+    monkeypatch.setattr(
+        "app.macro_service.build_dashboard",
+        lambda force=False: {"sections": [], "updated_at": None},
+    )
+    monkeypatch.setattr("app.model_service.build_models", lambda: {"models": []})
+    monkeypatch.setattr("app.fear_greed_service.fetch_cnn", lambda: None)
 
 
 class TestSettleNeverCallsLLM:
@@ -141,7 +165,7 @@ class TestMasterSwitch:
             TradePosition.team_id == team.id).first()
         assert pos is not None
 
-    def test_master_on_normal_turn(self, db_session):
+    def test_master_on_normal_turn(self, db_session, fast_base_context):
         team = _make_team(db_session, master_on=1)
         team.next_turn_at = datetime.now(timezone.utc) - timedelta(hours=1)
         db_session.commit()

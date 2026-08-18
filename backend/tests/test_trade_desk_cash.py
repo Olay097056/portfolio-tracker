@@ -10,6 +10,8 @@ Guards the mechanics that did not exist before:
 from datetime import datetime, timezone
 from unittest.mock import patch
 
+import pytest
+
 from app.trade_desk_service import (
     TradeTeam, TradePosition, settle_open_positions,
 )
@@ -45,8 +47,30 @@ def _open_pos(db, team, symbol="AAPL", side="long", entry=100.0, qty=5.0,
     return p
 
 
+@pytest.fixture()
+def fast_base_context(monkeypatch):
+    """Isolate the slow cold-cache services the base context loads on every turn.
+
+    build_markets downloads all 503 S&P constituents from yfinance (~12s),
+    build_dashboard re-fetches 31 FRED series (~5-6s) and fetch_cnn hits the
+    CNN Fear & Greed page — all network-bound and irrelevant to these tests'
+    mechanics. Cache is cleared per test by conftest, so each call pays the
+    full cold start without this fixture.
+    """
+    monkeypatch.setattr(
+        "app.stock_universe_service.build_markets",
+        lambda force=False: {"markets": [], "total": 0, "by_sector": {}, "updated_at": None},
+    )
+    monkeypatch.setattr(
+        "app.macro_service.build_dashboard",
+        lambda force=False: {"sections": [], "updated_at": None},
+    )
+    monkeypatch.setattr("app.model_service.build_models", lambda: {"models": []})
+    monkeypatch.setattr("app.fear_greed_service.fetch_cnn", lambda: None)
+
+
 class TestOpenReservesCash:
-    def test_market_open_reserves_notional(self, db_session):
+    def test_market_open_reserves_notional(self, db_session, fast_base_context):
         """Opening a long via run_turn deducts cost from balance, sets quantity."""
         from app.trade_desk_service import run_turn
         team = _make_team(db_session)  # balance 10000

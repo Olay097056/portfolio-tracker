@@ -76,6 +76,13 @@ class TestManualTurnEndpoint:
                            lambda syms: {})
         monkeypatch.setattr("app.stock_universe_service.fetch_fundamentals",
                            lambda force=False: {})
+        # isolate the slow cold-cache services the base context loads on every turn
+        monkeypatch.setattr("app.stock_universe_service.build_markets",
+                           lambda force=False: {"markets": [], "total": 0, "by_sector": {}, "updated_at": None})
+        monkeypatch.setattr("app.macro_service.build_dashboard",
+                           lambda force=False: {"sections": [], "updated_at": None})
+        monkeypatch.setattr("app.model_service.build_models", lambda: {"models": []})
+        monkeypatch.setattr("app.fear_greed_service.fetch_cnn", lambda: None)
 
         resp = client.post("/api/trade-desk/turn?team_code=DEEPSEEK&agenda=test+agenda")
         assert resp.status_code == 200
